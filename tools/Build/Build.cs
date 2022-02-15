@@ -24,6 +24,20 @@ Target("artifactDirectories", () =>
     Directory.CreateDirectory(logsDir);
 });
 
+Target("restore-tools", () =>
+{
+    Run("dotnet",
+        "tool restore",
+        workingDirectory: msbuild.ProjectDir);
+});
+
+Target("update-packages", DependsOn("restore-tools"), () =>
+{
+    Run("dotnet",
+        $"update --path {solutionFile}",
+        workingDirectory: msbuild.ProjectDir);
+});
+
 Target("build", DependsOn("artifactDirectories"), async () =>
 {
     var version = await GetVersionAsync();
@@ -38,7 +52,7 @@ Target("test", DependsOn("build"), () =>
         $"test --configuration Release --no-build \"{testProject}\"");
 });
 
-Target("default", DependsOn("test"));
+Target("default", DependsOn("test", "restore-tools"));
 
 await RunTargetsAndExitAsync(args);
 
