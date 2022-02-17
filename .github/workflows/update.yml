@@ -1,9 +1,6 @@
 name: Update packages
 
-on:
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 0 * * MON' # At 00:00, only on Monday
+on: [ push ]
 
 jobs:
   update-packages:
