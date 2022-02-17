@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+  <PropertyGroup>
     <PackageId>UpdatR.Update.Cli</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>update</ToolCommandName>
@@ -17,7 +17,7 @@
     <RepositoryUrl>https://github.com/OskarKlintrot/UpdatR</RepositoryUrl>
     <PackageOutputPath>$(SolutionDir)/Artifacts</PackageOutputPath>
     <PackageOutputPath Condition=" $(BUILD_ARTIFACTSTAGINGDIRECTORY) != '' ">$(BUILD_ARTIFACTSTAGINGDIRECTORY)/drop</PackageOutputPath>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
