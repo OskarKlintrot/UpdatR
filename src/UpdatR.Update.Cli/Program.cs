@@ -384,8 +384,9 @@ internal static partial class Program
         var content = await File.ReadAllTextAsync(solution.FullName);
 
         return Regex
-            .Matches(content, @"(Project).*(?<="")(?<Package>\S*\.csproj)(?="")", RegexOptions.Multiline)
-            .Select(x => Path.Combine(solution.DirectoryName!, x.Groups["Package"].Value))
+            .Matches(content, @"(Project).*(?<="")(?<Project>\S*\.csproj)(?="")", RegexOptions.Multiline)
+            .Select(x => Path.Combine(x.Groups["Project"].Value.Split('\\'))) // sln has windows-style paths, will not work on linux
+            .Select(x => Path.Combine(solution.DirectoryName!, x))
             .Select(x => new FileInfo(x))
             .Where(x => x.Exists);
     }

@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "UpdatR.Update.Cli": {
+      "commandName": "Project"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "environmentVariables": {},
+      "commandLineArgs": "UpdatR.Update.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.sln --verbosity Debug",
+      "distributionName": "Ubuntu"
+    }
+  }
+}
