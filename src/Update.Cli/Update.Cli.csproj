@@ -1,47 +1,40 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net6.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-	</PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
 
-	<PropertyGroup>
-		<AnalysisLevel>latest-Recommended</AnalysisLevel>
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-		<WarningsAsErrors />
-	</PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <PackageId>UpdatR.Update.Cli</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>update</ToolCommandName>
+    <Authors>Oskar Klintrot</Authors>
+    <Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
+    <Copyright>Copyright (c) Oskar Klintrot 2022</Copyright>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
+    <RepositoryUrl>https://github.com/OskarKlintrot/UpdatR</RepositoryUrl>
+    <PackageOutputPath>$(SolutionDir)/Artifacts</PackageOutputPath>
+    <PackageOutputPath Condition=" $(BUILD_ARTIFACTSTAGINGDIRECTORY) != '' ">$(BUILD_ARTIFACTSTAGINGDIRECTORY)/drop</PackageOutputPath>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-		<PackageId>UpdatR.Update.Cli</PackageId>
-		<PackAsTool>true</PackAsTool>
-		<ToolCommandName>update</ToolCommandName>
-		<Authors>Oskar Klintrot</Authors>
-		<Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
-		<Copyright>Copyright (c) Oskar Klintrot 2022</Copyright>
-		<PackageIcon>icon.png</PackageIcon>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
-		<RepositoryUrl>https://github.com/OskarKlintrot/UpdatR</RepositoryUrl>
-		<PackageOutputPath>$(SolutionDir)/Artifacts</PackageOutputPath>
-		<PackageOutputPath Condition=" $(BUILD_ARTIFACTSTAGINGDIRECTORY) != '' ">$(BUILD_ARTIFACTSTAGINGDIRECTORY)/drop</PackageOutputPath>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-	</PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NuGet.Credentials" Version="6.0.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.0.0" />
+    <PackageReference Include="NuGet.Versioning" Version="6.0.0" />
+    <PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.22111.2" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="NuGet.Credentials" Version="6.0.0" />
-		<PackageReference Include="NuGet.Protocol" Version="6.0.0" />
-		<PackageReference Include="NuGet.Versioning" Version="6.0.0" />
-		<PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.22111.2" />
-	</ItemGroup>
+  <ItemGroup>
+    <None Include="images\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<None Include="images\icon.png" Pack="true" PackagePath="\" />
-	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
-	</ItemGroup>
+  <Import Project="..\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
 
 </Project>
