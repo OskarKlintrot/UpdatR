@@ -13,6 +13,7 @@
     <Copyright>Copyright (c) Oskar Klintrot 2022</Copyright>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/docs/release-notes.txt"))</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
     <RepositoryUrl>https://github.com/OskarKlintrot/UpdatR</RepositoryUrl>
