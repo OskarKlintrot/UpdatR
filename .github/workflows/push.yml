@@ -9,6 +9,7 @@ jobs:
   push-packages:
 
     runs-on: ubuntu-latest
+    environment: Push package
 
     steps:
     - uses: actions/checkout@v2
