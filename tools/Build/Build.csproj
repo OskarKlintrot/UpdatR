@@ -12,13 +12,6 @@
     <PackageReference Include="SimpleExec" Version="9.0.0-rc.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="MsBuildConfigurationAttribute">
-      <_Parameter1>$(ProjectDir)</_Parameter1>
-      <_Parameter2>$(Configuration)</_Parameter2>
-    </AssemblyAttribute>
-  </ItemGroup>
-
   <Import Project="..\..\src\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
 
 </Project>
