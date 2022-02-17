@@ -53,9 +53,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         throw new NotImplementedException();
     }
 
-    var (message, _) = await ReadAsync(
-        "git",
-        "status");
+    var (message, _) = await ReadAsync("git", "status");
 
     var dirty = !message.Contains("nothing to commit, working tree clean", StringComparison.OrdinalIgnoreCase);
 
@@ -76,7 +74,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
     await RunAsync(
         "git",
-        "switch -c update");
+        "checkout -b update");
 
     await RunAsync(
         "git",
@@ -84,8 +82,9 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
     await RunAsync(
         "git",
-        "push --set-upstream origin update");
+        "push --set-upstream origin update --force");
 
+    const int repositoryId = 459606942;
     var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
 
     if (string.IsNullOrWhiteSpace(githubToken))
@@ -96,10 +95,34 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
     InMemoryCredentialStore credentials = new(new Credentials(githubToken));
     GitHubClient client = new(new ProductHeaderValue("UpdatR.Build"), credentials);
 
-    await client.PullRequest.Create("OskarKlintrot", "UpdatR", new NewPullRequest("📦 Update packages", "update", "main")
+    var prs = await client.PullRequest.GetAllForRepository(
+        repositoryId,
+        new PullRequestRequest
+        {
+            Base = "main",
+            Head = "update",
+            State = ItemStateFilter.Open
+        });
+
+    if (prs.Count == 0)
     {
-        Body = "PR created automatically by UpdatR."
-    });
+        await client.PullRequest.Create(repositoryId, new NewPullRequest("📦 Update packages", "update", "main")
+        {
+            Body = "PR created automatically by UpdatR."
+        });
+    }
+    else if (prs.Count == 1)
+    {
+        await client.PullRequest.Update(repositoryId, prs[0].Number, new PullRequestUpdate
+        {
+            Title = "📦 Update packages",
+            Body = "PR created automatically by UpdatR."
+        });
+    }
+    else
+    {
+        throw new InvalidOperationException("Found multiple open PR:s from UpdatR, how did that happen?");
+    }
 });
 
 Target("build", DependsOn("artifactDirectories"), async () =>
