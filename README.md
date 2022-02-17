@@ -1,4 +1,4 @@
-[![Tests Passing](https://github.com/OskarKlintrot/UpdatR/actions/workflows/test.yml/badge.svg)](https://github.com/OskarKlintrot/UpdatR/actions/workflows/test.yml)
+[![build](https://github.com/OskarKlintrot/UpdatR/actions/workflows/build.yml/badge.svg)](https://github.com/OskarKlintrot/UpdatR/actions/workflows/build.yml)
 
 # UpdatR
 
