@@ -6,7 +6,7 @@ on:
     - cron:  '0 0 * * MON' # At 00:00, only on Monday
 
 jobs:
-  build:
+  update-packages:
 
     runs-on: ubuntu-latest
 

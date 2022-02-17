@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text.RegularExpressions;
 using BuildingBlocks;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
@@ -7,6 +8,13 @@ using Octokit;
 using Octokit.Internal;
 using static Bullseye.Targets;
 using static SimpleExec.Command;
+
+var runsOnGitHubActions = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
+
+if (runsOnGitHubActions)
+{
+    Console.WriteLine("Running on GitHub Actions.");
+}
 
 var msbuild = Assembly
     .GetEntryAssembly()!
@@ -63,7 +71,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
     await RunAsync(
         "git",
-        "checkout -b update");
+        "switch -c update");
 
     await RunAsync(
         "git",
@@ -164,13 +172,26 @@ Target("default", DependsOn("test", "restore-tools"));
 
 await RunTargetsAndExitAsync(args);
 
-static async Task<NuGetVersion> GetVersionAsync()
+async Task<NuGetVersion> GetVersionAsync()
 {
-    var (stdOutput, stdError) = await ReadAsync("git", "describe --abbrev=0 --tags");
+    var tag = string.Empty;
 
-    return NuGetVersion.TryParse(stdOutput[1..], out var version)
+    if (runsOnGitHubActions)
+    {
+        var (tags, _) = await ReadAsync("git", "ls-remote --tags --refs origin");
+
+        var firstLine = tags.Split(Environment.NewLine)[0];
+
+        tag = Regex.Match(firstLine, @"refs\/tags\/(?<Tag>.*)").Groups["Tag"].Value;
+    }
+    else
+    {
+        (tag, _) = await ReadAsync("git", "describe --abbrev=0 --tags");
+    }
+
+    return NuGetVersion.TryParse(tag[1..], out var version)
         ? version
-        : throw new InvalidOperationException("Invalid version.");
+        : throw new InvalidOperationException($"$Invalid version: {tag}.");
 }
 
 static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
