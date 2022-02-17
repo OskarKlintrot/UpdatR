@@ -1,4 +1,4 @@
-[![Build](https://github.com/OskarKlintrot/UpdatR/actions/workflows/dotnet.yml/badge.svg)](https://github.com/OskarKlintrot/UpdatR/actions/workflows/dotnet.yml)
+[![Tests Passing](https://github.com/OskarKlintrot/UpdatR/actions/workflows/test.yml/badge.svg)](https://github.com/OskarKlintrot/UpdatR/actions/workflows/test.yml)
 
 # UpdatR
 
