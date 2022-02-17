@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using BuildingBlocks;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
@@ -16,14 +15,11 @@ if (runsOnGitHubActions)
     Console.WriteLine("Running on GitHub Actions.");
 }
 
-var msbuild = Assembly
-    .GetEntryAssembly()!
-    .GetCustomAttribute<MsBuildConfigurationAttribute>()!;
-
 var rootDir = await GetRepoRootDirectoryAsync();
 
 Directory.SetCurrentDirectory(rootDir.FullName);
 
+var buildToolDir = Path.GetFullPath(Path.Combine("tools", "Build"));
 var artifactsDir = Path.GetFullPath("Artifacts");
 var logsDir = Path.Combine(artifactsDir, "logs");
 var buildLogFile = Path.Combine(logsDir, "build.binlog");
@@ -40,34 +36,43 @@ Target("restore-tools", () =>
 {
     Run("dotnet",
         "tool restore",
-        workingDirectory: msbuild.ProjectDir);
+        workingDirectory: buildToolDir);
 });
 
 Target("update-packages", DependsOn("restore-tools"), () =>
 {
     Run("dotnet",
-        $"update --path {solutionFile}",
-        workingDirectory: msbuild.ProjectDir);
+        $"update --path {solutionFile} --verbosity Verbose",
+        workingDirectory: buildToolDir);
 });
 
 Target("create-update-pr", DependsOn("update-packages"), async () =>
 {
-    var (userName, _) = await ReadAsync(
-        "git",
-        "config user.name");
-
-    Console.WriteLine($"git user.name: {userName}");
-
-    if (string.IsNullOrWhiteSpace(userName))
+    if (!runsOnGitHubActions)
     {
-        await RunAsync(
-            "git",
-            "config user.name \"GitHub Actions Bot\"");
-
-        await RunAsync(
-            "git",
-            "config git config user.name \"GitHub Actions Bot\"");
+        throw new NotImplementedException();
     }
+
+    var (message, _) = await ReadAsync(
+        "git",
+        "status");
+
+    var dirty = !message.Contains("nothing to commit, working tree clean", StringComparison.OrdinalIgnoreCase);
+
+    if (!dirty)
+    {
+        Console.WriteLine("No changes made.");
+
+        return;
+    }
+
+    await RunAsync(
+        "git",
+        "config user.name \"GitHub Actions Bot\"");
+
+    await RunAsync(
+        "git",
+        "config user.email \"<>\"");
 
     await RunAsync(
         "git",
@@ -199,17 +204,4 @@ static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
     var (stdOutput, stdError) = await ReadAsync("git", "rev-parse --show-toplevel");
 
     return new DirectoryInfo(stdOutput.Trim());
-}
-
-[AttributeUsage(AttributeTargets.Assembly, Inherited = false, AllowMultiple = false)]
-internal sealed class MsBuildConfigurationAttribute : Attribute
-{
-    public string ProjectDir { get; }
-    public string Configuration { get; }
-
-    public MsBuildConfigurationAttribute(string projectDir, string configuration)
-    {
-        ProjectDir = projectDir;
-        Configuration = configuration;
-    }
 }

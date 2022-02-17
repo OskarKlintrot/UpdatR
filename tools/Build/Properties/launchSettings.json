@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Build": {
+      "commandName": "Project"
+    },
+    "Build-WSL2": {
+      "commandName": "WSL",
+      "commandLineArgs": "Build.dll update-packages",
+      "distributionName": "Ubuntu"
+    }
+  }
+}
