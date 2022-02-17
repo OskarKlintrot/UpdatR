@@ -25,8 +25,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.Tests", "test
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gh-workflows", "gh-workflows", "{83E87026-64D7-4324-AC20-A3CBF5831DE6}"
 	ProjectSection(SolutionItems) = preProject
+		.github\workflows\build.yml = .github\workflows\build.yml
 		.github\workflows\push.yml = .github\workflows\push.yml
-		.github\workflows\test.yml = .github\workflows\test.yml
 		.github\workflows\update.yml = .github\workflows\update.yml
 	EndProjectSection
 EndProject

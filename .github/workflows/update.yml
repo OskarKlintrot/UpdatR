@@ -1,4 +1,4 @@
-name: Update packages
+name: update packages
 
 on:
   schedule:
