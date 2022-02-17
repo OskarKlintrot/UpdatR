@@ -28,7 +28,7 @@ var artifactsDir = Path.GetFullPath("Artifacts");
 var logsDir = Path.Combine(artifactsDir, "logs");
 var buildLogFile = Path.Combine(logsDir, "build.binlog");
 
-var solutionFile = Path.Combine(rootDir.FullName, "src", "Update.sln");
+var solutionFile = Path.Combine(rootDir.FullName, "UpdatR.sln");
 
 Target("artifactDirectories", () =>
 {

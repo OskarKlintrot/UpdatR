@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Update.Tests;
+namespace UpdatR.Update.Tests;
 public class UnitTest1
 {
     [Fact]

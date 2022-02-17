@@ -11,7 +11,7 @@ using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using BuildingBlocks;
 
-namespace Update.Cli;
+namespace UpdatR.Update.Cli;
 
 internal static partial class Program
 {
@@ -68,7 +68,7 @@ internal static partial class Program
 
             doc.Load(project.Key.FullName);
 
-            bool changed = false;
+            var changed = false;
 
             void handler(object sender, XmlNodeChangedEventArgs e) => changed = true;
             doc.NodeChanged += handler;
@@ -199,7 +199,7 @@ internal static partial class Program
             {
                 toolObject.Remove(property.Key);
                 if (property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
-                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out NuGetVersion version)
+                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version)
                     && packages.TryGetValue(packageId, out var package)
                     && package.TryGetLatestComparedTo(version, out var updateTo))
                 {
