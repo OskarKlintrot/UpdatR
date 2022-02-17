@@ -129,39 +129,22 @@ Target("push", DependsOn("build"), async () =>
 
     var nuGetLogger = new NuGetLogger(LogLevel.Information);
 
-    // Check if version already exists on NuGet
     SourceCacheContext cache = new();
     var providers = new List<Lazy<INuGetResourceProvider>>();
     providers.AddRange(NuGet.Protocol.Core.Types.Repository.Provider.GetCoreV3());
     var packageSource = new PackageSource("https://api.nuget.org/v3/index.json");
     var sourceRepository = new SourceRepository(packageSource, providers);
-    //var packageMetadataResource = await sourceRepository.GetResourceAsync<PackageMetadataResource>();
-
-    //var searchMetadata = await packageMetadataResource.GetMetadataAsync(
-    //    "UpdatR.Update.Cli",
-    //    includePrerelease: true,
-    //    includeUnlisted: true,
-    //    cache,
-    //    nuGetLogger,
-    //    CancellationToken.None);
-
-    //var alreadyExists = searchMetadata
-    //    .OfType<PackageSearchMetadataRegistration>()
-    //    .Any(x => x.Version == version);
-
-    //if (alreadyExists)
-    //{
-    //    Console.WriteLine("Package already exists on source.");
-
-    //    return;
-    //}
 
     // Push to NuGet
     var packageUpdateResource = await sourceRepository.GetResourceAsync<PackageUpdateResource>();
     var symbolPackageUpdateResourceV3 = await sourceRepository.GetResourceAsync<SymbolPackageUpdateResourceV3>();
 
+    var packages = Directory
+        .EnumerateFiles(artifactsDir, "*.nupkg")
+        .ToList();
+
     await packageUpdateResource.Push(
-        new List<string> { artifactsDir },
+        packages,
         symbolSource: null,
         timeoutInSecond: 60,
         disableBuffering: false,
@@ -183,7 +166,7 @@ async Task<NuGetVersion> GetVersionAsync()
 
     if (runsOnGitHubActions)
     {
-        var (tags, _) = await ReadAsync("git", "ls-remote --tags --refs origin");
+        var (tags, _) = await ReadAsync("git", "ls-remote --tags --sort=-version:refname --refs origin");
 
         var firstLine = tags.Split(Environment.NewLine)[0];
 

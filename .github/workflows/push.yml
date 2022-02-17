@@ -1,6 +1,6 @@
 name: Push packages
 
-on:
+on: 
   push:
     tags:
       - v**
@@ -17,7 +17,7 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 6.x.x
-    - name: Push NuGet packages
+    - name: Push NuGet Packages
       run: dotnet run -- push
       working-directory: tools/Build
       env:
