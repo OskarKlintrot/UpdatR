@@ -12,6 +12,7 @@
     <Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
     <Copyright>Copyright (c) Oskar Klintrot 2022</Copyright>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
     <RepositoryUrl>https://github.com/OskarKlintrot/UpdatR</RepositoryUrl>
@@ -29,10 +30,15 @@
 
   <ItemGroup>
     <None Include="images\icon.png" Pack="true" PackagePath="\" />
+    <None Include="docs\README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="docs\" />
   </ItemGroup>
 
   <Import Project="..\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
