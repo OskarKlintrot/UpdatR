@@ -1,0 +1,23 @@
+name: Update packages
+
+on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 0 * * MON' # At 00:00, only on Monday
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.x.x
+    - name: Run tests
+      run: dotnet run -- create-update-pr
+      working-directory: tools/Build
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

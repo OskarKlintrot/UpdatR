@@ -35,4 +35,6 @@
     <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
   </ItemGroup>
 
+  <Import Project="..\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
+
 </Project>

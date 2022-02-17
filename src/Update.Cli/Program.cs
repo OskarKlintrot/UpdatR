@@ -1,20 +1,19 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml;
-using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Credentials;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
+using BuildingBlocks;
 
 namespace Update.Cli;
 
-internal static class Program
+internal static partial class Program
 {
     private static NuGetLogger _nuGetLogger = null!;
 
@@ -439,7 +438,7 @@ internal static class Program
         return new FileInfo(Path.Combine(path.FullName, ".config", "dotnet-tools.json"));
     }
 
-    record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
+    private record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
     {
         private PackageMetadata? _latestStable;
         private PackageMetadata? _latestPrerelease;
@@ -483,53 +482,6 @@ internal static class Program
             return false;
         }
     }
-    record PackageMetadata(NuGetVersion Version, PackageDeprecationMetadata? DeprecationMetadata, IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities);
 
-    public class NuGetLogger : LoggerBase
-    {
-        private readonly NuGet.Common.LogLevel _logLevel;
-
-        public NuGetLogger(LogLevel logLevel)
-        {
-            _logLevel = TranslateVerbosity(logLevel);
-        }
-
-        public override void Log(ILogMessage message)
-        {
-            if (message.Level < _logLevel)
-            {
-                return;
-            }
-
-            Console.WriteLine($"{message.Level}: {message.Message}");
-        }
-
-        public override Task LogAsync(ILogMessage message)
-        {
-            Log(message);
-
-            return Task.CompletedTask;
-        }
-
-        private static NuGet.Common.LogLevel TranslateVerbosity(LogLevel verbosity) => verbosity switch
-        {
-            LogLevel.Debug => NuGet.Common.LogLevel.Debug,
-            LogLevel.Verbose => NuGet.Common.LogLevel.Verbose,
-            LogLevel.Information => NuGet.Common.LogLevel.Information,
-            LogLevel.Minimal => NuGet.Common.LogLevel.Minimal,
-            LogLevel.Warning => NuGet.Common.LogLevel.Warning,
-            LogLevel.Error => NuGet.Common.LogLevel.Error,
-            _ => throw new NotImplementedException("Unknown verbosity."),
-        };
-    }
-
-    public enum LogLevel
-    {
-        Debug,
-        Verbose,
-        Information,
-        Minimal,
-        Warning,
-        Error
-    }
+    private record PackageMetadata(NuGetVersion Version, PackageDeprecationMetadata? DeprecationMetadata, IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities);
 }

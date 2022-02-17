@@ -1,0 +1,23 @@
+name: Push packages
+
+on:
+  push:
+    tags:
+      - v**
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.x.x
+    - name: Run tests
+      run: dotnet run -- push
+      working-directory: tools/Build
+      env:
+          API_ACCESS_TOKEN: ${{ secrets.API_ACCESS_TOKEN }}
