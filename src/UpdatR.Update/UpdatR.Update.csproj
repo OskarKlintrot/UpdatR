@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(MSBuildProjectDirectory)\..\Build\nuget.props" />
+  
+  <PropertyGroup>
+    <PackageId>UpdatR.Update</PackageId>
+    <Description>Package to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
+    <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
+    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NuGet.Credentials" Version="6.0.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.0.0" />
+    <PackageReference Include="NuGet.Versioning" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>
