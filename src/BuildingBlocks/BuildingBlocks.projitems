@@ -9,7 +9,6 @@
     <Import_RootNamespace>BuildingBlocks</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)LogLevel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)NuGetLogger.cs" />
   </ItemGroup>
 </Project>

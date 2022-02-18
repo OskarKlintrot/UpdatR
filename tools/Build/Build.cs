@@ -1,5 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using BuildingBlocks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
@@ -7,6 +9,14 @@ using Octokit;
 using Octokit.Internal;
 using static Bullseye.Targets;
 using static SimpleExec.Command;
+
+var services = new ServiceCollection()
+    .AddLogging(builder =>
+    {
+        builder.SetMinimumLevel(LogLevel.Information);
+        builder.AddConsole();
+    })
+    .BuildServiceProvider();
 
 var runsOnGitHubActions = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
 
@@ -150,7 +160,7 @@ Target("push", DependsOn("build"), async () =>
 
     var version = await GetVersionAsync();
 
-    var nuGetLogger = new NuGetLogger(LogLevel.Information);
+    var nuGetLogger = new NuGetLogger(services.GetRequiredService<ILogger<NuGetLogger>>());
 
     SourceCacheContext cache = new();
     var providers = new List<Lazy<INuGetResourceProvider>>();

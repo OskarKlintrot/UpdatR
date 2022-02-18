@@ -1,22 +1,23 @@
-﻿namespace BuildingBlocks;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
-internal class NuGetLogger : NuGet.Common.LoggerBase
+namespace BuildingBlocks;
+
+[SuppressMessage("CodeQuality", "RCS1043:Remove 'partial' modifier from type with a single part", Justification = "Used by source generator")]
+internal partial class NuGetLogger : NuGet.Common.LoggerBase
 {
-    private readonly NuGet.Common.LogLevel _logLevel;
+    private readonly ILogger _logger;
 
-    public NuGetLogger(LogLevel logLevel)
+    public NuGetLogger(ILogger logger)
     {
-        _logLevel = TranslateVerbosity(logLevel);
+        _logger = logger;
     }
 
     public override void Log(NuGet.Common.ILogMessage message)
     {
-        if (message.Level < _logLevel)
-        {
-            return;
-        }
+        var logLevel = TranslateVerbosity(message.Level);
 
-        Console.WriteLine($"{message.Level}: {message.Message}");
+        Log(_logger, logLevel, message.Level, message.Message);
     }
 
     public override Task LogAsync(NuGet.Common.ILogMessage message)
@@ -26,14 +27,18 @@ internal class NuGetLogger : NuGet.Common.LoggerBase
         return Task.CompletedTask;
     }
 
-    private static NuGet.Common.LogLevel TranslateVerbosity(LogLevel verbosity) => verbosity switch
+    private static LogLevel TranslateVerbosity(NuGet.Common.LogLevel verbosity) => verbosity switch
     {
-        LogLevel.Debug => NuGet.Common.LogLevel.Debug,
-        LogLevel.Verbose => NuGet.Common.LogLevel.Verbose,
-        LogLevel.Information => NuGet.Common.LogLevel.Information,
-        LogLevel.Minimal => NuGet.Common.LogLevel.Minimal,
-        LogLevel.Warning => NuGet.Common.LogLevel.Warning,
-        LogLevel.Error => NuGet.Common.LogLevel.Error,
+        NuGet.Common.LogLevel.Debug => LogLevel.Trace,
+        NuGet.Common.LogLevel.Verbose => LogLevel.Debug,
+        NuGet.Common.LogLevel.Information => LogLevel.Information,
+        NuGet.Common.LogLevel.Warning => LogLevel.Warning,
+        NuGet.Common.LogLevel.Error => LogLevel.Error,
         _ => throw new NotImplementedException("Unknown verbosity."),
     };
+
+#pragma warning disable IDE0060 // Remove unused parameter
+    [LoggerMessage(EventId = 0, Message = "nuget: ({NuGetLogLevel}): {Message}`")]
+    static partial void Log(ILogger logger, LogLevel level, NuGet.Common.LogLevel nuGetLogLevel, string message);
+#pragma warning restore IDE0060 // Remove unused parameter
 }

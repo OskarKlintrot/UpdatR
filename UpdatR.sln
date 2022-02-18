@@ -33,6 +33,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gh-workflows", "gh-workflow
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Build", "tools\Build\Build.csproj", "{E6115943-7C57-4F83-ABE9-1756C321C007}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update", "src\UpdatR.Update\UpdatR.Update.csproj", "{4533B82F-E253-427C-8EE7-E87B53498925}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		src\BuildingBlocks\BuildingBlocks.projitems*{93d70ccb-9f73-4868-ad9d-ddaef0ebfa00}*SharedItemsImports = 5
@@ -56,6 +58,10 @@ Global
 		{E6115943-7C57-4F83-ABE9-1756C321C007}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E6115943-7C57-4F83-ABE9-1756C321C007}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E6115943-7C57-4F83-ABE9-1756C321C007}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4533B82F-E253-427C-8EE7-E87B53498925}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4533B82F-E253-427C-8EE7-E87B53498925}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4533B82F-E253-427C-8EE7-E87B53498925}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4533B82F-E253-427C-8EE7-E87B53498925}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

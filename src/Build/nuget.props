@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <Authors>Oskar Klintrot</Authors>
-    <Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
     <Copyright>Copyright (c) Oskar Klintrot 2022</Copyright>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -22,10 +21,12 @@
     <Folder Include="docs\" />
   </ItemGroup>
 
-  <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
-    <PrivateAssets>all</PrivateAssets>
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-  </PackageReference>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 
 </Project>
 
