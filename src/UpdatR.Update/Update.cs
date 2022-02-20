@@ -28,9 +28,14 @@ public sealed class Update
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<Result> UpdateAsync(string? path = null)
+    public async Task<Summary> UpdateAsync(string? path = null)
     {
         var sw = Stopwatch.StartNew();
+
+        if (path == null)
+        {
+            path = Directory.GetCurrentDirectory();
+        }
 
         var (solution, projects) = await GetProjectsAsync(path);
 
@@ -48,27 +53,46 @@ public sealed class Update
             solutionTools = GetDotnetToolPackageIds(solution.Directory!);
         }
 
+        var summary = new Summary(path);
+
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(_nuGetLogger, true);
 
         var packages = await GetPackageVersions(solution, projectsWithPackages, solutionTools, _nuGetLogger);
 
         if (solution is not null)
         {
-            await UpdateDotnetToolsAsync(solution.Directory!, packages);
+            var project = await UpdateDotnetToolsAsync(solution.Directory!, packages);
+
+            if (project is not null)
+            {
+                summary.TryAddProject(project);
+            }
         }
 
         foreach (var project in projectsWithPackages.Where(x => x.Value.Any()))
         {
-            await UpdateDotnetToolsAsync(project.Key.Directory!, packages);
+            var toolsProject = await UpdateDotnetToolsAsync(project.Key.Directory!, packages);
 
-            UpdatePackageReferencesInCsproj(packages, project.Key);
+            if (toolsProject is not null)
+            {
+                summary.TryAddProject(toolsProject);
+            }
+
+            var csprojProject = UpdatePackageReferencesInCsproj(packages, project.Key);
+
+            if (csprojProject is not null)
+            {
+                summary.TryAddProject(csprojProject);
+            }
         }
 
-        return new Result();
+        return summary;
     }
 
-    private void UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj)
+    private Project? UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj)
     {
+        var project = new Project(csproj.FullName);
+
         var doc = new XmlDocument
         {
             PreserveWhitespace = true,
@@ -94,19 +118,22 @@ public sealed class Update
 
             if (!NuGetVersion.TryParse(versionStr, out var version))
             {
-                // Todo: Save to summery; failure
+                OnLogMessage(LogLevel.Warning, $"Could not parse {versionStr} to {nameof(NuGetVersion)} for package reference {packageReference}.");
+
                 continue;
             }
 
             if (!packages.TryGetValue(packageId, out var package))
             {
-                // Todo: Save to summery; failure
+                OnLogMessage(LogLevel.Warning, $"Could not find {packageId}.");
+
                 continue;
             }
 
             if (!package.TryGetLatestComparedTo(version, out var updateTo))
             {
-                LogWarningsIfAny(
+                CheckForDeprecationAndVulnerabilities(
+                    project,
                     packageId,
                     package.PackageMetadatas.SingleOrDefault(x => x.Version == version));
 
@@ -116,75 +143,77 @@ public sealed class Update
             packageReference.SetAttribute("Version", updateTo.Version.ToString());
 
             OnLogMessage(
-                LogLevel.Information,
+                LogLevel.Debug,
                 $"{csproj.Name}: Updated {packageId} from {version} to {updateTo.Version}");
 
-            // Todo: Save to summery; update
+            // Todo: Save to summary; update
 
-            LogWarningsIfAny(packageId, updateTo);
+            CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
 
         if (changed)
         {
             doc.Save(csproj.FullName);
         }
-    }
 
-    private void LogWarningsIfAny(string packageId, PackageMetadata? packageMetadata)
-    {
-        if (packageMetadata is null)
+        return project.AnyPackages() ? project : null;
+
+        void CheckForDeprecationAndVulnerabilities(Project project, string packageId, PackageMetadata? packageMetadata)
         {
-            return;
-        }
-
-        if (packageMetadata.DeprecationMetadata is not null)
-        {
-            // Todo: Save to summery; warning
-
-            OnLogMessage(
-                LogLevel.Warning,
-                $"Package {packageId} version {packageMetadata.Version} is deprecated: {string.Join(", ", packageMetadata.DeprecationMetadata.Reasons)}");
-
-            foreach (var line in packageMetadata.DeprecationMetadata.Message.ReplaceLineEndings().Split(Environment.NewLine))
+            if (packageMetadata is null)
             {
-                OnLogMessage(LogLevel.Warning, line);
+                return;
+            }
+
+            if (packageMetadata.DeprecationMetadata is not null)
+            {
+                project.AddDeprecatedPackage(new(packageId, packageMetadata.Version, packageMetadata.DeprecationMetadata));
+
+                OnLogMessage(
+                    LogLevel.Warning,
+                    $"Package {packageId} version {packageMetadata.Version} is deprecated: {string.Join(", ", packageMetadata.DeprecationMetadata.Reasons)}");
+
+                foreach (var line in packageMetadata.DeprecationMetadata.Message.ReplaceLineEndings().Split(Environment.NewLine))
+                {
+                    OnLogMessage(LogLevel.Warning, line);
+                }
+            }
+
+            if (packageMetadata.Vulnerabilities?.Any() == true)
+            {
+                project.AddVulnerablePackage(new(packageId, packageMetadata.Version, packageMetadata.Vulnerabilities));
+
+                OnLogMessage(
+                    LogLevel.Warning,
+                    $"warn: Package {packageId} version {packageMetadata.Version} has {packageMetadata.Vulnerabilities.Count()} vulnerabilities");
             }
         }
-
-        if (packageMetadata.Vulnerabilities?.Any() == true)
-        {
-            // Todo: Save to summery; warning
-
-            OnLogMessage(
-                LogLevel.Warning,
-                $"warn: Package {packageId} version {packageMetadata.Version} has {packageMetadata.Vulnerabilities.Count()} vulnerabilities");
-        }
     }
 
-    private static async Task UpdateDotnetToolsAsync(DirectoryInfo directory, IDictionary<string, NuGetPackage> packages)
+    private async Task<Project?> UpdateDotnetToolsAsync(DirectoryInfo directory, IDictionary<string, NuGetPackage> packages)
     {
         var dotnetTools = GetDotnetToolsConfigFileInfo(directory);
 
         if (!dotnetTools.Exists)
         {
-            return;
+            return null;
         }
 
         var config = JsonSerializer.Deserialize<JsonObject>(await File.ReadAllTextAsync(dotnetTools.FullName));
 
         if (config is null)
         {
-            return;
+            return null;
         }
 
         var tools = config["tools"]?.AsObject();
 
         if (tools is null)
         {
-            return;
+            return null;
         }
 
-        var changed = false;
+        var project = new Project(dotnetTools.FullName);
 
         foreach (var element in tools)
         {
@@ -199,7 +228,7 @@ public sealed class Update
 
             if (toolObject is null)
             {
-                // Todo: Save to summery; warn
+                OnLogMessage(LogLevel.Warning, $"Tool object in {dotnetTools.FullName} was null.");
 
                 continue;
             }
@@ -209,12 +238,29 @@ public sealed class Update
                 toolObject.Remove(property.Key);
                 if (property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
                     && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version)
-                    && packages.TryGetValue(packageId, out var package)
-                    && package.TryGetLatestComparedTo(version, out var updateTo))
+                    && packages.TryGetValue(packageId, out var package))
                 {
-                    toolObject.Add(property.Key, updateTo.Version.ToString());
+                    if (package.TryGetLatestComparedTo(version, out var updateTo))
+                    {
+                        toolObject.Add(property.Key, updateTo.Version.ToString());
 
-                    changed = true;
+                        project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+                    }
+                    else
+                    {
+                        if (package.TryGet(version, out var packageMetadata))
+                        {
+                            if (packageMetadata.DeprecationMetadata is not null)
+                            {
+                                project.AddDeprecatedPackage(new(packageId, version, packageMetadata.DeprecationMetadata));
+                            }
+
+                            if (packageMetadata.Vulnerabilities?.Any() == true)
+                            {
+                                project.AddVulnerablePackage(new(packageId, version, packageMetadata.Vulnerabilities));
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -223,24 +269,17 @@ public sealed class Update
             }
         }
 
-        if (!changed)
+        if (project.UpdatedPackages.Any())
         {
-            return;
+            var json = JsonSerializer.Serialize(config, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                WriteIndented = true,
+            });
+
+            await File.WriteAllTextAsync(dotnetTools.FullName, json + Environment.NewLine);
         }
 
-        var json = JsonSerializer.Serialize(config, new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        {
-            WriteIndented = true,
-        });
-
-        if (json is null)
-        {
-            // Todo: Save to summery; warning
-
-            return;
-        }
-
-        await File.WriteAllTextAsync(dotnetTools.FullName, json);
+        return project;
     }
 
     private static async Task<IDictionary<string, NuGetPackage>> GetPackageVersions(
@@ -338,13 +377,8 @@ public sealed class Update
         return packageSearchMetadata;
     }
 
-    private static async Task<(FileInfo? Solution, IEnumerable<FileInfo> Projects)> GetProjectsAsync(string? path)
+    private static async Task<(FileInfo? Solution, IEnumerable<FileInfo> Projects)> GetProjectsAsync(string path)
     {
-        if (path == null)
-        {
-            path = Directory.GetCurrentDirectory();
-        }
-
         if (File.Exists(path) && path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
         {
             var solution = new FileInfo(path);
@@ -492,9 +526,14 @@ public sealed class Update
 
             return false;
         }
-    }
 
-    private record PackageMetadata(NuGetVersion Version, PackageDeprecationMetadata? DeprecationMetadata, IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities);
+        public bool TryGet(NuGetVersion version, [NotNullWhen(returnValue: true)] out PackageMetadata? package)
+        {
+            package = PackageMetadatas.SingleOrDefault(x => x.Version == version);
+
+            return package != null;
+        }
+    }
 
     #region Events
     private void OnLogMessage(LogLevel level, string message)
