@@ -146,7 +146,7 @@ public sealed class Update
                 LogLevel.Debug,
                 $"{csproj.Name}: Updated {packageId} from {version} to {updateTo.Version}");
 
-            // Todo: Save to summary; update
+            project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
 
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
@@ -282,7 +282,7 @@ public sealed class Update
         return project;
     }
 
-    private static async Task<IDictionary<string, NuGetPackage>> GetPackageVersions(
+    private async Task<IDictionary<string, NuGetPackage>> GetPackageVersions(
         FileInfo? solution,
         IReadOnlyDictionary<FileInfo, IEnumerable<string>> projectsWithPackages,
         IEnumerable<string>? solutionTools,
@@ -356,7 +356,7 @@ public sealed class Update
                 when (exception.InnerException?.InnerException is HttpRequestException httpRequestException
                     && httpRequestException.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
-                    // Todo: Log
+                    OnLogMessage(LogLevel.Warning, $"Failed to get package metadata from {repo.PackageSource.Name} ({repo.PackageSource.Source})");
 
                     failedRepos.Add(repo.PackageSource.Name);
 
@@ -365,7 +365,7 @@ public sealed class Update
                 catch (HttpRequestException exception)
                 when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
-                    // Todo: Log
+                    OnLogMessage(LogLevel.Warning, $"Failed to get package metadata from {repo.PackageSource.Name} ({repo.PackageSource.Source})");
 
                     failedRepos.Add(repo.PackageSource.Name);
 
