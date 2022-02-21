@@ -5,7 +5,8 @@ namespace UpdatR.Update.Internals;
 
 internal sealed class Result
 {
-    private readonly List<(string Name, string Source)> _failedSources = new();
+    private readonly List<(string Name, string Source)> _unauthorizedSources = new();
+    private readonly Dictionary<string, HashSet<string>> _unknownPackages = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _rootPath;
 
     private Dictionary<string, ProjectWithPackages> _projects { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -20,9 +21,12 @@ internal sealed class Result
         _rootPath = rootPath;
     }
 
+    internal IDictionary<string, IEnumerable<string>> UnknownPackages =>
+        _unknownPackages.ToDictionary(x => x.Key, x => x.Value.AsEnumerable());
+
     internal IEnumerable<ProjectWithPackages> Projects => _projects.Values;
 
-    internal IEnumerable<(string Name, string Source)> FailedSources => _failedSources;
+    internal IEnumerable<(string Name, string Source)> UnauthorizedSources => _unauthorizedSources;
 
     internal bool TryAddProject(ProjectWithPackages project)
     {
@@ -43,28 +47,43 @@ internal sealed class Result
         }
     }
 
-    internal bool TryAddFailedSource(string name, string source)
+    internal bool TryAddUnauthorizedSource(string name, string source)
     {
-        if (_failedSources.Any(x => x.Name.Equals(name, StringComparison.Ordinal)))
+        if (_unauthorizedSources.Any(x => x.Name.Equals(name, StringComparison.Ordinal)))
         {
             return false;
         }
         else
         {
-            _failedSources.Add((name, source));
+            _unauthorizedSources.Add((name, source));
 
             return true;
         }
+    }
+
+    internal bool TryAddUnknownPackage(string packageId, string project)
+    {
+        if (_unknownPackages.TryGetValue(packageId, out var projects))
+        {
+            projects.Add(project);
+        }
+        else
+        {
+            _unknownPackages[packageId] = new HashSet<string> { project };
+        }
+        return true;
     }
 }
 
 internal sealed record ProjectWithPackages
 {
+    private readonly HashSet<string> _unknownPackages = new();
     private readonly List<UpdatedPackage> _updatedPackages = new();
     private readonly List<DeprecatedPackage> _deprecatedPackages = new();
     private readonly List<VulnerablePackage> _vulnerablePackages = new();
 
     public string Path { get; init; }
+    public IEnumerable<string> UnknownPackages => _unknownPackages;
     public IEnumerable<UpdatedPackage> UpdatedPackages => _updatedPackages;
     public IEnumerable<DeprecatedPackage> DeprecatedPackages => _deprecatedPackages;
     public IEnumerable<VulnerablePackage> VulnerablePackages => _vulnerablePackages;
@@ -72,6 +91,11 @@ internal sealed record ProjectWithPackages
     public ProjectWithPackages(string path)
     {
         Path = path;
+    }
+
+    public void AddUnknownPackage(string packageId)
+    {
+        _unknownPackages.Add(packageId);
     }
 
     public void AddUpdatedPackage(UpdatedPackage package)

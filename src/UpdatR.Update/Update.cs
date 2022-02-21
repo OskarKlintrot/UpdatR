@@ -58,11 +58,11 @@ public sealed class Update
 
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(_nuGetLogger, true);
 
-        var (packages, failedSources) = await GetPackageVersions(solution, projectsWithPackages, solutionTools, _nuGetLogger);
+        var (packages, unauthorizedSources) = await GetPackageVersions(solution, projectsWithPackages, solutionTools, _nuGetLogger);
 
-        foreach (var failedSource in failedSources)
+        foreach (var unauthorizedSource in unauthorizedSources)
         {
-            summary.TryAddFailedSource(failedSource.Key, failedSource.Value);
+            summary.TryAddUnauthorizedSource(unauthorizedSource.Key, unauthorizedSource.Value);
         }
 
         if (solution is not null)
@@ -133,7 +133,13 @@ public sealed class Update
             {
                 OnLogMessage(LogLevel.Warning, $"Could not find {packageId}.");
 
+                project.AddUnknownPackage(packageId);
+
                 continue;
+            }
+            else if (package.TryGet(version, out var metadata))
+            {
+                CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
             }
 
             if (!package.TryGetLatestComparedTo(version, out var updateTo))
@@ -283,7 +289,7 @@ public sealed class Update
         return project;
     }
 
-    private async Task<(IDictionary<string, NuGetPackage> Packages, IDictionary<string, string> FailedSources)>
+    private async Task<(IDictionary<string, NuGetPackage> Packages, IDictionary<string, string> UnauthorizedSources)>
         GetPackageVersions(
             FileInfo? solution,
             IReadOnlyDictionary<FileInfo, IEnumerable<string>> projectsWithPackages,
@@ -294,7 +300,7 @@ public sealed class Update
 
         Dictionary<string, NuGetPackage> packageSearchMetadata = new();
 
-        Dictionary<string, string> failedRepos = new();
+        Dictionary<string, string> unauthorizedSources = new();
 
         var projectsWithPackagesTemp = new Dictionary<FileInfo, IEnumerable<string>>(projectsWithPackages);
 
@@ -313,7 +319,7 @@ public sealed class Update
 
             foreach (var repo in sourceRepositoryProvider
                 .GetRepositories()
-                .Where(x => !failedRepos.ContainsKey(x.PackageSource.Name)))
+                .Where(x => !unauthorizedSources.ContainsKey(x.PackageSource.Name)))
             {
                 try
                 {
@@ -360,7 +366,7 @@ public sealed class Update
                 {
                     OnLogMessage(LogLevel.Warning, $"Failed to get package metadata from {repo.PackageSource.Name} ({repo.PackageSource.Source})");
 
-                    failedRepos.Add(repo.PackageSource.Name, repo.PackageSource.Source);
+                    unauthorizedSources.Add(repo.PackageSource.Name, repo.PackageSource.Source);
 
                     continue;
                 }
@@ -369,14 +375,14 @@ public sealed class Update
                 {
                     OnLogMessage(LogLevel.Warning, $"Failed to get package metadata from {repo.PackageSource.Name} ({repo.PackageSource.Source})");
 
-                    failedRepos.Add(repo.PackageSource.Name, repo.PackageSource.Source);
+                    unauthorizedSources.Add(repo.PackageSource.Name, repo.PackageSource.Source);
 
                     continue;
                 }
             }
         }
 
-        return (packageSearchMetadata, failedRepos);
+        return (packageSearchMetadata, unauthorizedSources);
     }
 
     private static async Task<(FileInfo? Solution, IEnumerable<FileInfo> Projects)> GetProjectsAsync(string path)
