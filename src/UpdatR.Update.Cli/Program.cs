@@ -68,7 +68,6 @@ internal static partial class Program
             LogLevel.None => Microsoft.Extensions.Logging.LogLevel.None,
             _ => throw new NotImplementedException("Unknown verbosity."),
         };
-        throw new NotImplementedException();
     }
 
 #pragma warning disable IDE0060 // Remove unused parameter
