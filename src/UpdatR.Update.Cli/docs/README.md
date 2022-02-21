@@ -1,4 +1,4 @@
-# UpdatR.Update.Cli
+# dotnet-updatr
 
 Update tool for package reference and dotnet-tools.json
 
