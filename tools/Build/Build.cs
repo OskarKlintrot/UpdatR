@@ -52,7 +52,7 @@ Target("restore-tools", () =>
 Target("update-packages", DependsOn("restore-tools"), () =>
 {
     Run("dotnet",
-        $"update --path {solutionFile} --verbosity Verbose",
+        $"update --path {solutionFile} --verbosity Verbose --output {Path.Combine(Path.GetTempPath(), "output.txt")}",
         workingDirectory: buildToolDir);
 });
 
@@ -114,19 +114,22 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
             State = ItemStateFilter.Open
         });
 
+    var body = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.txt"));
+    var title = body.Split(Environment.NewLine)[1];
+
     if (prs.Count == 0)
     {
-        await client.PullRequest.Create(repositoryId, new NewPullRequest("📦 Update packages", "update", "main")
+        await client.PullRequest.Create(repositoryId, new NewPullRequest(title, "update", "main")
         {
-            Body = "PR created automatically by UpdatR."
+            Body = "PR created automatically by UpdatR." + Environment.NewLine + body
         });
     }
     else if (prs.Count == 1)
     {
         await client.PullRequest.Update(repositoryId, prs[0].Number, new PullRequestUpdate
         {
-            Title = "📦 Update packages",
-            Body = "PR created automatically by UpdatR."
+            Title = title,
+            Body = "PR created automatically by UpdatR." + Environment.NewLine + body
         });
     }
     else

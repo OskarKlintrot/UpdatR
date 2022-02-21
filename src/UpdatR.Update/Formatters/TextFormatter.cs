@@ -97,11 +97,11 @@ public static class TextFormatter
         }
         else if (summary.UpdatedPackagesCount == 1)
         {
-            sb.Append("Updated ").AppendLine(summary.UpdatedPackages.Single().PackageId);
+            sb.Append("📦 Updated ").AppendLine(summary.UpdatedPackages.Single().PackageId);
         }
         else
         {
-            sb.Append("Updated ").Append(summary.UpdatedPackagesCount).AppendLine(" packages.");
+            sb.Append("📦 Updated ").Append(summary.UpdatedPackagesCount).AppendLine(" packages.");
         }
     }
 
