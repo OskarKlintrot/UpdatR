@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using BuildingBlocks;
+using UpdatR.Update.Formatters;
 
 namespace UpdatR.Update.Cli;
 
@@ -57,41 +58,23 @@ internal static partial class Program
 
     private static void WriteSummaryToConsole(Summary summary)
     {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("------------------------------");
-        Console.WriteLine($"Updated {summary.UpdatedPackages} package(s).");
-        Console.WriteLine("------------------------------");
-        Console.ResetColor();
-        Console.WriteLine();
+        var output = TextFormatter
+            .PlainText(summary)
+            .Split(Environment.NewLine);
 
-        foreach (var project in summary.Projects)
+        for (int i = 0; i < output.Length; i++)
         {
-            if (!project.UpdatedPackages.Any())
+            if (i is >= 0 and <= 2)
             {
-                continue;
+                Console.ForegroundColor = ConsoleColor.Green;
             }
-            var padRightPackageId = project.UpdatedPackages
-                .Select(x => x.PackageId.Length)
-                .OrderByDescending(x => x)
-                .First();
-
-            var padRightFrom = project.UpdatedPackages
-                .Select(x => x.From.ToString().Length)
-                .OrderByDescending(x => x)
-                .First();
-
-            Console.WriteLine("--");
-            Console.WriteLine(project.Path);
-
-            foreach (var package in project.UpdatedPackages)
+            else
             {
-                Console.WriteLine("{0} {1} => {2}",
-                    package.PackageId.PadRight(padRightPackageId),
-                    package.From.ToString().PadRight(padRightFrom),
-                    package.To);
+                Console.ResetColor();
             }
+
+            Console.WriteLine(output[i]);
         }
-        Console.WriteLine("--");
     }
 
     private static void ReceivedLogMessage(object? _, Update.LogMessageEventArgs e)

@@ -1,148 +1,85 @@
 ﻿using NuGet.Protocol;
 using NuGet.Versioning;
+using UpdatR.Update.Internals;
 
 namespace UpdatR.Update;
 
 public sealed class Summary
 {
-    private readonly List<(string Name, string Source)> _failedSources = new();
-    private readonly string _rootPath;
-
-    private Dictionary<string, Project> _projects { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    public Summary(string rootPath)
+    public Summary(
+        IEnumerable<UpdatedPackage> updatedPackages,
+        IEnumerable<DeprecatedPackage> deprecatedPackages,
+        IEnumerable<VulnerablePackage> vulnerablePackages)
     {
-        if (!Directory.Exists(rootPath))
-        {
-            throw new ArgumentException("Root does not exist.", nameof(rootPath));
-        }
-
-        _rootPath = rootPath;
+        UpdatedPackages = updatedPackages;
+        DeprecatedPackages = deprecatedPackages;
+        VulnerablePackages = vulnerablePackages;
     }
 
-    public IEnumerable<Project> Projects => _projects.Values;
+    public IEnumerable<UpdatedPackage> UpdatedPackages { get; }
+    public IEnumerable<DeprecatedPackage> DeprecatedPackages { get; }
+    public IEnumerable<VulnerablePackage> VulnerablePackages { get; }
 
-    public IEnumerable<(string Name, string Source)> FailedSources => _failedSources;
-
-    public int UpdatedPackages => Projects
-        .SelectMany(x => x.UpdatedPackages)
-        .DistinctBy(x => x.PackageId)
-        .Count();
-
-    public bool TryAddProject(Project project)
+    internal static Summary Create(Result summary)
     {
-        project = project with
-        {
-            Path = Path.GetRelativePath(_rootPath, project.Path)
-        };
+        var updatedPackagesCount = summary.Projects
+            .SelectMany(x => x.UpdatedPackages)
+            .DistinctBy(x => x.PackageId)
+            .Count();
 
-        if (_projects.ContainsKey(project.Path))
-        {
-            return false;
-        }
-        else
-        {
-            _projects[project.Path] = project;
+        var deprecatedPackages = summary.Projects
+            .SelectMany(x => x.DeprecatedPackages.Select(y => (Package: y, Project: x.Path)))
+            .GroupBy(x => x.Package.PackageId)
+            .Select(x => (PackageId: x.Key, Versions: x.GroupBy(y => y.Package.Version)))
+            .Select(x => (
+                x.PackageId,
+                Versions: x.Versions.Select(y => (
+                    y.Key,
+                    y.First().Package.DeprecationMetadata,
+                    Projects: y.Select(z => z.Project)))))
+            .Select(x =>
+                new DeprecatedPackage(
+                    x.PackageId,
+                    x.Versions.Select(y => (
+                        new DeprecatedVersion(y.Key, y.DeprecationMetadata),
+                        y.Projects))));
 
-            return true;
-        }
-    }
+        var vulnerablePackages = summary.Projects
+            .SelectMany(x => x.VulnerablePackages.Select(y => (Package: y, Project: x.Path)))
+            .GroupBy(x => x.Package.PackageId)
+            .Select(x => (PackageId: x.Key, Versions: x.GroupBy(y => y.Package.Version)))
+            .Select(x => (
+                x.PackageId,
+                Versions: x.Versions.Select(y => (
+                    y.Key,
+                    y.First().Package.Vulnerabilities,
+                    Projects: y.Select(z => z.Project)))))
+            .Select(x =>
+                new VulnerablePackage(
+                    x.PackageId,
+                    x.Versions.Select(y => (
+                        new VulnerableVersion(y.Key, y.Vulnerabilities),
+                        y.Projects))));
 
-    public bool TryAddFailedSource(string name, string source)
-    {
-        if (_failedSources.Any(x => x.Name.Equals(name, StringComparison.Ordinal)))
-        {
-            return false;
-        }
-        else
-        {
-            _failedSources.Add((name, source));
+        var updatedPackages = summary.Projects
+            .SelectMany(x => x.UpdatedPackages.Select(y => (Package: y, Project: x.Path)))
+            .GroupBy(x => x.Package.PackageId)
+            .Select(x => new UpdatedPackage(PackageId: x.Key, Updates: x.Select(y => (y.Package.From, y.Package.To, y.Project))));
 
-            return true;
-        }
-    }
-}
-
-public sealed record Project
-{
-    private readonly List<UpdatedPackage> _updatedPackages = new();
-    private readonly List<DeprecatedPackage> _deprecatedPackages = new();
-    private readonly List<VulnerablePackage> _vulnerablePackages = new();
-
-    public string Path { get; init; }
-    public IEnumerable<UpdatedPackage> UpdatedPackages => _updatedPackages;
-    public IEnumerable<DeprecatedPackage> DeprecatedPackages => _deprecatedPackages;
-    public IEnumerable<VulnerablePackage> VulnerablePackages => _vulnerablePackages;
-
-    public Project(string path)
-    {
-        Path = path;
-    }
-
-    public void AddUpdatedPackage(UpdatedPackage package)
-    {
-        _updatedPackages.Add(package);
-    }
-
-    public void AddDeprecatedPackage(DeprecatedPackage package)
-    {
-        _deprecatedPackages.Add(package);
-    }
-
-    public void AddVulnerablePackage(VulnerablePackage package)
-    {
-        _vulnerablePackages.Add(package);
-    }
-
-    public bool AnyPackages()
-        => _updatedPackages.Count > 0
-            || _deprecatedPackages.Count > 0
-            || _vulnerablePackages.Count > 0;
-}
-
-public sealed class UpdatedPackage
-{
-    public string PackageId { get; }
-    public NuGetVersion From { get; }
-    public NuGetVersion To { get; }
-
-    public UpdatedPackage(string packageId, NuGetVersion from, NuGetVersion to)
-    {
-        PackageId = packageId;
-        From = from;
-        To = to;
+        return new Summary(updatedPackages, deprecatedPackages, vulnerablePackages);
     }
 }
 
-public sealed class DeprecatedPackage
-{
-    public string PackageId { get; }
-    public NuGetVersion Version { get; }
-    public PackageDeprecationMetadata DeprecationMetadata { get; }
+public sealed record UpdatedPackage(
+    string PackageId,
+    IEnumerable<(NuGetVersion From, NuGetVersion To, string Project)> Updates);
 
-    public DeprecatedPackage(string packageId, NuGetVersion version, PackageDeprecationMetadata deprecationMetadata)
-    {
-        PackageId = packageId;
-        Version = version;
-        DeprecationMetadata = deprecationMetadata;
-    }
-}
+public sealed record DeprecatedPackage(
+    string PackageId,
+    IEnumerable<(DeprecatedVersion Version, IEnumerable<string> Projects)> Versions);
+public sealed record DeprecatedVersion(NuGetVersion NuGetVersion, PackageDeprecationMetadata DeprecationMetadata);
 
-public sealed class VulnerablePackage
-{
-    public string PackageId { get; }
-    public NuGetVersion Version { get; }
-    public IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities { get; }
-
-    public VulnerablePackage(string packageId, NuGetVersion version, IEnumerable<PackageVulnerabilityMetadata> vulnerabilities)
-    {
-        PackageId = packageId;
-        Version = version;
-        Vulnerabilities = vulnerabilities;
-    }
-}
-
-public record PackageMetadata(
-    NuGetVersion Version,
-    PackageDeprecationMetadata? DeprecationMetadata,
-    IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities);
+public sealed record VulnerablePackage(
+    string PackageId,
+    IEnumerable<(VulnerableVersion Version, IEnumerable<string> Projects)> Versions);
+public sealed record VulnerableVersion(NuGetVersion Version, IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities);

@@ -10,6 +10,7 @@ using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using NuGet.Common;
+using UpdatR.Update.Internals;
 
 namespace UpdatR.Update;
 
@@ -26,7 +27,7 @@ public sealed class Update
     /// Update all packages in solution or project(s).
     /// </summary>
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
-    /// <returns></returns>
+    /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
     public async Task<Summary> UpdateAsync(string? path = null, bool dryRun = false)
     {
@@ -53,11 +54,16 @@ public sealed class Update
             solutionTools = GetDotnetToolPackageIds(solution.Directory!);
         }
 
-        var summary = new Summary(path);
+        var summary = new Result(path);
 
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(_nuGetLogger, true);
 
-        var packages = await GetPackageVersions(solution, projectsWithPackages, solutionTools, _nuGetLogger);
+        var (packages, failedSources) = await GetPackageVersions(solution, projectsWithPackages, solutionTools, _nuGetLogger);
+
+        foreach (var failedSource in failedSources)
+        {
+            summary.TryAddFailedSource(failedSource.Key, failedSource.Value);
+        }
 
         if (solution is not null)
         {
@@ -86,12 +92,12 @@ public sealed class Update
             }
         }
 
-        return summary;
+        return Summary.Create(summary);
     }
 
-    private Project? UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj, bool dryRun)
+    private ProjectWithPackages? UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj, bool dryRun)
     {
-        var project = new Project(csproj.FullName);
+        var project = new ProjectWithPackages(csproj.FullName);
 
         var doc = new XmlDocument
         {
@@ -158,7 +164,7 @@ public sealed class Update
 
         return project.AnyPackages() ? project : null;
 
-        void CheckForDeprecationAndVulnerabilities(Project project, string packageId, PackageMetadata? packageMetadata)
+        void CheckForDeprecationAndVulnerabilities(ProjectWithPackages project, string packageId, PackageMetadata? packageMetadata)
         {
             if (packageMetadata is null)
             {
@@ -171,12 +177,7 @@ public sealed class Update
 
                 OnLogMessage(
                     LogLevel.Warning,
-                    $"Package {packageId} version {packageMetadata.Version} is deprecated: {string.Join(", ", packageMetadata.DeprecationMetadata.Reasons)}");
-
-                foreach (var line in packageMetadata.DeprecationMetadata.Message.ReplaceLineEndings().Split(Environment.NewLine))
-                {
-                    OnLogMessage(LogLevel.Warning, line);
-                }
+                    $"Package {packageId} version {packageMetadata.Version} is deprecated with reasons: {string.Join(", ", packageMetadata.DeprecationMetadata.Reasons)}");
             }
 
             if (packageMetadata.Vulnerabilities?.Any() == true)
@@ -190,7 +191,7 @@ public sealed class Update
         }
     }
 
-    private async Task<Project?> UpdateDotnetToolsAsync(DirectoryInfo directory, IDictionary<string, NuGetPackage> packages, bool dryRun)
+    private async Task<ProjectWithPackages?> UpdateDotnetToolsAsync(DirectoryInfo directory, IDictionary<string, NuGetPackage> packages, bool dryRun)
     {
         var dotnetTools = GetDotnetToolsConfigFileInfo(directory);
 
@@ -213,7 +214,7 @@ public sealed class Update
             return null;
         }
 
-        var project = new Project(dotnetTools.FullName);
+        var project = new ProjectWithPackages(dotnetTools.FullName);
 
         foreach (var element in tools)
         {
@@ -282,17 +283,18 @@ public sealed class Update
         return project;
     }
 
-    private async Task<IDictionary<string, NuGetPackage>> GetPackageVersions(
-        FileInfo? solution,
-        IReadOnlyDictionary<FileInfo, IEnumerable<string>> projectsWithPackages,
-        IEnumerable<string>? solutionTools,
-        ILogger nuGetLogger)
+    private async Task<(IDictionary<string, NuGetPackage> Packages, IDictionary<string, string> FailedSources)>
+        GetPackageVersions(
+            FileInfo? solution,
+            IReadOnlyDictionary<FileInfo, IEnumerable<string>> projectsWithPackages,
+            IEnumerable<string>? solutionTools,
+            ILogger nuGetLogger)
     {
         using var cacheContext = new SourceCacheContext();
 
         Dictionary<string, NuGetPackage> packageSearchMetadata = new();
 
-        HashSet<string> failedRepos = new();
+        Dictionary<string, string> failedRepos = new();
 
         var projectsWithPackagesTemp = new Dictionary<FileInfo, IEnumerable<string>>(projectsWithPackages);
 
@@ -311,7 +313,7 @@ public sealed class Update
 
             foreach (var repo in sourceRepositoryProvider
                 .GetRepositories()
-                .Where(x => !failedRepos.Contains(x.PackageSource.Name)))
+                .Where(x => !failedRepos.ContainsKey(x.PackageSource.Name)))
             {
                 try
                 {
@@ -358,7 +360,7 @@ public sealed class Update
                 {
                     OnLogMessage(LogLevel.Warning, $"Failed to get package metadata from {repo.PackageSource.Name} ({repo.PackageSource.Source})");
 
-                    failedRepos.Add(repo.PackageSource.Name);
+                    failedRepos.Add(repo.PackageSource.Name, repo.PackageSource.Source);
 
                     continue;
                 }
@@ -367,14 +369,14 @@ public sealed class Update
                 {
                     OnLogMessage(LogLevel.Warning, $"Failed to get package metadata from {repo.PackageSource.Name} ({repo.PackageSource.Source})");
 
-                    failedRepos.Add(repo.PackageSource.Name);
+                    failedRepos.Add(repo.PackageSource.Name, repo.PackageSource.Source);
 
                     continue;
                 }
             }
         }
 
-        return packageSearchMetadata;
+        return (packageSearchMetadata, failedRepos);
     }
 
     private static async Task<(FileInfo? Solution, IEnumerable<FileInfo> Projects)> GetProjectsAsync(string path)
