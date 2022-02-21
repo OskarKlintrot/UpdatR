@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <PackageId>UpdatR.Update.Cli</PackageId>
+    <PackageId>dotnet-update</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>update</ToolCommandName>
     <Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using BuildingBlocks;
+using UpdatR.Update.Formatters;
 
 namespace UpdatR.Update.Cli;
 
@@ -14,9 +15,13 @@ internal static partial class Program
     /// </summary>
     /// <param name="target">Path to solution or project(s). Exclude if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <param name="verbosity">Log level</param>
+    /// <param name="dryRun">Do not save any changes.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    internal static async Task Main(string? target = null, Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning)
+    internal static async Task Main(
+        string? target = null,
+        Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
+        bool dryRun = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -39,15 +44,37 @@ internal static partial class Program
 
         update.LogMessage += ReceivedLogMessage;
 
-        var result = await update.UpdateAsync(target);
+        var summary = await update.UpdateAsync(target, dryRun);
 
-        // Todo: write result
+        WriteSummaryToConsole(summary);
 
 #pragma warning disable CA1305 // Specify IFormatProvider
 #pragma warning disable CA1848 // Use the LoggerMessage delegates
+        Console.ForegroundColor = ConsoleColor.Green;
         _logger.LogTrace("Finished after {ElapsedTime}.", sw.Elapsed.ToString("hh\\:mm\\:ss\\.fff"));
 #pragma warning restore CA1848 // Use the LoggerMessage delegates
 #pragma warning restore CA1305 // Specify IFormatProvider
+    }
+
+    private static void WriteSummaryToConsole(Summary summary)
+    {
+        var output = TextFormatter
+            .PlainText(summary)
+            .Split(Environment.NewLine);
+
+        for (int i = 0; i < output.Length; i++)
+        {
+            if (i is >= 0 and <= 3)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+            }
+            else
+            {
+                Console.ResetColor();
+            }
+
+            Console.WriteLine(output[i]);
+        }
     }
 
     private static void ReceivedLogMessage(object? _, Update.LogMessageEventArgs e)
@@ -64,7 +91,6 @@ internal static partial class Program
             LogLevel.None => Microsoft.Extensions.Logging.LogLevel.None,
             _ => throw new NotImplementedException("Unknown verbosity."),
         };
-        throw new NotImplementedException();
     }
 
 #pragma warning disable IDE0060 // Remove unused parameter
