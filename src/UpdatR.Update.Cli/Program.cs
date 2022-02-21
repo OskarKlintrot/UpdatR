@@ -64,7 +64,7 @@ internal static partial class Program
 
         for (int i = 0; i < output.Length; i++)
         {
-            if (i is >= 0 and <= 3)
+            if (i is >= 0 and <= 2)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
             }

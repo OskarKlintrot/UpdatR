@@ -10,37 +10,53 @@ public static class TextFormatter
 
         sb.AppendLine("------------------------------");
         Title(sb, summary);
-        sb.AppendLine("--");
         sb.AppendLine();
         sb.AppendLine("------------------------------");
 
-        sb.AppendLine("Vulnerable packages");
-        sb.AppendLine("--");
-        VulnerablePackages(sb, summary.VulnerablePackages);
-        sb.AppendLine();
-        sb.AppendLine("------------------------------");
+        if (summary.VulnerablePackages.Any())
+        {
+            sb.AppendLine("Vulnerable packages");
+            sb.AppendLine("--");
+            VulnerablePackages(sb, summary.VulnerablePackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
 
-        sb.AppendLine("Deprecated packages");
-        sb.AppendLine("--");
-        DeprecatedPackages(sb, summary.DeprecatedPackages);
-        sb.AppendLine();
-        sb.AppendLine("------------------------------");
+        if (summary.DeprecatedPackages.Any())
+        {
+            sb.AppendLine("Deprecated packages");
+            sb.AppendLine("--");
+            DeprecatedPackages(sb, summary.DeprecatedPackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
 
-        sb.AppendLine("Updated packages");
-        sb.AppendLine("--");
-        UpdatedPackages(sb, summary.UpdatedPackages);
-        sb.AppendLine();
-        sb.AppendLine("------------------------------");
+        if (summary.UpdatedPackages.Any())
+        {
+            sb.AppendLine("Updated packages");
+            sb.AppendLine("--");
+            UpdatedPackages(sb, summary.UpdatedPackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
 
-        sb.AppendLine("Not found packages");
-        UnknownPackages(sb, summary.UnknownPackages);
-        sb.AppendLine();
-        sb.AppendLine("------------------------------");
+        if (summary.UnknownPackages.Count > 0)
+        {
+            sb.AppendLine("Not found packages");
+            sb.AppendLine("--");
+            UnknownPackages(sb, summary.UnknownPackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
 
-        sb.AppendLine("Unauthorized sources");
-        UnauthorizedSources(sb, summary.UnauthorizedSources);
-        sb.AppendLine();
-        sb.AppendLine("------------------------------");
+        if (summary.UnauthorizedSources.Any())
+        {
+            sb.AppendLine("Unauthorized sources");
+            sb.AppendLine("--");
+            UnauthorizedSources(sb, summary.UnauthorizedSources);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
 
         return sb.ToString();
     }
@@ -54,6 +70,7 @@ public static class TextFormatter
                 "{0} ({1})",
                 name,
                 source);
+            sb.AppendLine();
             sb.AppendLine("--");
         }
     }
