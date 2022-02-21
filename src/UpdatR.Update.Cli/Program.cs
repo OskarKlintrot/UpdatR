@@ -14,12 +14,14 @@ internal static partial class Program
     /// Update all packages in solution or project(s).
     /// </summary>
     /// <param name="target">Path to solution or project(s). Exclude if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
+    /// <param name="output"></param>
     /// <param name="verbosity">Log level</param>
     /// <param name="dryRun">Do not save any changes.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
         string? target = null,
+        string? output = null,
         Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
         bool dryRun = false)
     {
@@ -46,7 +48,21 @@ internal static partial class Program
 
         var summary = await update.UpdateAsync(target, dryRun);
 
-        WriteSummaryToConsole(summary);
+        var outputStr = TextFormatter.PlainText(summary);
+
+        WriteSummaryToConsole(outputStr);
+
+        if (output is not null)
+        {
+            if (string.IsNullOrWhiteSpace(new FileInfo(output).Extension))
+            {
+                await File.WriteAllTextAsync(Path.Combine(output, "output.txt"), outputStr);
+            }
+            else
+            {
+                await File.WriteAllTextAsync(output, outputStr);
+            }
+        }
 
 #pragma warning disable CA1305 // Specify IFormatProvider
 #pragma warning disable CA1848 // Use the LoggerMessage delegates
@@ -56,11 +72,9 @@ internal static partial class Program
 #pragma warning restore CA1305 // Specify IFormatProvider
     }
 
-    private static void WriteSummaryToConsole(Summary summary)
+    private static void WriteSummaryToConsole(string summary)
     {
-        var output = TextFormatter
-            .PlainText(summary)
-            .Split(Environment.NewLine);
+        var output = summary.Split(Environment.NewLine);
 
         for (int i = 0; i < output.Length; i++)
         {
