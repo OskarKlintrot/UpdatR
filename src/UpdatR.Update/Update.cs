@@ -28,7 +28,7 @@ public sealed class Update
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<Summary> UpdateAsync(string? path = null)
+    public async Task<Summary> UpdateAsync(string? path = null, bool dryRun = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -61,7 +61,7 @@ public sealed class Update
 
         if (solution is not null)
         {
-            var project = await UpdateDotnetToolsAsync(solution.Directory!, packages);
+            var project = await UpdateDotnetToolsAsync(solution.Directory!, packages, dryRun);
 
             if (project is not null)
             {
@@ -71,14 +71,14 @@ public sealed class Update
 
         foreach (var project in projectsWithPackages.Where(x => x.Value.Any()))
         {
-            var toolsProject = await UpdateDotnetToolsAsync(project.Key.Directory!, packages);
+            var toolsProject = await UpdateDotnetToolsAsync(project.Key.Directory!, packages, dryRun);
 
             if (toolsProject is not null)
             {
                 summary.TryAddProject(toolsProject);
             }
 
-            var csprojProject = UpdatePackageReferencesInCsproj(packages, project.Key);
+            var csprojProject = UpdatePackageReferencesInCsproj(packages, project.Key, dryRun);
 
             if (csprojProject is not null)
             {
@@ -89,7 +89,7 @@ public sealed class Update
         return summary;
     }
 
-    private Project? UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj)
+    private Project? UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj, bool dryRun)
     {
         var project = new Project(csproj.FullName);
 
@@ -151,7 +151,7 @@ public sealed class Update
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
 
-        if (changed)
+        if (!dryRun && changed)
         {
             doc.Save(csproj.FullName);
         }
@@ -190,7 +190,7 @@ public sealed class Update
         }
     }
 
-    private async Task<Project?> UpdateDotnetToolsAsync(DirectoryInfo directory, IDictionary<string, NuGetPackage> packages)
+    private async Task<Project?> UpdateDotnetToolsAsync(DirectoryInfo directory, IDictionary<string, NuGetPackage> packages, bool dryRun)
     {
         var dotnetTools = GetDotnetToolsConfigFileInfo(directory);
 
@@ -269,7 +269,7 @@ public sealed class Update
             }
         }
 
-        if (project.UpdatedPackages.Any())
+        if (!dryRun && project.UpdatedPackages.Any())
         {
             var json = JsonSerializer.Serialize(config, new JsonSerializerOptions(JsonSerializerDefaults.Web)
             {

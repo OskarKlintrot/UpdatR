@@ -14,9 +14,13 @@ internal static partial class Program
     /// </summary>
     /// <param name="target">Path to solution or project(s). Exclude if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <param name="verbosity">Log level</param>
+    /// <param name="dryRun">Do not save any changes.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    internal static async Task Main(string? target = null, Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning)
+    internal static async Task Main(
+        string? target = null,
+        Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
+        bool dryRun = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -39,7 +43,7 @@ internal static partial class Program
 
         update.LogMessage += ReceivedLogMessage;
 
-        var result = await update.UpdateAsync(target);
+        var result = await update.UpdateAsync(target, dryRun);
 
         // Todo: write result
 
