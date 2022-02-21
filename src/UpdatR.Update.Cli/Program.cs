@@ -43,15 +43,55 @@ internal static partial class Program
 
         update.LogMessage += ReceivedLogMessage;
 
-        var result = await update.UpdateAsync(target, dryRun);
+        var summary = await update.UpdateAsync(target, dryRun);
 
-        // Todo: write result
+        WriteSummaryToConsole(summary);
 
 #pragma warning disable CA1305 // Specify IFormatProvider
 #pragma warning disable CA1848 // Use the LoggerMessage delegates
+        Console.ForegroundColor = ConsoleColor.Green;
         _logger.LogTrace("Finished after {ElapsedTime}.", sw.Elapsed.ToString("hh\\:mm\\:ss\\.fff"));
 #pragma warning restore CA1848 // Use the LoggerMessage delegates
 #pragma warning restore CA1305 // Specify IFormatProvider
+    }
+
+    private static void WriteSummaryToConsole(Summary summary)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("------------------------------");
+        Console.WriteLine($"Updated {summary.UpdatedPackages} package(s).");
+        Console.WriteLine("------------------------------");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        foreach (var project in summary.Projects)
+        {
+            if (!project.UpdatedPackages.Any())
+            {
+                continue;
+            }
+            var padRightPackageId = project.UpdatedPackages
+                .Select(x => x.PackageId.Length)
+                .OrderByDescending(x => x)
+                .First();
+
+            var padRightFrom = project.UpdatedPackages
+                .Select(x => x.From.ToString().Length)
+                .OrderByDescending(x => x)
+                .First();
+
+            Console.WriteLine("--");
+            Console.WriteLine(project.Path);
+
+            foreach (var package in project.UpdatedPackages)
+            {
+                Console.WriteLine("{0} {1} => {2}",
+                    package.PackageId.PadRight(padRightPackageId),
+                    package.From.ToString().PadRight(padRightFrom),
+                    package.To);
+            }
+        }
+        Console.WriteLine("--");
     }
 
     private static void ReceivedLogMessage(object? _, Update.LogMessageEventArgs e)
