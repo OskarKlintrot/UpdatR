@@ -14,16 +14,16 @@ internal static partial class Program
     /// Update all packages in solution or project(s).
     /// </summary>
     /// <param name="target">Path to solution or project(s). Exclude if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
-    /// <param name="output"></param>
+    /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
     /// <param name="verbosity">Log level</param>
-    /// <param name="dryRun">Do not save any changes.</param>
+    /// <param name="dry">Do not save any changes.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
         string? target = null,
         string? output = null,
         Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
-        bool dryRun = false)
+        bool dry = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -46,7 +46,7 @@ internal static partial class Program
 
         update.LogMessage += ReceivedLogMessage;
 
-        var summary = await update.UpdateAsync(target, dryRun);
+        var summary = await update.UpdateAsync(target, dry);
 
         var outputStr = TextFormatter.PlainText(summary);
 
@@ -56,10 +56,17 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(new FileInfo(output).Extension))
             {
-                await File.WriteAllTextAsync(Path.Combine(output, "output.txt"), outputStr);
+                await File.WriteAllTextAsync(Path.Combine(output, "output.md"), outputStr);
             }
             else
             {
+                outputStr = new FileInfo(output).Extension switch
+                {
+                    ".txt" => outputStr,
+                    ".md" => MarkdownFormatter.Generate(summary),
+                    _ => throw new NotImplementedException(),
+                };
+
                 await File.WriteAllTextAsync(output, outputStr);
             }
         }

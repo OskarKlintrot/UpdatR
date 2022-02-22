@@ -114,14 +114,17 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
             State = ItemStateFilter.Open
         });
 
-    var body = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.txt"));
-    var title = body.Split(Environment.NewLine)[1];
+    var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
+    var title = output.Split(Environment.NewLine)[0];
+    var body = "# PR created automatically by UpdatR."
+        + Environment.NewLine
+        + string.Concat(output.Split(Environment.NewLine)[1..]);
 
     if (prs.Count == 0)
     {
         await client.PullRequest.Create(repositoryId, new NewPullRequest(title, "update", "main")
         {
-            Body = "PR created automatically by UpdatR." + Environment.NewLine + body
+            Body = body
         });
     }
     else if (prs.Count == 1)
@@ -129,7 +132,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         await client.PullRequest.Update(repositoryId, prs[0].Number, new PullRequestUpdate
         {
             Title = title,
-            Body = "PR created automatically by UpdatR." + Environment.NewLine + body
+            Body = body
         });
     }
     else
