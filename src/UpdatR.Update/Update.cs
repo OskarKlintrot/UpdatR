@@ -54,7 +54,7 @@ public sealed class Update
             solutionTools = GetDotnetToolPackageIds(solution.Directory!);
         }
 
-        var summary = new Result(path);
+        var result = new Result(path);
 
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(_nuGetLogger, true);
 
@@ -62,7 +62,7 @@ public sealed class Update
 
         foreach (var unauthorizedSource in unauthorizedSources)
         {
-            summary.TryAddUnauthorizedSource(unauthorizedSource.Key, unauthorizedSource.Value);
+            result.TryAddUnauthorizedSource(unauthorizedSource.Key, unauthorizedSource.Value);
         }
 
         if (solution is not null)
@@ -71,7 +71,7 @@ public sealed class Update
 
             if (project is not null)
             {
-                summary.TryAddProject(project);
+                result.TryAddProject(project);
             }
         }
 
@@ -81,18 +81,18 @@ public sealed class Update
 
             if (toolsProject is not null)
             {
-                summary.TryAddProject(toolsProject);
+                result.TryAddProject(toolsProject);
             }
 
             var csprojProject = UpdatePackageReferencesInCsproj(packages, project.Key, dryRun);
 
             if (csprojProject is not null)
             {
-                summary.TryAddProject(csprojProject);
+                result.TryAddProject(csprojProject);
             }
         }
 
-        return Summary.Create(summary);
+        return Summary.Create(result);
     }
 
     private ProjectWithPackages? UpdatePackageReferencesInCsproj(IDictionary<string, NuGetPackage> packages, FileInfo csproj, bool dryRun)
@@ -244,29 +244,35 @@ public sealed class Update
             {
                 toolObject.Remove(property.Key);
                 if (property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
-                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version)
-                    && packages.TryGetValue(packageId, out var package))
+                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version))
                 {
-                    if (package.TryGetLatestComparedTo(version, out var updateTo))
+                    if (packages.TryGetValue(packageId, out var package))
                     {
-                        toolObject.Add(property.Key, updateTo.Version.ToString());
+                        if (package.TryGetLatestComparedTo(version, out var updateTo))
+                        {
+                            toolObject.Add(property.Key, updateTo.Version.ToString());
 
-                        project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+                            project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+                        }
+                        else
+                        {
+                            if (package.TryGet(version, out var packageMetadata))
+                            {
+                                if (packageMetadata.DeprecationMetadata is not null)
+                                {
+                                    project.AddDeprecatedPackage(new(packageId, version, packageMetadata.DeprecationMetadata));
+                                }
+
+                                if (packageMetadata.Vulnerabilities?.Any() == true)
+                                {
+                                    project.AddVulnerablePackage(new(packageId, version, packageMetadata.Vulnerabilities));
+                                }
+                            }
+                        }
                     }
                     else
                     {
-                        if (package.TryGet(version, out var packageMetadata))
-                        {
-                            if (packageMetadata.DeprecationMetadata is not null)
-                            {
-                                project.AddDeprecatedPackage(new(packageId, version, packageMetadata.DeprecationMetadata));
-                            }
-
-                            if (packageMetadata.Vulnerabilities?.Any() == true)
-                            {
-                                project.AddVulnerablePackage(new(packageId, version, packageMetadata.Vulnerabilities));
-                            }
-                        }
+                        project.AddUnknownPackage(packageId);
                     }
                 }
                 else
