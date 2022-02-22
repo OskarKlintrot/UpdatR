@@ -1,7 +1,8 @@
 {
   "profiles": {
     "Build": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "build"
     },
     "Build-WSL2": {
       "commandName": "WSL",

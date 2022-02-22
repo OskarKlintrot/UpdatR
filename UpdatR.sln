@@ -35,6 +35,19 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Build", "tools\Build\Build.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update", "src\UpdatR.Update\UpdatR.Update.csproj", "{4533B82F-E253-427C-8EE7-E87B53498925}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Packages", "Packages", "{C5346D82-B741-4590-A848-64CF550B158D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{E30AD9A1-368B-4D0B-807B-D61F8610D210}"
+	ProjectSection(SolutionItems) = preProject
+		src\Build\icon.png = src\Build\icon.png
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1F5D2047-E0F7-40C1-8B53-B72D0FDD0E79}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		src\Build\docs\release-notes.txt = src\Build\docs\release-notes.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		src\BuildingBlocks\BuildingBlocks.projitems*{93d70ccb-9f73-4868-ad9d-ddaef0ebfa00}*SharedItemsImports = 5
@@ -71,6 +84,9 @@ Global
 		{B01F1A63-BB8B-43BB-8F06-F48C14EA041C} = {6743D5A3-318C-42A9-AAAA-AF8C7F303B44}
 		{83E87026-64D7-4324-AC20-A3CBF5831DE6} = {43F9E86A-7423-411E-B82B-B94FB1A3F872}
 		{E6115943-7C57-4F83-ABE9-1756C321C007} = {43F9E86A-7423-411E-B82B-B94FB1A3F872}
+		{C5346D82-B741-4590-A848-64CF550B158D} = {43F9E86A-7423-411E-B82B-B94FB1A3F872}
+		{E30AD9A1-368B-4D0B-807B-D61F8610D210} = {C5346D82-B741-4590-A848-64CF550B158D}
+		{1F5D2047-E0F7-40C1-8B53-B72D0FDD0E79} = {C5346D82-B741-4590-A848-64CF550B158D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A9587870-FAEC-4EFD-BF65-CF818DE85DD9}

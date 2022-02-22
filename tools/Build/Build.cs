@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml;
 using BuildingBlocks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -35,6 +37,7 @@ var logsDir = Path.Combine(artifactsDir, "logs");
 var buildLogFile = Path.Combine(logsDir, "build.binlog");
 
 var solutionFile = Path.Combine(rootDir.FullName, "UpdatR.sln");
+var srcDir = Path.Combine(rootDir.FullName, "src");
 
 Target("artifactDirectories", () =>
 {
@@ -145,9 +148,79 @@ Target("build", DependsOn("artifactDirectories"), async () =>
 {
     var version = await GetVersionAsync();
 
+    var packagesToBe = GetPackagesIn(srcDir);
+    var releaseNotes = Path.Combine(srcDir, "Build", "docs", "release-notes.txt");
+    var readme = Path.Combine(rootDir.FullName, "README.md");
+    var icon = Path.Combine(srcDir, "Build", "icon.png");
+
+    if (!File.Exists(releaseNotes))
+    {
+        throw new InvalidOperationException($"{releaseNotes} not found.");
+    }
+
+    if (!File.Exists(readme))
+    {
+        throw new InvalidOperationException($"{readme} not found.");
+    }
+
+    if (!File.Exists(icon))
+    {
+        throw new InvalidOperationException($"{icon} not found.");
+    }
+
+    var fullReadmeContent = await File.ReadAllLinesAsync(readme);
+    var readmeIconStart = Array.IndexOf(fullReadmeContent, "# Icon");
+
+    foreach (var (csproj, packageId) in packagesToBe)
+    {
+        var projectRoot = Directory.GetParent(csproj)!.FullName;
+
+        var subHeadings = fullReadmeContent.Where(x => Regex.IsMatch(x, "^#{1,2}[^#].*")).ToArray();
+
+        if (subHeadings[^1] != "# Icon")
+        {
+            throw new InvalidOperationException("Icon info should be last in README.md");
+        }
+
+        var iconContent = fullReadmeContent[Array.IndexOf(fullReadmeContent, "# Icon")..]
+            .Select(x => x.Replace("# Icon", "## Icon"));
+
+        var readmeContentStart = Array.IndexOf(fullReadmeContent, $"## {packageId}");
+        var readmeContentEnd = Array.IndexOf(fullReadmeContent, subHeadings[Array.IndexOf(subHeadings, $"## {packageId}") + 1]);
+
+        var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
+            .Select(x => x.Replace("##", "#"))
+            .Union(iconContent);
+
+        File.Copy(icon, Path.Combine(projectRoot, "images", "icon.png"), true);
+        File.Copy(releaseNotes, Path.Combine(projectRoot, "docs", "release-notes.txt"), true);
+        await File.WriteAllLinesAsync(Path.Combine(projectRoot, "docs", "README.md"), readmeContent, Encoding.UTF8);
+    }
+
     await RunAsync("dotnet",
         $"build --configuration Release /p:Version=\"{version}\" /bl:\"{buildLogFile}\" \"{solutionFile}\"");
+
+    static IEnumerable<(string Csproj, string PackageId)> GetPackagesIn(string srcDir)
+    {
+        foreach (var project in Directory.EnumerateFiles(srcDir, "*.csproj", SearchOption.AllDirectories))
+        {
+            var doc = new XmlDocument
+            {
+                PreserveWhitespace = true,
+            };
+
+            doc.Load(project);
+
+            var packageId = doc.SelectSingleNode("/Project/PropertyGroup/PackageId");
+
+            if (packageId is not null)
+            {
+                yield return (project, packageId.InnerText);
+            }
+        }
+    }
 });
+
 
 Target("test", DependsOn("build"), () =>
 {
