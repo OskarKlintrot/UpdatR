@@ -35,6 +35,11 @@ internal sealed class Result
             Path = Path.GetRelativePath(_rootPath, project.Path)
         };
 
+        foreach (var unknown in project.UnknownPackages)
+        {
+            TryAddUnknownPackage(unknown, project.Path);
+        }
+
         if (_projects.ContainsKey(project.Path))
         {
             return false;
