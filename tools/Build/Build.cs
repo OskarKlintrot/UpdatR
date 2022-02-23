@@ -189,7 +189,7 @@ Target("build", DependsOn("artifactDirectories"), async () =>
         var readmeContentEnd = Array.IndexOf(fullReadmeContent, subHeadings[Array.IndexOf(subHeadings, $"## {packageId}") + 1]);
 
         var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
-            .Select(x => x.Replace("##", "#"))
+            .Select(x => x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x)
             .Union(iconContent);
 
         File.Copy(icon, Path.Combine(projectRoot, "images", "icon.png"), true);
@@ -220,7 +220,6 @@ Target("build", DependsOn("artifactDirectories"), async () =>
         }
     }
 });
-
 
 Target("test", DependsOn("build"), () =>
 {
