@@ -2,6 +2,7 @@
 using System.Text;
 
 namespace UpdatR.Update.Formatters;
+
 public static class MarkdownFormatter
 {
     public static string Generate(Summary summary)
