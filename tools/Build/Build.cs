@@ -168,40 +168,8 @@ Target("build", DependsOn("artifactDirectories"), async () =>
         throw new InvalidOperationException($"{icon} not found.");
     }
 
-    var fullReadmeContent = await File.ReadAllLinesAsync(readme);
-    var readmeIconStart = Array.IndexOf(fullReadmeContent, "# Icon");
-
-    foreach (var (csproj, packageId) in packagesToBe)
-    {
-        var projectRoot = Directory.GetParent(csproj)!.FullName;
-
-        var subHeadings = fullReadmeContent.Where(x => Regex.IsMatch(x, "^#{1,2}[^#].*")).ToArray();
-
-        if (subHeadings[^1] != "# Icon")
-        {
-            throw new InvalidOperationException("Icon info should be last in README.md");
-        }
-
-        var iconContent = fullReadmeContent[Array.IndexOf(fullReadmeContent, "# Icon")..]
-            .Select(x => x.Replace("# Icon", "## Icon"));
-
-        var readmeContentStart = Array.IndexOf(fullReadmeContent, $"## {packageId}");
-
-        if (readmeContentStart == -1)
-        {
-            throw new InvalidOperationException($"Missing README.md-section for {packageId}.");
-        }
-
-        var readmeContentEnd = Array.IndexOf(fullReadmeContent, subHeadings[Array.IndexOf(subHeadings, $"## {packageId}") + 1]);
-
-        var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
-            .Select(x => x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x)
-            .Union(iconContent);
-
-        File.Copy(icon, Path.Combine(projectRoot, "images", "icon.png"), true);
-        File.Copy(releaseNotes, Path.Combine(projectRoot, "docs", "release-notes.txt"), true);
-        await File.WriteAllLinesAsync(Path.Combine(projectRoot, "docs", "README.md"), readmeContent, Encoding.UTF8);
-    }
+    await CopyReadmeSections(packagesToBe, readme);
+    CopyIconAndReleaseNotes(packagesToBe, releaseNotes, icon);
 
     await RunAsync("dotnet",
         $"build --configuration Release /p:Version=\"{version}\" /bl:\"{buildLogFile}\" \"{solutionFile}\"");
@@ -223,6 +191,53 @@ Target("build", DependsOn("artifactDirectories"), async () =>
             {
                 yield return (project, packageId.InnerText);
             }
+        }
+    }
+
+    static async Task CopyReadmeSections(IEnumerable<(string Csproj, string PackageId)> packagesToBe, string readme)
+    {
+        var fullReadmeContent = await File.ReadAllLinesAsync(readme);
+        var readmeIconStart = Array.IndexOf(fullReadmeContent, "# Icon");
+
+        foreach (var (csproj, packageId) in packagesToBe)
+        {
+            var projectRoot = Directory.GetParent(csproj)!.FullName;
+
+            var subHeadings = fullReadmeContent.Where(x => Regex.IsMatch(x, "^#{1,2}[^#].*")).ToArray();
+
+            if (subHeadings[^1] != "# Icon")
+            {
+                throw new InvalidOperationException("Icon info should be last in README.md");
+            }
+
+            var iconContent = fullReadmeContent[Array.IndexOf(fullReadmeContent, "# Icon")..]
+                .Select(x => x.Replace("# Icon", "## Icon"));
+
+            var readmeContentStart = Array.IndexOf(fullReadmeContent, $"## {packageId}");
+
+            if (readmeContentStart == -1)
+            {
+                throw new InvalidOperationException($"Missing README.md-section for {packageId}.");
+            }
+
+            var readmeContentEnd = Array.IndexOf(fullReadmeContent, subHeadings[Array.IndexOf(subHeadings, $"## {packageId}") + 1]);
+
+            var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
+                .Select(x => x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x)
+                .Union(iconContent);
+
+            await File.WriteAllLinesAsync(Path.Combine(projectRoot, "docs", "README.md"), readmeContent, Encoding.UTF8);
+        }
+    }
+
+    static void CopyIconAndReleaseNotes(IEnumerable<(string Csproj, string PackageId)> packagesToBe, string releaseNotes, string icon)
+    {
+        foreach (var (csproj, packageId) in packagesToBe)
+        {
+            var projectRoot = Directory.GetParent(csproj)!.FullName;
+
+            File.Copy(icon, Path.Combine(projectRoot, "images", "icon.png"), true);
+            File.Copy(releaseNotes, Path.Combine(projectRoot, "docs", "release-notes.txt"), true);
         }
     }
 });
