@@ -186,6 +186,12 @@ Target("build", DependsOn("artifactDirectories"), async () =>
             .Select(x => x.Replace("# Icon", "## Icon"));
 
         var readmeContentStart = Array.IndexOf(fullReadmeContent, $"## {packageId}");
+
+        if (readmeContentStart == -1)
+        {
+            throw new InvalidOperationException($"Missing README.md-section for {packageId}.");
+        }
+
         var readmeContentEnd = Array.IndexOf(fullReadmeContent, subHeadings[Array.IndexOf(subHeadings, $"## {packageId}") + 1]);
 
         var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
