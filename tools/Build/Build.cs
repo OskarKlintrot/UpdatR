@@ -224,7 +224,26 @@ Target("build", DependsOn("artifactDirectories"), async () =>
 
             var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
                 .Select(x => x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x)
-                .Union(iconContent);
+                .Select(line =>
+                {
+                    foreach (var (_, id) in packagesToBe)
+                    {
+                        var relativeLink = $"(#{id.Replace(".", string.Empty).ToLowerInvariant()})";
+                        var nugetLink = $"(https://www.nuget.org/packages/{id}/)";
+
+                        if (line.Contains(relativeLink))
+                        {
+                            line = line.Replace(relativeLink, nugetLink);
+                        }
+                    }
+
+                    return line;
+                });
+
+            foreach (var line in iconContent)
+            {
+                readmeContent = readmeContent.Append(line); // Union removes all empty lines except the first.
+            }
 
             await File.WriteAllLinesAsync(Path.Combine(projectRoot, "docs", "README.md"), readmeContent, Encoding.UTF8);
         }
