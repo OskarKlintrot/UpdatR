@@ -1,5 +1,4 @@
-﻿using NuGet.Protocol;
-using NuGet.Versioning;
+﻿using NuGet.Versioning;
 
 namespace UpdatR.Update.Internals;
 
@@ -152,6 +151,10 @@ internal sealed class DeprecatedPackage
     }
 }
 
+public sealed record PackageDeprecationMetadata(string Message, IEnumerable<string> Reasons, AlternatePackageMetadata? AlternatePackage);
+
+public sealed record AlternatePackageMetadata(string PackageId, VersionRange Range);
+
 internal sealed class VulnerablePackage
 {
     public string PackageId { get; }
@@ -165,6 +168,7 @@ internal sealed class VulnerablePackage
         Vulnerabilities = vulnerabilities;
     }
 }
+public sealed record PackageVulnerabilityMetadata(Uri AdvisoryUrl, int Severity);
 
 internal record PackageMetadata(
     NuGetVersion Version,

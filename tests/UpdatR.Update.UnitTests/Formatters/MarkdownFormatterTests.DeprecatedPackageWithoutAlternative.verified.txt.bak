@@ -1,0 +1,16 @@
+﻿# Updated no packages.
+
+## Deprecated packages
+
+### Deprecated.Package
+> Old and deprecated package.
+
+Reason(s): Other
+
+Package used in:
+| Project   | Version   |
+|:----------|:----------|
+|Foo\Foo.csproj |1.2.3|
+|Bar\Bar.csproj |1.2.3|
+
+

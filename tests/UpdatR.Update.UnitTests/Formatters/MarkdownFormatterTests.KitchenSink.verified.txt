@@ -1,0 +1,55 @@
+﻿# 📦 Updated Updated.Package
+
+1 package(s) were updated in 1 projects:
+
+| Updated.Package |
+
+## Vulnerable packages
+
+### Vulnerable.Package
+Version 1.2.3 with severity 1: https://google.com/
+
+#### Used in:
+- Foo\Foo.csproj
+
+
+## Deprecated packages
+
+### Deprecated.Package
+> Old and deprecated package.
+
+Reason(s): Other
+
+Alternate Package: Not.Deprecated
+
+Version range: (, )
+
+Package used in:
+ Project | Version
+--|-
+Foo\Foo.csproj |1.2.3
+
+
+## Updated packages
+
+### Updated.Package
+ Project   | From   | To
+--|-|-
+Foo\Foo.csproj| 1.0.0 | 2.0.0
+
+
+## Not found packages
+
+### Unknown.Package
+
+Used in:
+- Foo\Foo.csproj
+
+
+## Unauthorized sources
+
+ Name | Source
+--|-
+Unauthorized source | https://google.com
+
+

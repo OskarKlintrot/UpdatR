@@ -127,18 +127,23 @@ public static class TextFormatter
 
                 sb.AppendLine(metadata.Message.Replace("\n", Environment.NewLine));
 
-                sb.AppendFormat(
-                    new CultureInfo("en-US"),
-                    "Alternate Package: {0}",
-                    metadata.AlternatePackage.PackageId);
-                sb.AppendLine();
+                if (metadata.AlternatePackage is not null)
+                {
+                    sb
+                        .AppendFormat(
+                            new CultureInfo("en-US"),
+                            "Alternate Package: {0}",
+                            metadata.AlternatePackage.PackageId)
+                        .AppendLine();
 
-                sb.AppendFormat(
-                    new CultureInfo("en-US"),
-                    "Version range: {0}",
-                    metadata.AlternatePackage.Range);
+                    sb
+                        .AppendFormat(
+                            new CultureInfo("en-US"),
+                            "Version range: {0}",
+                            metadata.AlternatePackage.Range)
+                        .AppendLine();
+                }
 
-                sb.AppendLine();
                 sb.AppendLine("Package used in:");
 
                 foreach (var project in projects)

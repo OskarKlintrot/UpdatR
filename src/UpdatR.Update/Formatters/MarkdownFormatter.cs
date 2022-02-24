@@ -19,10 +19,9 @@ public static class MarkdownFormatter
                 .Append(" package(s) were updated in ")
                 .Append(summary.UpdatedPackages.SelectMany(x => x.Updates.Select(y => y.Project)).Distinct().Count())
                 .AppendLine(" projects:")
+                .AppendLine()
+                .Append("| ").Append(string.Join('|', summary.UpdatedPackages.Select(x => $" {x.PackageId} ")).Trim()).AppendLine(" |")
                 .AppendLine();
-
-            sb
-                .AppendLine(string.Join('|', summary.UpdatedPackages.Select(x => $" {x.PackageId} ")).Trim());
         }
 
         if (summary.VulnerablePackages.Any())
@@ -70,15 +69,15 @@ public static class MarkdownFormatter
 
     private static void UnauthorizedSources(StringBuilder sb, IEnumerable<(string Name, string Source)> unauthorizedSources)
     {
-        sb.AppendLine("| Name   | Source   |");
-        sb.AppendLine("|:-------|:---------|");
+        sb.AppendLine(" Name | Source");
+        sb.AppendLine("--|-");
 
         foreach (var (name, source) in unauthorizedSources)
         {
             sb
                 .AppendFormat(
                     new CultureInfo("en-US"),
-                    "|{0} | {1}|",
+                    "{0} | {1}",
                     name,
                     source)
                 .AppendLine();
@@ -149,31 +148,35 @@ public static class MarkdownFormatter
                     .AppendLine()
                     .AppendLine();
 
-                sb
-                    .AppendFormat(
-                        new CultureInfo("en-US"),
-                        "Alternate Package: {0}",
-                        metadata.AlternatePackage.PackageId)
-                    .AppendLine()
-                    .AppendLine();
+                if (metadata.AlternatePackage is not null)
+                {
+                    sb
+                        .AppendFormat(
+                            new CultureInfo("en-US"),
+                            "Alternate Package: {0}",
+                            metadata.AlternatePackage.PackageId)
+                        .AppendLine()
+                        .AppendLine();
 
-                sb.AppendFormat(
-                    new CultureInfo("en-US"),
-                    "Version range: {0}",
-                    metadata.AlternatePackage.Range)
-                    .AppendLine()
-                    .AppendLine();
+                    sb
+                        .AppendFormat(
+                            new CultureInfo("en-US"),
+                            "Version range: {0}",
+                            metadata.AlternatePackage.Range)
+                        .AppendLine()
+                        .AppendLine();
+                }
 
                 sb.AppendLine("Package used in:");
-                sb.AppendLine("| Project   | Version   |");
-                sb.AppendLine("|:----------|:----------|");
+                sb.AppendLine(" Project | Version");
+                sb.AppendLine("--|-");
 
                 foreach (var project in projects)
                 {
                     sb
                         .AppendFormat(
                             new CultureInfo("en-US"),
-                            "|{0} |{1}|",
+                            "{0} |{1}",
                             project.PadRight(padding),
                             version)
                         .AppendLine();
@@ -193,12 +196,14 @@ public static class MarkdownFormatter
             {
                 foreach (var vulnerability in vulnerabilities)
                 {
-                    sb.AppendFormat(
-                        new CultureInfo("en-US"),
-                        "Version {0} with severity {1}: {2}",
-                        version,
-                        vulnerability.Severity,
-                        vulnerability.AdvisoryUrl);
+                    sb
+                        .AppendFormat(
+                            new CultureInfo("en-US"),
+                            "Version {0} with severity {1}: {2}",
+                            version,
+                            vulnerability.Severity,
+                            vulnerability.AdvisoryUrl)
+                        .AppendLine();
                 }
 
                 sb.AppendLine();
@@ -235,15 +240,15 @@ public static class MarkdownFormatter
 
             sb.Append("### ").AppendLine(packages.PackageId);
 
-            sb.AppendLine("| Project   | From   | To   |");
-            sb.AppendLine("|:----------|:-------|:-----|");
+            sb.AppendLine(" Project   | From   | To");
+            sb.AppendLine("--|-|-");
 
             foreach (var (from, to, project) in packages.Updates)
             {
                 sb
                     .AppendFormat(
                         new CultureInfo("en-US"),
-                        "|{0}| {1} | {2}|",
+                        "{0}| {1} | {2}",
                         project.PadRight(padRightProject),
                         from.ToString().PadRight(padRightFrom),
                         to)
