@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
+using System.Runtime.InteropServices;
 using BuildingBlocks;
+using Markdig;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using UpdatR.Update.Formatters;
 
 namespace UpdatR.Update.Cli;
@@ -17,13 +19,15 @@ internal static partial class Program
     /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
     /// <param name="verbosity">Log level</param>
     /// <param name="dry">Do not save any changes.</param>
+    /// <param name="browser">Open summary in browser.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
         string? target = null,
         string? output = null,
         Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
-        bool dry = false)
+        bool dry = false,
+        bool browser = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -50,7 +54,27 @@ internal static partial class Program
 
         var outputStr = TextFormatter.PlainText(summary);
 
-        WriteSummaryToConsole(outputStr);
+        if (browser)
+        {
+            var outputMd = MarkdownFormatter.Generate(summary);
+
+            var htmlPath = Path.Combine(Path.GetTempPath(), "dotnet-updatr");
+
+            Directory.CreateDirectory(htmlPath);
+
+            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            var html = Markdown.ToHtml(outputMd, pipeline);
+
+            var filePath = Path.Combine(htmlPath, "summary.html");
+
+            await File.WriteAllTextAsync(filePath, html);
+
+            OpenFile(filePath);
+        }
+        else
+        {
+            WriteSummaryToConsole(outputStr);
+        }
 
         if (output is not null)
         {
@@ -95,6 +119,22 @@ internal static partial class Program
             }
 
             Console.WriteLine(output[i]);
+        }
+    }
+
+    private static void OpenFile(string path)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Process.Start("cmd.exe ", "/c " + path);
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            throw new PlatformNotSupportedException("Not yet supported. PR's are welcome!");
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            throw new PlatformNotSupportedException("Not yet supported. PR's are welcome!");
         }
     }
 
