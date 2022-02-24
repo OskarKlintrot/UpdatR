@@ -1,5 +1,4 @@
-﻿using NuGet.Protocol;
-using NuGet.Versioning;
+﻿using NuGet.Versioning;
 using UpdatR.Update.Internals;
 
 namespace UpdatR.Update;

@@ -343,7 +343,17 @@ public sealed class Update
 
                         var metadata = searchMetadata
                             .OfType<PackageSearchMetadataRegistration>()
-                            .Select(x => new PackageMetadata(x.Version, x.DeprecationMetadata, x.Vulnerabilities));
+                            .Select(x => new PackageMetadata(
+                                x.Version,
+                                x.DeprecationMetadata is null
+                                ? null
+                                : new(
+                                    x.DeprecationMetadata.Message,
+                                    x.DeprecationMetadata.Reasons,
+                                    x.DeprecationMetadata.AlternatePackage is null
+                                    ? null
+                                    : new(x.DeprecationMetadata.AlternatePackage.PackageId, x.DeprecationMetadata.AlternatePackage.Range)),
+                                x.Vulnerabilities?.Select(y => new Internals.PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
 
                         if (!metadata.Any())
                         {

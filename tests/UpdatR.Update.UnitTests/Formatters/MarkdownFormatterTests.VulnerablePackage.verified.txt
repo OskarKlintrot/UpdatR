@@ -1,0 +1,11 @@
+﻿# Updated no packages.
+
+## Vulnerable packages
+
+### Vulnerable.Package
+
+#### Used in:
+- Foo\Foo.csproj
+- Bar\Bar.csproj
+
+
