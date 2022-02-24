@@ -12,9 +12,10 @@ Alternate Package: Not.Deprecated
 Version range: (, )
 
 Package used in:
- Project | Version
---|-
-Foo\Foo.csproj |1.2.3
-Bar\Bar.csproj |1.2.3
+
+| Project | Version |
+|:--------|:--------|
+| Foo\Foo.csproj | 1.2.3 |
+| Bar\Bar.csproj | 1.2.3 |
 
 

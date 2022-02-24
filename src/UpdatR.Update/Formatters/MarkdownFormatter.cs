@@ -69,15 +69,15 @@ public static class MarkdownFormatter
 
     private static void UnauthorizedSources(StringBuilder sb, IEnumerable<(string Name, string Source)> unauthorizedSources)
     {
-        sb.AppendLine(" Name | Source");
-        sb.AppendLine("--|-");
+        sb.AppendLine("| Name | Source |");
+        sb.AppendLine("|:-----|:-------|");
 
         foreach (var (name, source) in unauthorizedSources)
         {
             sb
                 .AppendFormat(
                     new CultureInfo("en-US"),
-                    "{0} | {1}",
+                    "| {0} | {1} |",
                     name,
                     source)
                 .AppendLine();
@@ -168,15 +168,16 @@ public static class MarkdownFormatter
                 }
 
                 sb.AppendLine("Package used in:");
-                sb.AppendLine(" Project | Version");
-                sb.AppendLine("--|-");
+                sb.AppendLine();
+                sb.AppendLine("| Project | Version |");
+                sb.AppendLine("|:--------|:--------|");
 
                 foreach (var project in projects)
                 {
                     sb
                         .AppendFormat(
                             new CultureInfo("en-US"),
-                            "{0} |{1}",
+                            "| {0} | {1} |",
                             project.PadRight(padding),
                             version)
                         .AppendLine();
@@ -240,15 +241,15 @@ public static class MarkdownFormatter
 
             sb.Append("### ").AppendLine(packages.PackageId);
 
-            sb.AppendLine(" Project   | From   | To");
-            sb.AppendLine("--|-|-");
+            sb.AppendLine("| Project   | From   | To |");
+            sb.AppendLine("|:----------|:-------|:---|");
 
             foreach (var (from, to, project) in packages.Updates)
             {
                 sb
                     .AppendFormat(
                         new CultureInfo("en-US"),
-                        "{0}| {1} | {2}",
+                        "| {0} | {1} | {2} |",
                         project.PadRight(padRightProject),
                         from.ToString().PadRight(padRightFrom),
                         to)

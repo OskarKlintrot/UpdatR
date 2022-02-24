@@ -7,12 +7,12 @@
 ## Updated packages
 
 ### Updated.Package
- Project   | From   | To   
+ Project   | From   | To
 --|-|-
 Foo\Foo.csproj| 1.0.0 | 2.0.0
 
 ### Updated.Package.Abstracts
- Project   | From   | To   
+ Project   | From   | To
 --|-|-
 Foo\Foo.csproj| 1.0.0 | 2.0.0
 
