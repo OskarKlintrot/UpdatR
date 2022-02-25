@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using BuildingBlocks;
 using Markdig;
@@ -18,7 +19,7 @@ internal static partial class Program
     /// <param name="target">Path to solution or project(s). Exclude if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
     /// <param name="verbosity">Log level</param>
-    /// <param name="dry">Do not save any changes.</param>
+    /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="browser">Open summary in browser.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
@@ -26,7 +27,7 @@ internal static partial class Program
         string? target = null,
         string? output = null,
         Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
-        bool dry = false,
+        bool dryRun = false,
         bool browser = false)
     {
         var sw = Stopwatch.StartNew();
@@ -50,7 +51,7 @@ internal static partial class Program
 
         update.LogMessage += ReceivedLogMessage;
 
-        var summary = await update.UpdateAsync(target, dry);
+        var summary = await update.UpdateAsync(target, dryRun);
 
         var outputStr = TextFormatter.PlainText(summary);
 
@@ -80,7 +81,7 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(new FileInfo(output).Extension))
             {
-                await File.WriteAllTextAsync(Path.Combine(output, "output.md"), outputStr);
+                await File.WriteAllTextAsync(Path.Combine(output, "output.txt"), outputStr);
             }
             else
             {
@@ -95,12 +96,9 @@ internal static partial class Program
             }
         }
 
-#pragma warning disable CA1305 // Specify IFormatProvider
-#pragma warning disable CA1848 // Use the LoggerMessage delegates
         Console.ForegroundColor = ConsoleColor.Green;
-        _logger.LogTrace("Finished after {ElapsedTime}.", sw.Elapsed.ToString("hh\\:mm\\:ss\\.fff"));
-#pragma warning restore CA1848 // Use the LoggerMessage delegates
-#pragma warning restore CA1305 // Specify IFormatProvider
+        LogFinished(_logger, sw.Elapsed.ToString("hh\\:mm\\:ss\\.fff", new CultureInfo("en-US")));
+        Console.ResetColor();
     }
 
     private static void WriteSummaryToConsole(string summary)
@@ -130,11 +128,11 @@ internal static partial class Program
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            throw new PlatformNotSupportedException("Not yet supported. PR's are welcome!");
+            Process.Start("xdg-open", path);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            throw new PlatformNotSupportedException("Not yet supported. PR's are welcome!");
+            Process.Start("open", path);
         }
     }
 
@@ -154,8 +152,9 @@ internal static partial class Program
         };
     }
 
-#pragma warning disable IDE0060 // Remove unused parameter
-    [LoggerMessage(EventId = 0, Message = "update: {Message}`")]
+    [LoggerMessage(EventId = 0, Message = "update: {Message}")]
     static partial void LogUpdate(ILogger logger, Microsoft.Extensions.Logging.LogLevel level, string message);
-#pragma warning restore IDE0060 // Remove unused parameter
+
+    [LoggerMessage(Level = Microsoft.Extensions.Logging.LogLevel.Information, Message = "Finished after {ElapsedTime}.")]
+    static partial void LogFinished(ILogger logger, string elapsedTime);
 }
