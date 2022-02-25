@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bullseye" Version="4.0.0-rc.2" PrivateAssets="all" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="4.0.1" PrivateAssets="all" />
+    <PackageReference Include="NuGet.Versioning" Version="6.1.0" PrivateAssets="all"  />
+    <PackageReference Include="SimpleExec" Version="9.0.0-rc.3" PrivateAssets="all"  />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="MsBuildConfigurationAttribute">
+      <_Parameter1>$(ProjectDir)</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
