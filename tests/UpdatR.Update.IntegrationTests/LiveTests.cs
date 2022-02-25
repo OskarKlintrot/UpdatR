@@ -8,9 +8,18 @@ public class LiveTests
     [Fact]
     public async Task UpdateDummyProject()
     {
+        var runsOnGitHubActions = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
+
         var root = await GetRepoRootDirectoryAsync();
 
+        Console.WriteLine("Root: " + root);
+
         var dummyProjectSrc = Path.Combine(root.FullName, "tests", "UpdatR.Update.IntegrationTests", "Dummy");
+
+        if (!Directory.Exists(dummyProjectSrc))
+        {
+            throw new InvalidOperationException($"Path {dummyProjectSrc} does not exist.");
+        }
 
         var testTemp = Path.Combine(Path.GetTempPath(), "dotnet-updatr", "integrationtests");
 
@@ -27,21 +36,28 @@ public class LiveTests
 
         CopyDirectory(dummyProjectSrc, dummyProject, recursive: true);
 
-        var cliPath = Path.Combine(root.FullName, "src", "Updatr.Update.Cli");
+        var cliProjectPath = Path.Combine(root.FullName, "src", "UpdatR.Update.Cli");
+
+        if (!runsOnGitHubActions)
+        {
+            await RunAsync(
+                "dotnet",
+                "build --configuration Release",
+                workingDirectory: cliProjectPath);
+        }
+
+        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net6.0", "UpdatR.Update.Cli.dll");
 
         await RunAsync(
             "dotnet",
-            "build --configuration Release",
-            workingDirectory: cliPath);
-
-        var cli = Path.Combine(cliPath, "bin", "Release", "net6.0", "Updatr.Update.Cli.exe");
-
-        await RunAsync(
-            cli,
-            $"--output {log}",
+            $"exec {cli} --output {log}",
             workingDirectory: dummyProject);
 
-        await Verify(GetVerifyObjects());
+        var settings = new VerifySettings();
+
+        settings.ScrubLinesWithReplace(line => line.Replace("Dummy.App/Dummy.App.csproj", @"Dummy.App\Dummy.App.csproj"));
+
+        await Verify(GetVerifyObjects(), settings);
 
         async IAsyncEnumerable<string> GetVerifyObjects()
         {
