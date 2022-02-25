@@ -30,6 +30,7 @@ internal partial class NuGetLogger : NuGet.Common.LoggerBase
         NuGet.Common.LogLevel.Debug => LogLevel.Trace,
         NuGet.Common.LogLevel.Verbose => LogLevel.Debug,
         NuGet.Common.LogLevel.Information => LogLevel.Information,
+        NuGet.Common.LogLevel.Minimal => LogLevel.Warning,
         NuGet.Common.LogLevel.Warning => LogLevel.Warning,
         NuGet.Common.LogLevel.Error => LogLevel.Error,
         _ => throw new NotImplementedException("Unknown verbosity."),
