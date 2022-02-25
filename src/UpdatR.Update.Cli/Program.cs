@@ -21,6 +21,7 @@ internal static partial class Program
     /// <param name="verbosity">Log level</param>
     /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="browser">Open summary in browser.</param>
+    /// <param name="interactive">Interaction with user is possible.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
@@ -28,7 +29,8 @@ internal static partial class Program
         string? output = null,
         Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
         bool dryRun = false,
-        bool browser = false)
+        bool browser = false,
+        bool interactive = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -51,7 +53,7 @@ internal static partial class Program
 
         update.LogMessage += ReceivedLogMessage;
 
-        var summary = await update.UpdateAsync(target, dryRun);
+        var summary = await update.UpdateAsync(target, dryRun, interactive);
 
         var outputStr = TextFormatter.PlainText(summary);
 
@@ -81,7 +83,7 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(new FileInfo(output).Extension))
             {
-                await File.WriteAllTextAsync(Path.Combine(output, "output.txt"), outputStr);
+                await File.WriteAllTextAsync(Path.Combine(output, "output.md"), MarkdownFormatter.Generate(summary));
             }
             else
             {

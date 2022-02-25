@@ -29,7 +29,7 @@ public sealed class Update
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<Summary> UpdateAsync(string? path = null, bool dryRun = false)
+    public async Task<Summary> UpdateAsync(string? path = null, bool dryRun = false, bool interactive = false)
     {
         var sw = Stopwatch.StartNew();
 
@@ -56,7 +56,7 @@ public sealed class Update
 
         var result = new Result(path);
 
-        DefaultCredentialServiceUtility.SetupDefaultCredentialService(_nuGetLogger, true);
+        DefaultCredentialServiceUtility.SetupDefaultCredentialService(_nuGetLogger, !interactive);
 
         var (packages, unauthorizedSources) = await GetPackageVersions(solution, projectsWithPackages, solutionTools, _nuGetLogger);
 
