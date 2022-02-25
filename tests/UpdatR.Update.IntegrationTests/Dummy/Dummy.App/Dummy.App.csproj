@@ -9,6 +9,8 @@
   
   <ItemGroup>
     <PackageReference Include="Deprecated.Dummy" Version="0.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.App" Version="2.1.3" />
+    <PackageReference Include="Microsoft.Azure.ServiceBus" Version="5.2.0" />
   </ItemGroup>
 
 </Project>
