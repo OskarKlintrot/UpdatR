@@ -1,9 +1,7 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks;
 
-[SuppressMessage("CodeQuality", "RCS1043:Remove 'partial' modifier from type with a single part", Justification = "Used by source generator")]
 internal partial class NuGetLogger : NuGet.Common.LoggerBase
 {
     private readonly ILogger _logger;
@@ -37,8 +35,6 @@ internal partial class NuGetLogger : NuGet.Common.LoggerBase
         _ => throw new NotImplementedException("Unknown verbosity."),
     };
 
-#pragma warning disable IDE0060 // Remove unused parameter
     [LoggerMessage(EventId = 0, Message = "nuget: ({NuGetLogLevel}): {Message}`")]
     static partial void Log(ILogger logger, LogLevel level, NuGet.Common.LogLevel nuGetLogLevel, string message);
-#pragma warning restore IDE0060 // Remove unused parameter
 }
