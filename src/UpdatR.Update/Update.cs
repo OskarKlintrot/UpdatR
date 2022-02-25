@@ -3,12 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml;
+using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Credentials;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
-using NuGet.Common;
 using UpdatR.Update.Internals;
 
 namespace UpdatR.Update;
@@ -510,13 +510,13 @@ public sealed class Update
         private PackageMetadata? _latestPrerelease;
 
         public PackageMetadata? LatestStable => _latestStable ??= PackageMetadatas
-            .OrderByDescending(x => x.Version)
             .Where(x => !x.Version.IsPrerelease)
+            .OrderByDescending(x => x.Version)
             .FirstOrDefault();
 
         public PackageMetadata? LatestPrerelease => _latestPrerelease ??= PackageMetadatas
-            .OrderByDescending(x => x.Version)
             .Where(x => x.Version.IsPrerelease)
+            .OrderByDescending(x => x.Version)
             .FirstOrDefault();
 
         /// <summary>
