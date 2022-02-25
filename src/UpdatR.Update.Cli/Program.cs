@@ -96,9 +96,7 @@ internal static partial class Program
             }
         }
 
-        Console.ForegroundColor = ConsoleColor.Green;
         LogFinished(_logger, sw.Elapsed.ToString("hh\\:mm\\:ss\\.fff", new CultureInfo("en-US")));
-        Console.ResetColor();
     }
 
     private static void WriteSummaryToConsole(string summary)
