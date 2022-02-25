@@ -31,7 +31,9 @@ internal sealed class Result
     {
         project = project with
         {
-            Path = Path.GetRelativePath(_rootPath, project.Path)
+            Path = Path
+                .GetRelativePath(_rootPath, project.Path)
+                .Replace(Path.DirectorySeparatorChar, '\\')
         };
 
         foreach (var unknown in project.UnknownPackages)

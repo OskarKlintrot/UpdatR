@@ -53,11 +53,7 @@ public class LiveTests
             $"exec {cli} --output {log}",
             workingDirectory: dummyProject);
 
-        var settings = new VerifySettings();
-
-        settings.ScrubLinesWithReplace(line => line.Replace("Dummy.App/Dummy.App.csproj", @"Dummy.App\Dummy.App.csproj"));
-
-        await Verify(GetVerifyObjects(), settings);
+        await Verify(GetVerifyObjects());
 
         async IAsyncEnumerable<string> GetVerifyObjects()
         {
