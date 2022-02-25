@@ -77,7 +77,7 @@ public class MarkdownFormatterTests
 
         var project2 = project1 with
         {
-            Path = Path.Combine(root, @"Bar\Bar.csproj")
+            Path = Path.Combine(root, "Bar", "Bar.csproj")
         };
 
         var result = new ResultBuilder(root)
@@ -104,7 +104,7 @@ public class MarkdownFormatterTests
             .WithUnknownPackages("Unknown.Package")
             .Build();
 
-        var project2 = project with { Path = Path.Combine(root, @"Bar\Bar.csproj") };
+        var project2 = project with { Path = Path.Combine(root, "Bar", "Bar.csproj") };
 
         var result = new ResultBuilder(root)
             .WithProject(project)
@@ -154,7 +154,7 @@ public class MarkdownFormatterTests
             .WithDeprecatedPackage("Deprecated.Package", "1.2.3", "Old and deprecated package.")
             .Build();
 
-        var project2 = project with { Path = Path.Combine(root, @"Bar\Bar.csproj") };
+        var project2 = project with { Path = Path.Combine(root, "Bar", "Bar.csproj") };
 
         var result = new ResultBuilder(root)
             .WithProject(project)
@@ -180,7 +180,7 @@ public class MarkdownFormatterTests
             .WithDeprecatedPackage("Deprecated.Package", "1.2.3", "Old and deprecated package.", hasAlternativPackage: false)
             .Build();
 
-        var project2 = project with { Path = Path.Combine(root, @"Bar\Bar.csproj") };
+        var project2 = project with { Path = Path.Combine(root, "Bar", "Bar.csproj") };
 
         var result = new ResultBuilder(root)
             .WithProject(project)
@@ -206,7 +206,7 @@ public class MarkdownFormatterTests
             .WithVulnerablePackage("Vulnerable.Package", "1.2.3")
             .Build();
 
-        var project2 = project with { Path = Path.Combine(root, @"Bar\Bar.csproj") };
+        var project2 = project with { Path = Path.Combine(root, "Bar", "Bar.csproj") };
 
         var result = new ResultBuilder(root)
             .WithProject(project)
@@ -232,7 +232,7 @@ public class MarkdownFormatterTests
             .WithVulnerablePackage("Vulnerable.Package", "1.2.3", new PackageVulnerabilityMetadata(new Uri("https://google.com"), 1))
             .Build();
 
-        var project2 = project with { Path = Path.Combine(root, @"Bar\Bar.csproj") };
+        var project2 = project with { Path = Path.Combine(root, "Bar", "Bar.csproj") };
 
         var result = new ResultBuilder(root)
             .WithProject(project)
@@ -262,7 +262,7 @@ public class MarkdownFormatterTests
                 new PackageVulnerabilityMetadata(new Uri("https://google.com/foo"), 2))
             .Build();
 
-        var project2 = project with { Path = Path.Combine(root, @"Bar\Bar.csproj") };
+        var project2 = project with { Path = Path.Combine(root, "Bar", "Bar.csproj") };
 
         var result = new ResultBuilder(root)
             .WithProject(project)
@@ -333,7 +333,7 @@ internal sealed class ProjectBuilder
     public ProjectBuilder(string root, string? path = null)
     {
         _root = root;
-        _project = new(path is null ? Path.Combine(_root, @"Foo\Foo.csproj") : Path.Combine(_root, path));
+        _project = new(path is null ? Path.Combine(_root, "Foo", "Foo.csproj") : Path.Combine(_root, path));
     }
 
     public ProjectBuilder WithUpdatedPackage(string packageId, string from, string to)
