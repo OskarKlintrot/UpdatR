@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -31,8 +30,6 @@ public sealed class Update
     /// <exception cref="ArgumentException"></exception>
     public async Task<Summary> UpdateAsync(string? path = null, bool dryRun = false, bool interactive = false)
     {
-        var sw = Stopwatch.StartNew();
-
         if (path == null)
         {
             path = Directory.GetCurrentDirectory();
