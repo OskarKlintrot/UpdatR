@@ -18,8 +18,4 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\UpdatR.Update\UpdatR.Update.csproj" />
-  </ItemGroup>
-
 </Project>
