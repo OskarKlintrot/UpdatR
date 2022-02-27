@@ -1,6 +1,6 @@
 ﻿using static SimpleExec.Command;
 
-namespace UpdatR.Update.IntegrationTests;
+namespace UpdatR.Update.E2E;
 
 [UsesVerify]
 public class LiveTests
@@ -14,14 +14,14 @@ public class LiveTests
 
         Console.WriteLine("Root: " + root);
 
-        var dummyProjectSrc = Path.Combine(root.FullName, "tests", "UpdatR.Update.IntegrationTests", "Dummy");
+        var dummyProjectSrc = Path.Combine(root.FullName, "tests", "UpdatR.Update.E2E", "Dummy");
 
         if (!Directory.Exists(dummyProjectSrc))
         {
             throw new InvalidOperationException($"Path {dummyProjectSrc} does not exist.");
         }
 
-        var testTemp = Path.Combine(Path.GetTempPath(), "dotnet-updatr", "integrationtests");
+        var testTemp = Path.Combine(Path.GetTempPath(), "dotnet-updatr", "e2e");
 
         var dummyProject = Path.Combine(testTemp, "Dummy");
 

@@ -115,6 +115,7 @@ ipch/
 
 # Visual Studio Trace Files
 *.e2e
+!tests/Updatr.Update.E2E
 
 # TFS 2012 Local Workspace
 $tf/
