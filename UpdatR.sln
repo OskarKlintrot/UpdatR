@@ -48,7 +48,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1F5D2047-E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdatR.Update.UnitTests", "tests\UpdatR.Update.UnitTests\UpdatR.Update.UnitTests.csproj", "{656203A1-D1BE-4E3D-AA49-68D00A3003CF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.IntegrationTests", "tests\UpdatR.Update.IntegrationTests\UpdatR.Update.IntegrationTests.csproj", "{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.E2eTests", "tests\UpdatR.Update.E2eTests\UpdatR.Update.E2eTests.csproj", "{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
