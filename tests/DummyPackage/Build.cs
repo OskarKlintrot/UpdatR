@@ -8,7 +8,7 @@ using static SimpleExec.Command;
 using var app = new CommandLineApplication() { UsePagerForHelpText = false };
 app.HelpOption();
 var version = app.Option<string>("-v|--version <version>", "Version of the package.", CommandOptionType.SingleValue);
-var nameOption = app.Option<string>("-n|--name <name>", "Name of the package.", CommandOptionType.SingleValue);
+var packageIdOption = app.Option<string>("-id|--packageId <package-id>", "Name of the package.", CommandOptionType.SingleValue);
 var targetFrameworkOption = app.Option<string>("-tfm|--target-framework <tfm>", "Target framework of the package.", CommandOptionType.SingleValue, conf => conf.DefaultValue = "net6.0");
 
 // translate from Bullseye to McMaster.Extensions.CommandLineUtils
@@ -29,7 +29,7 @@ app.OnExecuteAsync(async _ =>
     var options = new Options(Options.Definitions.Select(d => (d.Aliases[0], app.Options.Single(o => d.Aliases.Contains($"--{o.LongName}")).HasValue())));
 
     var nuGetVersion = NuGetVersion.Parse(version.Value());
-    var packageId = nameOption.Value();
+    var packageId = packageIdOption.Value();
     var tfm = targetFrameworkOption.Value();
 
     Target("default", async () =>
