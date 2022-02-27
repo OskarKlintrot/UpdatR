@@ -12,12 +12,18 @@ internal sealed class Result
 
     internal Result(string rootPath)
     {
-        if (!Directory.Exists(rootPath))
+        if (File.Exists(rootPath))
+        {
+            _rootPath = new FileInfo(rootPath).DirectoryName!;
+        }
+        else if (Directory.Exists(rootPath))
+        {
+            _rootPath = rootPath;
+        }
+        else
         {
             throw new ArgumentException("Root does not exist.", nameof(rootPath));
         }
-
-        _rootPath = rootPath;
     }
 
     internal IDictionary<string, IEnumerable<string>> UnknownPackages =>

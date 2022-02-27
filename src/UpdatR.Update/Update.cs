@@ -339,17 +339,18 @@ public sealed class Update
                             CancellationToken.None);
 
                         var metadata = searchMetadata
-                            .OfType<PackageSearchMetadataRegistration>()
+                            .OfType<IPackageSearchMetadata>()
+                            .Where(x => x.Identity.HasVersion)
                             .Select(x => new PackageMetadata(
-                                x.Version,
-                                x.DeprecationMetadata is null
-                                ? null
-                                : new(
-                                    x.DeprecationMetadata.Message,
-                                    x.DeprecationMetadata.Reasons,
-                                    x.DeprecationMetadata.AlternatePackage is null
+                                x.Identity.Version,
+                                x is PackageSearchMetadata y && y.DeprecationMetadata is not null
+                                ? new(
+                                    y.DeprecationMetadata.Message,
+                                    y.DeprecationMetadata.Reasons,
+                                    y.DeprecationMetadata.AlternatePackage is null
                                     ? null
-                                    : new(x.DeprecationMetadata.AlternatePackage.PackageId, x.DeprecationMetadata.AlternatePackage.Range)),
+                                    : new(y.DeprecationMetadata.AlternatePackage.PackageId, y.DeprecationMetadata.AlternatePackage.Range))
+                                : null,
                                 x.Vulnerabilities?.Select(y => new Internals.PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
 
                         if (!metadata.Any())
@@ -405,6 +406,11 @@ public sealed class Update
             var solution = new FileInfo(path);
 
             return (solution, await GetProjectsFromSolutionAsync(solution));
+        }
+
+        if (File.Exists(path) && path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, new[] { new FileInfo(path) });
         }
 
         if (!Directory.Exists(path))
