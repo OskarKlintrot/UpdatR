@@ -13,21 +13,17 @@ public class UpdateTests
     public async Task Given_UpToDate_When_Update_Then_DoNothing(string version)
     {
         // Arrange
-        var temp = Path.Combine(Path.GetTempPath(), "dotnet-updatr", "integrationtests");
-        var tempPackages = Path.Combine(temp, "Packages");
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_UpToDate_When_Update_Then_DoNothing));
         var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
         var tempNuget = Path.Combine(temp, "nuget.config");
 
         Directory.CreateDirectory(temp);
-        Directory.CreateDirectory(tempPackages);
 
         var csprojOriginal = await CreateTempCsprojAsync(
             tempCsproj,
             new KeyValuePair<string, string>("Dummy", version));
 
-        await CreateNuGetConfig(tempNuget);
-
-        CopyPackages(tempPackages);
+        CreateNuGetConfig(tempNuget);
 
         var update = new Update();
 
@@ -45,26 +41,25 @@ public class UpdateTests
         }
     }
 
-    private async Task CreateNuGetConfig(string tempNuget)
+    private void CreateNuGetConfig(string nuget)
     {
         var nugetContent = GetResource("UpdatR.Update.IntegrationTests.Resources.DummyProject.nuget.config");
 
-        await File.WriteAllTextAsync(tempNuget, nugetContent);
-    }
+        var doc = XDocument.Parse(nugetContent);
 
-    private static void CopyPackages(string tempPackages)
-    {
-        var packagesPath = Path.Combine(Directory.GetCurrentDirectory(), "Resources", "Packages");
+        var packageSources = doc
+            .Element("configuration")!
+            .Element("packageSources")!;
 
-        Directory.CreateDirectory(tempPackages);
+        var add = new XElement("add");
 
-        foreach (var package in Directory.EnumerateFiles(packagesPath, "*.nupkg"))
-        {
-            File.Copy(
-                package,
-                Path.Combine(tempPackages, new FileInfo(package).Name),
-                overwrite: true);
-        }
+        add.Add(
+            new XAttribute("key", "local"),
+            new XAttribute("value", Paths.Temporary.Packages));
+
+        packageSources.Add(add);
+
+        doc.Save(nuget);
     }
 
     private async Task<string> CreateTempCsprojAsync(string tempCsproj, params KeyValuePair<string, string>[] packages)
@@ -79,8 +74,9 @@ public class UpdateTests
         {
             var packageReference = new XElement("PackageReference");
 
-            packageReference.Add(new XAttribute("Include", package.Key));
-            packageReference.Add(new XAttribute("Version", package.Value));
+            packageReference.Add(
+                new XAttribute("Include", package.Key),
+                new XAttribute("Version", package.Value));
 
             itemGroup.Add(packageReference);
         }
