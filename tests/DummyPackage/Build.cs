@@ -9,6 +9,7 @@ using var app = new CommandLineApplication() { UsePagerForHelpText = false };
 app.HelpOption();
 var version = app.Option<string>("-v|--version <version>", "Version of the package.", CommandOptionType.SingleValue);
 var nameOption = app.Option<string>("-n|--name <name>", "Name of the package.", CommandOptionType.SingleValue);
+var targetFrameworkOption = app.Option<string>("-tfm|--target-framework <tfm>", "Target framework of the package.", CommandOptionType.SingleValue, conf => conf.DefaultValue = "net6.0");
 
 // translate from Bullseye to McMaster.Extensions.CommandLineUtils
 app.Argument("targets", "A list of targets to run or list. If not specified, the \"default\" target will be run, or all targets will be listed.", true);
@@ -29,15 +30,17 @@ app.OnExecuteAsync(async _ =>
 
     var nuGetVersion = NuGetVersion.Parse(version.Value());
     var packageId = nameOption.Value();
+    var tfm = targetFrameworkOption.Value();
 
     Target("default", async () =>
     {
         await Console.Out.WriteLineAsync($"version:   {nuGetVersion}");
         await Console.Out.WriteLineAsync($"packageId: {packageId}");
+        await Console.Out.WriteLineAsync($"tfm:       {tfm}");
 
         await RunAsync(
             "dotnet",
-            $"pack --configuration Release -p:version=\"{nuGetVersion}\" -p:packageId=\"{packageId}\" {msbuild.ProjectDir} --output ."
+            $"pack --configuration Release -p:version=\"{nuGetVersion}\" -p:packageId=\"{packageId}\" -p:targetFramework=\"{tfm}\" {msbuild.ProjectDir} --output ."
         );
     });
 
