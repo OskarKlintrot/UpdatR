@@ -1,10 +1,23 @@
-﻿using static SimpleExec.Command;
+﻿using Xunit.Abstractions;
+using static SimpleExec.Command;
 
-namespace UpdatR.Update.IntegrationTests;
+namespace UpdatR.Update.E2e;
 
 [UsesVerify]
-public class LiveTests
+public sealed class LiveTests : IDisposable
 {
+    private readonly TextWriter _originalConsoleOut;
+    private readonly TestOutputHelperTextWriterAdapter _outAdapter;
+    private bool disposedValue;
+
+    public LiveTests(ITestOutputHelper output)
+    {
+        _originalConsoleOut = Console.Out;
+        _outAdapter = new TestOutputHelperTextWriterAdapter(output);
+
+        Console.SetOut(_outAdapter);
+    }
+
     [Fact]
     public async Task UpdateDummyProject()
     {
@@ -105,5 +118,27 @@ public class LiveTests
                 CopyDirectory(subDir.FullName, newDestinationDir, true);
             }
         }
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+                Console.SetOut(_originalConsoleOut);
+
+                _outAdapter.Dispose();
+            }
+
+            disposedValue = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }
