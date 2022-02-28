@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using System.Xml;
 using BuildingBlocks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -67,9 +68,13 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         + Environment.NewLine
         + string.Join(Environment.NewLine, output.Split(Environment.NewLine)[1..]);
 
+    var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+
     if (!runsOnGitHubActions)
     {
-        throw new NotImplementedException();
+        var builder = new ConfigurationManager();
+        builder.AddUserSecrets<Program>();
+        githubToken = builder.GetSection("GitHub").GetValue<string>("PAT");
     }
     else
     {
@@ -106,7 +111,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
     }
 
     const int repositoryId = 459606942;
-    var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
 
     if (string.IsNullOrWhiteSpace(githubToken))
     {

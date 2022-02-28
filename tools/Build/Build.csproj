@@ -2,10 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <UserSecretsId>f8057ef4-f389-4c3d-bbc5-ec638d0454d7</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Bullseye" Version="4.0.0-rc.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
     <PackageReference Include="NuGet.Protocol" Version="6.1.0" />
     <PackageReference Include="NuGet.Versioning" Version="6.1.0" />
