@@ -9,8 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\DummyProject\Dummy.App.csproj" />
-    <EmbeddedResource Include="Resources\DummyProject\nuget.config" />
+    <EmbeddedResource Include="Resources\**\*" Exclude="Resources\**\*.nupkg" />
   </ItemGroup>
 
   <ItemGroup>
