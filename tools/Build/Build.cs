@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using System.Xml;
 using BuildingBlocks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -61,9 +62,21 @@ Target("update-packages", DependsOn("restore-tools"), () =>
 
 Target("create-update-pr", DependsOn("update-packages"), async () =>
 {
-    if (!runsOnGitHubActions)
+    var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
+    var title = output.Split(Environment.NewLine)[0][2..];
+    var body = "# PR created automatically by UpdatR."
+        + Environment.NewLine
+        + string.Join(Environment.NewLine, output.Split(Environment.NewLine)[1..]);
+
+    if (runsOnGitHubActions)
     {
-        throw new NotImplementedException();
+        await RunAsync(
+            "git",
+            "config user.name \"GitHub Actions Bot\"");
+
+        await RunAsync(
+            "git",
+            "config user.email \"<>\"");
     }
 
     var (message, _) = await ReadAsync("git", "status");
@@ -79,14 +92,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
     await RunAsync(
         "git",
-        "config user.name \"GitHub Actions Bot\"");
-
-    await RunAsync(
-        "git",
-        "config user.email \"<>\"");
-
-    await RunAsync(
-        "git",
         "checkout -b update");
 
     await RunAsync(
@@ -98,7 +103,10 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         "push --set-upstream origin update --force");
 
     const int repositoryId = 459606942;
-    var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+
+    var githubToken = runsOnGitHubActions
+        ? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
+        : ((ConfigurationManager)new ConfigurationManager().AddUserSecrets<Program>()).GetSection("GitHub").GetValue<string>("PAT");
 
     if (string.IsNullOrWhiteSpace(githubToken))
     {
@@ -116,12 +124,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
             Head = "update",
             State = ItemStateFilter.Open
         });
-
-    var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
-    var title = output.Split(Environment.NewLine)[0];
-    var body = "# PR created automatically by UpdatR."
-        + Environment.NewLine
-        + string.Concat(output.Split(Environment.NewLine)[1..]);
 
     if (prs.Count == 0)
     {
