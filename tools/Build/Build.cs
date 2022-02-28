@@ -64,7 +64,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 {
     var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
     var title = output.Split(Environment.NewLine)[0][2..^1];
-    var body = "# PR created automatically by UpdatR."
+    var body = "# PR created automatically by UpdatR"
         + Environment.NewLine
         + string.Join(Environment.NewLine, output.Split(Environment.NewLine)[1..]);
 
