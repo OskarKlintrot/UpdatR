@@ -1,12 +1,6 @@
 name: update packages
 
-on:
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 0 * * MON' # At 00:00, only on Monday
-  push:
-    paths:
-    - 'tools/Build/.config/dotnet-tools.json'
+on: push
 
 jobs:
   update-packages:
@@ -15,10 +9,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      if: github.event_name == 'push'
+      if: github.event_name == 'schedule'
     - name: Checkout main
       uses: actions/checkout@v2
-      if: github.event_name == 'schedule'
+      if: github.event_name == 'push'
       with:
         ref: main
     - name: Setup .NET
@@ -26,13 +20,13 @@ jobs:
       with:
         dotnet-version: 6.x.x
     - name: Update packages
-      if: github.event_name == 'push'
+      if: github.event_name == 'schedule'
       run: dotnet run -- update-packages
       working-directory: tools/Build
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Update packages and create PR
-      if: github.event_name == 'schedule'
+      if: github.event_name == 'push'
       run: dotnet run -- create-update-pr
       working-directory: tools/Build
       env:
