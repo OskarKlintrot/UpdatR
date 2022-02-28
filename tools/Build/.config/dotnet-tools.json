@@ -3,7 +3,7 @@
   "isRoot": true,
   "tools": {
     "dotnet-updatr": {
-      "version": "0.0.1-beta.6",
+      "version": "0.0.1-rc.1",
       "commands": [
         "update"
       ]
