@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using BuildingBlocks;
 using Markdig;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,7 +26,7 @@ internal static partial class Program
     internal static async Task Main(
         string? target = null,
         string? output = null,
-        Microsoft.Extensions.Logging.LogLevel verbosity = Microsoft.Extensions.Logging.LogLevel.Warning,
+        LogLevel verbosity = LogLevel.Warning,
         bool dryRun = false,
         bool browser = false,
         bool interactive = false)
@@ -36,10 +35,6 @@ internal static partial class Program
 
         var services = new ServiceCollection()
             .AddTransient<Update>()
-            .AddTransient<NuGet.Common.ILogger>(provider
-                => verbosity == Microsoft.Extensions.Logging.LogLevel.None
-                    ? new NuGet.Common.NullLogger()
-                    : new NuGetLogger(provider.GetRequiredService<ILogger<NuGetLogger>>()))
             .AddLogging(builder =>
             {
                 builder.SetMinimumLevel(verbosity);
@@ -50,8 +45,6 @@ internal static partial class Program
         _logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(Program));
 
         var update = services.GetRequiredService<Update>();
-
-        update.LogMessage += ReceivedLogMessage;
 
         var summary = await update.UpdateAsync(target, dryRun, interactive);
 
@@ -136,25 +129,6 @@ internal static partial class Program
         }
     }
 
-    private static void ReceivedLogMessage(object? _, Update.LogMessageEventArgs e)
-    {
-        LogUpdate(_logger, TranslateVerbosity(e.Level), e.Message);
-
-        static Microsoft.Extensions.Logging.LogLevel TranslateVerbosity(LogLevel verbosity) => verbosity switch
-        {
-            LogLevel.Trace => Microsoft.Extensions.Logging.LogLevel.Trace,
-            LogLevel.Debug => Microsoft.Extensions.Logging.LogLevel.Debug,
-            LogLevel.Information => Microsoft.Extensions.Logging.LogLevel.Information,
-            LogLevel.Warning => Microsoft.Extensions.Logging.LogLevel.Warning,
-            LogLevel.Error => Microsoft.Extensions.Logging.LogLevel.Error,
-            LogLevel.None => Microsoft.Extensions.Logging.LogLevel.None,
-            _ => throw new NotImplementedException("Unknown verbosity."),
-        };
-    }
-
-    [LoggerMessage(EventId = 0, Message = "update: {Message}")]
-    static partial void LogUpdate(ILogger logger, Microsoft.Extensions.Logging.LogLevel level, string message);
-
-    [LoggerMessage(Level = Microsoft.Extensions.Logging.LogLevel.Information, Message = "Finished after {ElapsedTime}.")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Finished after {ElapsedTime}.")]
     static partial void LogFinished(ILogger logger, string elapsedTime);
 }

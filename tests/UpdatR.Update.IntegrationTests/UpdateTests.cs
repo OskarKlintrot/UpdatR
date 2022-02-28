@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Xml.Linq;
+using static UpdatR.Update.IntegrationTests.FileCreationUtils;
 
 namespace UpdatR.Update.IntegrationTests;
 
@@ -41,62 +41,107 @@ public class UpdateTests
         }
     }
 
-    private void CreateNuGetConfig(string nuget)
+    [Fact]
+    public async Task Given_DirectoryAsTarget_When_SingleCsproj_Then_Update()
     {
-        var nugetContent = GetResource("UpdatR.Update.IntegrationTests.Resources.DummyProject.nuget.config");
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_UpToDate_When_Update_Then_DoNothing));
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
 
-        var doc = XDocument.Parse(nugetContent);
+        Directory.CreateDirectory(temp);
 
-        var packageSources = doc
-            .Element("configuration")!
-            .Element("packageSources")!;
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1"));
 
-        var add = new XElement("add");
+        CreateNuGetConfig(tempNuget);
 
-        add.Add(
-            new XAttribute("key", "local"),
-            new XAttribute("value", Paths.Temporary.Packages));
+        var update = new Update();
 
-        packageSources.Add(add);
+        // Act
+        var summary = await update.UpdateAsync(tempCsproj);
 
-        doc.Save(nuget);
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
     }
 
-    private async Task<string> CreateTempCsprojAsync(string tempCsproj, params KeyValuePair<string, string>[] packages)
+    [Theory]
+    [InlineData("0.0.1")]
+    [InlineData("0.0.2")]
+    public async Task Given_UpToDate_When_UpdateDotnetConfig_Then_DoNothing(string version)
     {
-        var csprojStr = GetResource("UpdatR.Update.IntegrationTests.Resources.DummyProject.Dummy.App.csproj");
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_UpToDate_When_UpdateDotnetConfig_Then_DoNothing));
+        var tempDotnetConfig = Path.Combine(temp, ".config", "dotnet-tools.json");
+        var tempNuget = Path.Combine(temp, "nuget.config");
 
-        var csproj = XDocument.Parse(csprojStr);
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
 
-        var itemGroup = csproj.Element("Project")!.Element("ItemGroup")!;
+        var original = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Dummy",
+            version: version,
+            command: "dummy");
 
-        foreach (var package in packages)
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(tempDotnetConfig);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(version);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
         {
-            var packageReference = new XElement("PackageReference");
-
-            packageReference.Add(
-                new XAttribute("Include", package.Key),
-                new XAttribute("Version", package.Value));
-
-            itemGroup.Add(packageReference);
+            yield return summary.UpdatedPackages;
+            yield return original;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
         }
-
-        csproj.Save(tempCsproj);
-
-        return await File.ReadAllTextAsync(tempCsproj)!;
     }
 
-    private string GetResource(string resourceName)
+    [Fact]
+    public async Task Given_DirectoryAsTarget_When_SingleDotnetConfig_Then_Update()
     {
-        using var stream = GetType().Assembly.GetManifestResourceStream(resourceName);
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_UpToDate_When_UpdateDotnetConfig_Then_DoNothing));
+        var tempDotnetConfig = Path.Combine(temp, ".config", "dotnet-tools.json");
+        var tempNuget = Path.Combine(temp, "nuget.config");
 
-        if (stream is null)
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var original = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Dummy",
+            version: "0.0.1",
+            command: "dummy");
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(tempDotnetConfig);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
         {
-            throw new InvalidOperationException($"'{resourceName} is not an embedded resource.");
+            yield return summary.UpdatedPackages;
+            yield return original;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
         }
-
-        using var reader = new StreamReader(stream);
-
-        return reader.ReadToEnd();
     }
 }
