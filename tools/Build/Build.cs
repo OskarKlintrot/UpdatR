@@ -68,15 +68,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         + Environment.NewLine
         + string.Join(Environment.NewLine, output.Split(Environment.NewLine)[1..]);
 
-    var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
-
-    if (!runsOnGitHubActions)
-    {
-        var builder = new ConfigurationManager();
-        builder.AddUserSecrets<Program>();
-        githubToken = builder.GetSection("GitHub").GetValue<string>("PAT");
-    }
-    else
+    if (runsOnGitHubActions)
     {
         await RunAsync(
             "git",
@@ -85,18 +77,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         await RunAsync(
             "git",
             "config user.email \"<>\"");
-
-        await RunAsync(
-            "git",
-            "checkout -b update");
-
-        await RunAsync(
-            "git",
-            "commit -am \"chore: Update all packages\"");
-
-        await RunAsync(
-            "git",
-            "push --set-upstream origin update --force");
     }
 
     var (message, _) = await ReadAsync("git", "status");
@@ -110,7 +90,23 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         return;
     }
 
+    await RunAsync(
+        "git",
+        "checkout -b update");
+
+    await RunAsync(
+        "git",
+        "commit -am \"chore: Update all packages\"");
+
+    await RunAsync(
+        "git",
+        "push --set-upstream origin update --force");
+
     const int repositoryId = 459606942;
+
+    var githubToken = runsOnGitHubActions
+        ? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
+        : ((ConfigurationManager)new ConfigurationManager().AddUserSecrets<Program>()).GetSection("GitHub").GetValue<string>("PAT");
 
     if (string.IsNullOrWhiteSpace(githubToken))
     {

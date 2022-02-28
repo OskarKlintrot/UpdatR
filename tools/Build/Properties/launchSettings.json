@@ -2,7 +2,7 @@
   "profiles": {
     "Build": {
       "commandName": "Project",
-      "commandLineArgs": "build"
+      "commandLineArgs": "create-update-pr"
     },
     "Build-WSL2": {
       "commandName": "WSL",
