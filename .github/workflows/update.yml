@@ -15,6 +15,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      if: github.event_name == 'push'
+    - name: Checkout main
+      uses: actions/checkout@v2
+      if: github.event_name == 'schedule'
       with:
         ref: main
     - name: Setup .NET
