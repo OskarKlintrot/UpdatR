@@ -61,9 +61,37 @@ Target("update-packages", DependsOn("restore-tools"), () =>
 
 Target("create-update-pr", DependsOn("update-packages"), async () =>
 {
+    var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
+    var title = output.Split(Environment.NewLine)[0][2..];
+    var body = "# PR created automatically by UpdatR."
+        + Environment.NewLine
+        + string.Join(Environment.NewLine, output.Split(Environment.NewLine)[1..]);
+
     if (!runsOnGitHubActions)
     {
         throw new NotImplementedException();
+    }
+    else
+    {
+        await RunAsync(
+            "git",
+            "config user.name \"GitHub Actions Bot\"");
+
+        await RunAsync(
+            "git",
+            "config user.email \"<>\"");
+
+        await RunAsync(
+            "git",
+            "checkout -b update");
+
+        await RunAsync(
+            "git",
+            "commit -am \"chore: Update all packages\"");
+
+        await RunAsync(
+            "git",
+            "push --set-upstream origin update --force");
     }
 
     var (message, _) = await ReadAsync("git", "status");
@@ -76,26 +104,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
         return;
     }
-
-    await RunAsync(
-        "git",
-        "config user.name \"GitHub Actions Bot\"");
-
-    await RunAsync(
-        "git",
-        "config user.email \"<>\"");
-
-    await RunAsync(
-        "git",
-        "checkout -b update");
-
-    await RunAsync(
-        "git",
-        "commit -am \"chore: Update all packages\"");
-
-    await RunAsync(
-        "git",
-        "push --set-upstream origin update --force");
 
     const int repositoryId = 459606942;
     var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
@@ -116,12 +124,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
             Head = "update",
             State = ItemStateFilter.Open
         });
-
-    var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
-    var title = output.Split(Environment.NewLine)[0];
-    var body = "# PR created automatically by UpdatR."
-        + Environment.NewLine
-        + string.Concat(output.Split(Environment.NewLine)[1..]);
 
     if (prs.Count == 0)
     {
