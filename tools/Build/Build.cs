@@ -56,17 +56,18 @@ Target("restore-tools", () =>
 Target("update-packages", DependsOn("restore-tools"), () =>
 {
     Run("dotnet",
-        $"update --target {solutionFile} --verbosity {nameof(LogLevel.Debug)} --output {Path.Combine(Path.GetTempPath(), "output.md")}",
+        $"update --target {solutionFile} --verbosity {nameof(LogLevel.Debug)} --title {Path.Combine(Path.GetTempPath(), "title.md")} --description {Path.Combine(Path.GetTempPath(), "description.md")}",
         workingDirectory: buildToolDir);
 });
 
 Target("create-update-pr", DependsOn("update-packages"), async () =>
 {
-    var output = File.ReadAllText(Path.Combine(Path.GetTempPath(), "output.md"));
-    var title = output.Split(Environment.NewLine)[0][2..^1];
+    var title = File.ReadAllText(Path.Combine(Path.GetTempPath(), "title.md"));
+    var description = File.ReadAllText(Path.Combine(Path.GetTempPath(), "description.md"));
     var body = "# PR created automatically by UpdatR"
         + Environment.NewLine
-        + string.Join(Environment.NewLine, output.Split(Environment.NewLine)[1..]);
+        + Environment.NewLine
+        + description;
 
     if (runsOnGitHubActions)
     {
