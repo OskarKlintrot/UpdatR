@@ -1,0 +1,104 @@
+﻿[
+  [
+    {
+      PackageId: Dummy,
+      Updates: [
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: src\.config\dotnet-tools.json
+        },
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: src\Dummy.App.csproj
+        },
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: src\Dummy.Lib.csproj
+        }
+      ]
+    }
+  ]
+  
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "Dummy": {
+      "version": "0.0.1",
+      "commands": [
+        "dummy"
+      ]
+    }
+  }
+}
+
+  
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "Dummy": {
+      "version": "0.0.2",
+      "commands": [
+        "dummy"
+      ]
+    }
+  }
+}
+
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dummy" Version="0.0.1" />
+  </ItemGroup>
+</Project>
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dummy" Version="0.0.2" />
+  </ItemGroup>
+</Project>
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dummy" Version="0.0.1" />
+  </ItemGroup>
+</Project>
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dummy" Version="0.0.2" />
+  </ItemGroup>
+</Project>
+]

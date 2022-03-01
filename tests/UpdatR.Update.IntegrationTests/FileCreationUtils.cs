@@ -4,6 +4,19 @@ namespace UpdatR.Update.IntegrationTests;
 
 internal static class FileCreationUtils
 {
+    public static async Task<string> CreateSlnAsync(string path, string projectName, string projectPath)
+    {
+        var content = GetResource("UpdatR.Update.IntegrationTests.Resources.Templates.Dummy.sln");
+
+        content = content
+            .Replace("<PROJECTNAME>", projectName)
+            .Replace("<PROJECTPATH>", Path.GetRelativePath(new FileInfo(path).DirectoryName!, projectPath));
+
+        await File.WriteAllTextAsync(path, content);
+
+        return await File.ReadAllTextAsync(path)!;
+    }
+
     public static async Task<string> CreateToolsConfigAsync(string path, string packageId, string version, string command)
     {
         var content = GetResource("UpdatR.Update.IntegrationTests.Resources.Templates..config.dotnet-tools.json");

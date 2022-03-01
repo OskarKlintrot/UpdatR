@@ -66,7 +66,8 @@ internal sealed class RootDir
         foreach (var configFile in Directory.EnumerateFiles(path.FullName, "dotnet-tools.json", new EnumerationOptions
         {
             MatchCasing = MatchCasing.CaseInsensitive,
-            RecurseSubdirectories = true
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.System
         }))
         {
             var config = Domain.DotnetTools.Create(configFile);
@@ -93,17 +94,7 @@ internal sealed class RootDir
                 dir.AddCsproj(csproj);
             }
 
-            foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
-            {
-                var configPath = System.IO.Path.Combine(csproj.Parent, ".config", "dotnet-tools.json");
-
-                if (!File.Exists(configPath))
-                {
-                    continue;
-                }
-
-                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath));
-            }
+            AddDotnetToolsFromCsproj(dir);
 
             return dir;
         }
@@ -113,6 +104,8 @@ internal sealed class RootDir
             var dir = new RootDir(path.Directory!);
 
             dir.AddCsproj(Csproj.Create(path.FullName));
+
+            AddDotnetToolsFromCsproj(dir);
 
             return dir;
         }
@@ -127,6 +120,21 @@ internal sealed class RootDir
         }
 
         throw new ArgumentException($"'{nameof(path)}' is not a supported file.", nameof(path));
+
+        static void AddDotnetToolsFromCsproj(RootDir dir)
+        {
+            foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
+            {
+                var configPath = System.IO.Path.Combine(csproj.Parent, ".config", "dotnet-tools.json");
+
+                if (!File.Exists(configPath))
+                {
+                    continue;
+                }
+
+                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath));
+            }
+        }
     }
 
     private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution)
