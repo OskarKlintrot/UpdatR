@@ -1,6 +1,4 @@
-﻿# Updated no packages.
-
-## Vulnerable packages
+﻿## Vulnerable packages
 
 ### Vulnerable.Package
 

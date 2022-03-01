@@ -1,0 +1,17 @@
+﻿2 package(s) were updated in 1 projects:
+
+| Updated.Package | Updated.Package.Abstracts |
+
+## Updated packages
+
+### Updated.Package
+| Project   | From   | To |
+|:----------|:-------|:---|
+| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
+
+### Updated.Package.Abstracts
+| Project   | From   | To |
+|:----------|:-------|:---|
+| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
+
+

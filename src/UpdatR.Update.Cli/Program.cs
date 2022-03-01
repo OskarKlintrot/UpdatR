@@ -17,6 +17,8 @@ internal static partial class Program
     /// </summary>
     /// <param name="target">Path to solution or project(s). Exclude if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
+    /// <param name="title">Outputs title to path.</param>
+    /// <param name="description">Outputs description to path.</param>
     /// <param name="verbosity">Log level</param>
     /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="browser">Open summary in browser.</param>
@@ -26,6 +28,8 @@ internal static partial class Program
     internal static async Task Main(
         string? target = null,
         string? output = null,
+        string? title = null,
+        string? description = null,
         LogLevel verbosity = LogLevel.Warning,
         bool dryRun = false,
         bool browser = false,
@@ -88,6 +92,38 @@ internal static partial class Program
                 };
 
                 await File.WriteAllTextAsync(output, outputStr);
+            }
+        }
+
+        if (title is not null)
+        {
+            if (string.IsNullOrWhiteSpace(new FileInfo(title).Extension))
+            {
+                await File.WriteAllTextAsync(Path.Combine(title, "title.md"), MarkdownFormatter.GenerateTitle(summary));
+            }
+            else if (new FileInfo(title).Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+            {
+                await File.WriteAllTextAsync(title, MarkdownFormatter.GenerateTitle(summary));
+            }
+            else
+            {
+                throw new InvalidOperationException("Unsupported file extension. Only .md is supported.");
+            }
+        }
+
+        if (description is not null)
+        {
+            if (string.IsNullOrWhiteSpace(new FileInfo(description).Extension))
+            {
+                await File.WriteAllTextAsync(Path.Combine(description, "description.md"), MarkdownFormatter.GenerateDescription(summary));
+            }
+            else if (new FileInfo(description).Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+            {
+                await File.WriteAllTextAsync(description, MarkdownFormatter.GenerateDescription(summary));
+            }
+            else
+            {
+                throw new InvalidOperationException("Unsupported file extension. Only .md is supported.");
             }
         }
 

@@ -1,15 +1,9 @@
-﻿# Updated no packages.
-
-## Deprecated packages
+﻿## Deprecated packages
 
 ### Deprecated.Package
 > Old and deprecated package.
 
 Reason(s): Other
-
-Alternate Package: Not.Deprecated
-
-Version range: (, )
 
 Package used in:
 

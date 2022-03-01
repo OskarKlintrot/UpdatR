@@ -39,6 +39,8 @@ public sealed class LiveTests : IDisposable
         var dummyProject = Path.Combine(testTemp, "Dummy");
 
         var log = Path.Combine(testTemp, "output.md");
+        var title = Path.Combine(testTemp, "title.md");
+        var description = Path.Combine(testTemp, "description.md");
 
         if (Directory.Exists(dummyProject))
         {
@@ -63,7 +65,7 @@ public sealed class LiveTests : IDisposable
 
         await RunAsync(
             "dotnet",
-            $"exec {cli} --output {log}",
+            $"exec {cli} --output {log} --title {title} --description {description}",
             workingDirectory: dummyProject);
 
         await Verify(GetVerifyObjects());
@@ -71,6 +73,8 @@ public sealed class LiveTests : IDisposable
         async IAsyncEnumerable<string> GetVerifyObjects()
         {
             yield return await File.ReadAllTextAsync(log)!;
+            yield return await File.ReadAllTextAsync(title)!;
+            yield return await File.ReadAllTextAsync(description)!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProjectSrc, "Dummy.sln"))!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProjectSrc, "Dummy.App", "Dummy.App.csproj"))!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProjectSrc, "nuget.config"))!;

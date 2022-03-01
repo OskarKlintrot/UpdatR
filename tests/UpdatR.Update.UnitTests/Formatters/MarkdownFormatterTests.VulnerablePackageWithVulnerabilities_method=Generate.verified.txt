@@ -1,4 +1,4 @@
-﻿# Updated no packages.
+﻿# 📦 Updated no packages.
 
 ## Vulnerable packages
 

@@ -1,0 +1,9 @@
+﻿## Not found packages
+
+### Unknown.Package
+
+Used in:
+- Foo\Foo.csproj
+- Bar\Bar.csproj
+
+
