@@ -145,6 +145,58 @@ public class UpdateTests
         }
     }
 
+    [Fact]
+    public async Task Given_Target_When_DryRun_Then_DoNothing()
+    {
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_Target_When_Valid_Then_Update));
+        var target = Path.Combine(temp, "Dummy.sln");
+        var tempSln = Path.Combine(temp, "Dummy.sln");
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var slnOriginal = await CreateSlnAsync(
+            tempSln,
+            "Dummy.App.csproj",
+            tempCsproj);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1"));
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Dummy",
+            version: "0.0.1",
+            command: "dummy");
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(target, dryRun: true);
+
+        // Assert
+        Assert.Equal(slnOriginal, await File.ReadAllTextAsync(tempSln));
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("Dummy.sln")]
