@@ -1,12 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Resources\DummyProject\nuget.config" />
-  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\**\*" Exclude="Resources\**\*.nupkg" />

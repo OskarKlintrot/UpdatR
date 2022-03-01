@@ -28,6 +28,4 @@
     <ProjectReference Include="..\UpdatR.Update\UpdatR.Update.csproj" />
   </ItemGroup>
 
-  <Import Project="..\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
-
 </Project>

@@ -50,11 +50,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.UnitTests", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.E2eTests", "tests\UpdatR.Update.E2eTests\UpdatR.Update.E2eTests.csproj", "{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdatR.Update.IntegrationTests", "tests\UpdatR.Update.IntegrationTests\UpdatR.Update.IntegrationTests.csproj", "{4E4232E1-DA24-4862-9E4B-389C47C968A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.IntegrationTests", "tests\UpdatR.Update.IntegrationTests\UpdatR.Update.IntegrationTests.csproj", "{4E4232E1-DA24-4862-9E4B-389C47C968A7}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		src\BuildingBlocks\BuildingBlocks.projitems*{93d70ccb-9f73-4868-ad9d-ddaef0ebfa00}*SharedItemsImports = 5
+		src\BuildingBlocks\BuildingBlocks.projitems*{4533b82f-e253-427c-8ee7-e87b53498925}*SharedItemsImports = 5
 		src\BuildingBlocks\BuildingBlocks.projitems*{a63910fe-f91f-4aa0-bf42-06b086f7556d}*SharedItemsImports = 13
 		src\BuildingBlocks\BuildingBlocks.projitems*{e6115943-7c57-4f83-abe9-1756c321c007}*SharedItemsImports = 5
 	EndGlobalSection
