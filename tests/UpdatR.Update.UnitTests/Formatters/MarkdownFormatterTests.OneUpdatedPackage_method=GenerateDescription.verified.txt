@@ -1,0 +1,12 @@
+﻿1 package(s) were updated in 1 projects:
+
+| Updated.Package |
+
+## Updated packages
+
+### Updated.Package
+| Project   | From   | To |
+|:----------|:-------|:---|
+| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
+
+

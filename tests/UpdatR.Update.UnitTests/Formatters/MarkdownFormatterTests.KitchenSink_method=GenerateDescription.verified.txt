@@ -1,6 +1,4 @@
-﻿# 📦 Updated Updated.Package
-
-1 package(s) were updated in 1 projects:
+﻿1 package(s) were updated in 1 projects:
 
 | Updated.Package |
 
@@ -25,17 +23,18 @@ Alternate Package: Not.Deprecated
 Version range: (, )
 
 Package used in:
- Project | Version
---|-
-Foo\Foo.csproj |1.2.3
+
+| Project | Version |
+|:--------|:--------|
+| Foo\Foo.csproj | 1.2.3 |
 
 
 ## Updated packages
 
 ### Updated.Package
- Project   | From   | To
---|-|-
-Foo\Foo.csproj| 1.0.0 | 2.0.0
+| Project   | From   | To |
+|:----------|:-------|:---|
+| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
 
 
 ## Not found packages
@@ -48,8 +47,8 @@ Used in:
 
 ## Unauthorized sources
 
- Name | Source
---|-
-Unauthorized source | https://google.com
+| Name | Source |
+|:-----|:-------|
+| Unauthorized source | https://google.com |
 
 

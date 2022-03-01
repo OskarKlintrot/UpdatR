@@ -5,12 +5,29 @@ namespace UpdatR.Update.Formatters;
 
 public static class MarkdownFormatter
 {
-    public static string Generate(Summary summary)
+    public static string GenerateTitle(Summary summary)
     {
         var sb = new StringBuilder();
 
-        Title(sb, summary);
-        sb.AppendLine();
+        if (summary.UpdatedPackagesCount == 0)
+        {
+            sb.Append("# Updated no packages.");
+        }
+        else if (summary.UpdatedPackagesCount == 1)
+        {
+            sb.Append("# 📦 Updated ").Append(summary.UpdatedPackages.Single().PackageId);
+        }
+        else
+        {
+            sb.Append("# 📦 Updated ").Append(summary.UpdatedPackagesCount).Append(" packages.");
+        }
+
+        return sb.ToString();
+    }
+
+    public static string GenerateDescription(Summary summary)
+    {
+        var sb = new StringBuilder();
 
         if (summary.UpdatedPackages.Any())
         {
@@ -67,6 +84,23 @@ public static class MarkdownFormatter
         return sb.ToString();
     }
 
+    public static string Generate(Summary summary)
+    {
+        var sb = new StringBuilder();
+
+        var title = GenerateTitle(summary);
+
+        sb.AppendLine(title);
+
+        sb.AppendLine();
+
+        var description = GenerateDescription(summary);
+
+        sb.Append(description);
+
+        return sb.ToString();
+    }
+
     private static void UnauthorizedSources(StringBuilder sb, IEnumerable<(string Name, string Source)> unauthorizedSources)
     {
         sb.AppendLine("| Name | Source |");
@@ -103,22 +137,6 @@ public static class MarkdownFormatter
             }
 
             sb.AppendLine();
-        }
-    }
-
-    private static void Title(StringBuilder sb, Summary summary)
-    {
-        if (summary.UpdatedPackagesCount == 0)
-        {
-            sb.AppendLine("# Updated no packages.");
-        }
-        else if (summary.UpdatedPackagesCount == 1)
-        {
-            sb.Append("# 📦 Updated ").AppendLine(summary.UpdatedPackages.Single().PackageId);
-        }
-        else
-        {
-            sb.Append("# 📦 Updated ").Append(summary.UpdatedPackagesCount).AppendLine(" packages.");
         }
     }
 

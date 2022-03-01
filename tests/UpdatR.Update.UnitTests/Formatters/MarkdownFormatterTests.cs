@@ -7,23 +7,34 @@ namespace UpdatR.Update.UnitTests;
 [UsesVerify]
 public class MarkdownFormatterTests
 {
-    [Fact]
-    public Task EmptyResults()
+    public static IEnumerable<object[]> GetMethods()
     {
-        // Arrange
-        var summary = Summary.Create(new Result(Path.GetTempPath()));
-
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
-
-        // Assert
-        return Verify(md);
+        yield return new object[] { "Generate" };
+        yield return new object[] { "GenerateTitle" };
+        yield return new object[] { "GenerateDescription" };
     }
 
-    [Fact]
-    public Task NothingToReport()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task EmptyResults(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
+        var summary = Summary.Create(new Result(Path.GetTempPath()));
+
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
+
+        // Assert
+        return Verify(md).UseParameters(method);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task NothingToReport(string method)
+    {
+        // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -35,17 +46,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task OneUpdatedPackage()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task OneUpdatedPackage(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -58,17 +71,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task OneUpdatedPackageInTwoProjects()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task OneUpdatedPackageInTwoProjects(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project1 = new ProjectBuilder(root)
@@ -87,17 +102,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task OneUnknownPackage()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task OneUnknownPackage(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -113,17 +130,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task TwoUpdatedPackage()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task TwoUpdatedPackage(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -137,17 +156,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task DeprecatedPackage()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task DeprecatedPackage(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -163,17 +184,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task DeprecatedPackageWithoutAlternative()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task DeprecatedPackageWithoutAlternative(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -189,17 +212,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task VulnerablePackage()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task VulnerablePackage(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -215,17 +240,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task VulnerablePackageWithVulnerability()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task VulnerablePackageWithVulnerability(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -241,17 +268,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task VulnerablePackageWithVulnerabilities()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task VulnerablePackageWithVulnerabilities(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -271,17 +300,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task UnauthorizedSource()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task UnauthorizedSource(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var result = new ResultBuilder(root)
@@ -290,17 +321,19 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 
-    [Fact]
-    public Task KitchenSink()
+    [Theory]
+    [MemberData(nameof(GetMethods))]
+    public Task KitchenSink(string method)
     {
         // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!;
         var root = Path.GetTempPath();
 
         var project = new ProjectBuilder(root)
@@ -317,11 +350,11 @@ public class MarkdownFormatterTests
 
         var summary = Summary.Create(result);
 
-        //Act
-        var md = MarkdownFormatter.Generate(summary);
+        // Act
+        var md = methodInfo.Invoke(null, new object[] { summary });
 
         // Assert
-        return Verify(md);
+        return Verify(md).UseParameters(method);
     }
 }
 
