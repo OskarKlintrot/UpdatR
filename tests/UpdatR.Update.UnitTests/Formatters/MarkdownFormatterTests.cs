@@ -7,13 +7,6 @@ namespace UpdatR.Update.UnitTests;
 [UsesVerify]
 public class MarkdownFormatterTests
 {
-    public static IEnumerable<object[]> GetMethods()
-    {
-        yield return new object[] { "Generate" };
-        yield return new object[] { "GenerateTitle" };
-        yield return new object[] { "GenerateDescription" };
-    }
-
     [Theory]
     [MemberData(nameof(GetMethods))]
     public Task EmptyResults(string method)
@@ -355,6 +348,13 @@ public class MarkdownFormatterTests
 
         // Assert
         return Verify(md).UseParameters(method);
+    }
+
+    private static IEnumerable<object[]> GetMethods()
+    {
+        yield return new object[] { "Generate" };
+        yield return new object[] { "GenerateTitle" };
+        yield return new object[] { "GenerateDescription" };
     }
 }
 
