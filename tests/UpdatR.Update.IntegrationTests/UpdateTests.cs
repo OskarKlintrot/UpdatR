@@ -315,4 +315,28 @@ public class UpdateTests
             yield return await File.ReadAllTextAsync(tempCsproj2);
         }
     }
+
+    [Fact]
+    public Task Given_OutdatedStable_When_LatestIsPrerelease_Then_UpdateToLatestStable()
+    {
+        throw new NotImplementedException();
+    }
+
+    [Fact]
+    public Task Given_OutdatedPrerelease_When_LatestIsPrereleaseWithStableInBetween_Then_UpdateToLatestStable()
+    {
+        throw new NotImplementedException();
+    }
+
+    [Fact]
+    public Task Given_OutdatedPrerelease_When_LatestIsPrerelease_Then_UpdateToLatestPrerelease()
+    {
+        throw new NotImplementedException();
+    }
+
+    [Fact]
+    public Task Given_UnknownPackageId_When_Updating_Then_DoNothing()
+    {
+        throw new NotImplementedException();
+    }
 }
