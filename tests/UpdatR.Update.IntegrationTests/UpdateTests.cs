@@ -315,4 +315,100 @@ public class UpdateTests
             yield return await File.ReadAllTextAsync(tempCsproj2);
         }
     }
+
+    [Theory]
+    [InlineData("0.0.1-preview")] // Upgrade to 0.0.2, the highest stable
+    [InlineData("0.0.1")] // Upgrade to 0.0.2, the highest stable
+    [InlineData("0.0.3-preview.0")] // Upgrade to 0.0.3-preview.1, there is no stable higher than 0.0.3-preview.0 so upgrade to higher prerelease instead
+    public async Task Given_PackageWithPrerelease_When_Update_Then_StopAtStableIfPossible(string version)
+    {
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_PackageWithPrerelease_When_Update_Then_StopAtStableIfPossible));
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Has.Previews", version));
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Has.Previews",
+            version: version,
+            command: "previews");
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(version);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackagesCount;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Given_UnknownPackageId_When_Updating_Then_DoNothing(bool hasNugetConfig)
+    {
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_UnknownPackageId_When_Updating_Then_DoNothing));
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1"));
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Dummy",
+            version: "0.0.1",
+            command: "dummy");
+
+        if (hasNugetConfig)
+        {
+            CreateNuGetConfig(tempNuget);
+        }
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(hasNugetConfig);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackagesCount;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
 }

@@ -1,0 +1,57 @@
+﻿[
+  1
+  
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "Has.Previews": {
+      "version": "0.0.1-preview",
+      "commands": [
+        "previews"
+      ]
+    }
+  }
+}
+
+  
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "Has.Previews": {
+      "version": "0.0.2",
+      "commands": [
+        "previews"
+      ]
+    }
+  }
+}
+
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Has.Previews" Version="0.0.1-preview" />
+  </ItemGroup>
+</Project>
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Has.Previews" Version="0.0.2" />
+  </ItemGroup>
+</Project>
+]
