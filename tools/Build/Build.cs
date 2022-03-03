@@ -56,7 +56,7 @@ Target("restore-tools", () =>
 Target("update-packages", DependsOn("restore-tools"), () =>
 {
     Run("dotnet",
-        $"update --target {solutionFile} --verbosity {nameof(LogLevel.Debug)} --title {Path.Combine(Path.GetTempPath(), "title.md")} --description {Path.Combine(Path.GetTempPath(), "description.md")}",
+        $"update {solutionFile} --verbosity {nameof(LogLevel.Debug)} --title {Path.Combine(Path.GetTempPath(), "title.md")} --description {Path.Combine(Path.GetTempPath(), "description.md")}",
         workingDirectory: buildToolDir);
 });
 
