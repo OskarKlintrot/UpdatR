@@ -1,5 +1,5 @@
 ﻿using System.Text.RegularExpressions;
-using NuGet.Frameworks;
+using UpdatR.Update.Internals;
 
 namespace UpdatR.Update.Domain;
 
@@ -71,7 +71,13 @@ internal sealed class RootDir
             AttributesToSkip = FileAttributes.System
         }))
         {
-            var config = Domain.DotnetTools.Create(configFile, GetTargetFrameworkFromCsprojs(dir.Csprojs));
+            if (dir.Csprojs is null)
+            {
+                // EF Bodge
+                SetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName);
+            }
+
+            var config = Domain.DotnetTools.Create(configFile);
 
             dir.AddDotnetTools(config);
         }
@@ -95,7 +101,7 @@ internal sealed class RootDir
                 dir.AddCsproj(csproj);
             }
 
-            AddDotnetToolsFromCsproj(dir, GetTargetFrameworkFromCsprojs(dir.Csprojs));
+            AddDotnetToolsFromCsproj(dir);
 
             return dir;
         }
@@ -106,23 +112,26 @@ internal sealed class RootDir
 
             dir.AddCsproj(Csproj.Create(path.FullName));
 
-            AddDotnetToolsFromCsproj(dir, GetTargetFrameworkFromCsprojs(dir.Csprojs));
+            AddDotnetToolsFromCsproj(dir);
 
             return dir;
         }
 
         if (path.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
+            // EF Bodge
+            SetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName);
+
             var dir = new RootDir(path.Directory!);
 
-            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName, null));
+            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName));
 
             return dir;
         }
 
         throw new ArgumentException($"'{nameof(path)}' is not a supported file.", nameof(path));
 
-        static void AddDotnetToolsFromCsproj(RootDir dir, NuGetFramework targetFramework)
+        static void AddDotnetToolsFromCsproj(RootDir dir)
         {
             foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
             {
@@ -133,20 +142,32 @@ internal sealed class RootDir
                     continue;
                 }
 
-                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath, targetFramework));
+                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath));
             }
         }
     }
 
-    private static NuGetFramework GetTargetFrameworkFromCsprojs(IEnumerable<Csproj>? csprojs)
+    private static void SetEfVersionBasedOnCsproj(string path)
     {
-        var csprojsTargetFrameworks = (csprojs ?? Array.Empty<Csproj>())
-            .Select(x => x.TargetFramework)
-            .Distinct();
+        foreach (var projectFile in Directory.EnumerateFiles(path, "*.csproj", new EnumerationOptions
+        {
+            MatchCasing = MatchCasing.CaseInsensitive,
+            RecurseSubdirectories = true,
+            MaxRecursionDepth = 1,
+        }))
+        {
+            var csproj = Csproj.Create(projectFile);
 
-        return csprojsTargetFrameworks.Count() == 1
-            ? csprojsTargetFrameworks.Single()
-            : NuGetFramework.AnyFramework;
+            var efPackage = csproj.Packages.Keys
+                .FirstOrDefault(x => x.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase));
+
+            if (efPackage is not null)
+            {
+                State.SetEntityFrameworkVersion(csproj.Packages[efPackage]);
+
+                break;
+            }
+        }
     }
 
     private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution)

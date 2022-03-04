@@ -10,6 +10,11 @@
       "commandLineArgs": "UpdatR.Update.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.sln --verbosity Debug",
       "environmentVariables": {},
       "distributionName": "Ubuntu"
+    },
+    "Profile 1": {
+      "commandName": "Project",
+      "commandLineArgs": "--dry-run --browser",
+      "workingDirectory": "C:\\repos\\eparkering-core\\Kund\\.config"
     }
   }
 }

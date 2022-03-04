@@ -1,16 +1,6 @@
 ﻿[
   [
     {
-      PackageId: Dummy.Tool,
-      Updates: [
-        {
-          Item1: 0.0.1,
-          Item2: 0.0.2,
-          Item3: src\.config\dotnet-tools.json
-        }
-      ]
-    },
-    {
       PackageId: Dummy,
       Updates: [
         {
@@ -22,6 +12,16 @@
           Item1: 0.0.1,
           Item2: 0.0.2,
           Item3: src\Dummy.Lib.csproj
+        }
+      ]
+    },
+    {
+      PackageId: Dummy.Tool,
+      Updates: [
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: src\.config\dotnet-tools.json
         }
       ]
     }

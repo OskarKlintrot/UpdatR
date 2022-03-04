@@ -5,7 +5,7 @@ using UpdatR.Update.Internals;
 
 namespace UpdatR.Update.Domain;
 
-internal record NuGetPackage(string PackageId, bool IsTool, IEnumerable<PackageMetadata> PackageMetadatas)
+internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
 {
     private PackageMetadata? _latestStable;
     private PackageMetadata? _latestPrerelease;
@@ -61,5 +61,15 @@ internal record NuGetPackage(string PackageId, bool IsTool, IEnumerable<PackageM
         package = PackageMetadatas.SingleOrDefault(x => x.Version == version);
 
         return package != null;
+    }
+
+    public PackageMetadata Get(NuGetVersion version)
+    {
+        if (TryGet(version, out var metadata))
+        {
+            return metadata;
+        }
+
+        throw new InvalidOperationException($"Could not find version {version}.");
     }
 }
