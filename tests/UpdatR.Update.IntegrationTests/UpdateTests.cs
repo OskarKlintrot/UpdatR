@@ -411,4 +411,85 @@ public class UpdateTests
             yield return await File.ReadAllTextAsync(tempCsproj);
         }
     }
+
+    [Fact]
+    public async Task Given_LatestPackageHasUnsupportedTfm_When_Update_Then_PickLatestSupportedTfm()
+    {
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_LatestPackageHasUnsupportedTfm_When_Update_Then_PickLatestSupportedTfm));
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Has.Newer.Tfm", "3.1.0"));
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(tempCsproj);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
+    [InlineData(".config")]
+    [InlineData(".config", "dotnet-tools.json")]
+    public async Task Given_OutdatedDotnetEf_When_CsprojHasNewer_Then_UpdateToCsprojVersion(params string[] path)
+    {
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, "kjsdfj");
+        var target = Path.Combine(temp, "src", Path.Combine(path));
+        var tempSln = Path.Combine(temp, "Dummy.sln");
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        //var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.12"));
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.5",
+            command: "dotnet");
+
+        //CreateNuGetConfig(tempNuget);
+
+        var update = new Update();
+
+        // Act
+        var summary = await update.UpdateAsync(target);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(path.Length);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
 }
