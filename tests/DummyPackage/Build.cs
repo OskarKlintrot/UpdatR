@@ -10,6 +10,7 @@ app.HelpOption();
 var version = app.Option<string>("-v|--version <version>", "Version of the package.", CommandOptionType.SingleValue);
 var packageIdOption = app.Option<string>("-id|--packageId <package-id>", "Name of the package.", CommandOptionType.SingleValue);
 var targetFrameworkOption = app.Option<string>("-tfm|--target-framework <tfm>", "Target framework of the package.", CommandOptionType.SingleValue, conf => conf.DefaultValue = "net6.0");
+var isToolOption = app.Option<bool>("-t|--is-tool", "Pack as tool.", CommandOptionType.NoValue);
 
 // translate from Bullseye to McMaster.Extensions.CommandLineUtils
 app.Argument("targets", "A list of targets to run or list. If not specified, the \"default\" target will be run, or all targets will be listed.", true);
@@ -31,16 +32,18 @@ app.OnExecuteAsync(async _ =>
     var nuGetVersion = NuGetVersion.Parse(version.Value());
     var packageId = packageIdOption.Value();
     var tfm = targetFrameworkOption.Value();
+    var isTool = isToolOption.HasValue();
 
     Target("default", async () =>
     {
         await Console.Out.WriteLineAsync($"version:   {nuGetVersion}");
         await Console.Out.WriteLineAsync($"packageId: {packageId}");
         await Console.Out.WriteLineAsync($"tfm:       {tfm}");
+        await Console.Out.WriteLineAsync($"is tool:   {isTool}");
 
         await RunAsync(
             "dotnet",
-            $"pack --configuration Release -p:version=\"{nuGetVersion}\" -p:packageId=\"{packageId}\" -p:targetFramework=\"{tfm}\" {msbuild.ProjectDir} --output ."
+            $"pack --configuration Release -p:version=\"{nuGetVersion}\" -p:packageId=\"{packageId}\" -p:targetFramework=\"{tfm}\" -p:packAsTool=\"{isTool}\" {msbuild.ProjectDir} --output ."
         );
     });
 

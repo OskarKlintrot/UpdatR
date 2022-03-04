@@ -1,22 +1,12 @@
 ﻿[
   [
     {
-      PackageId: Dummy,
+      PackageId: dotnet-ef,
       Updates: [
         {
-          Item1: 0.0.1,
-          Item2: 0.0.2,
-          Item3: src\Dummy.App.csproj
-        }
-      ]
-    },
-    {
-      PackageId: Dummy.Tool,
-      Updates: [
-        {
-          Item1: 0.0.1,
-          Item2: 0.0.2,
-          Item3: src\.config\dotnet-tools.json
+          Item1: 5.0.5,
+          Item2: 5.0.12,
+          Item3: dotnet-tools.json
         }
       ]
     }
@@ -26,10 +16,10 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "Dummy.Tool": {
-      "version": "0.0.1",
+    "dotnet-ef": {
+      "version": "5.0.5",
       "commands": [
-        "dummy"
+        "dotnet"
       ]
     }
   }
@@ -40,10 +30,10 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "Dummy.Tool": {
-      "version": "0.0.2",
+    "dotnet-ef": {
+      "version": "5.0.12",
       "commands": [
-        "dummy"
+        "dotnet"
       ]
     }
   }
@@ -59,7 +49,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dummy" Version="0.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
   </ItemGroup>
 </Project>
   
@@ -72,7 +62,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dummy" Version="0.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
   </ItemGroup>
 </Project>
 ]

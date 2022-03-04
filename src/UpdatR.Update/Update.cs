@@ -46,9 +46,9 @@ public sealed partial class Update
             result.TryAddUnauthorizedSource(unauthorizedSource.Key, unauthorizedSource.Value);
         }
 
-        foreach (var config in dir.DotnetTools ?? Array.Empty<DotnetTools>())
+        foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
-            var project = await config.UpdatePackagesAsync(packages, dryRun, _logger);
+            var project = csproj.UpdatePackages(packages, dryRun, _logger);
 
             if (project is not null)
             {
@@ -56,9 +56,9 @@ public sealed partial class Update
             }
         }
 
-        foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
+        foreach (var config in dir.DotnetTools ?? Array.Empty<DotnetTools>())
         {
-            var project = csproj.UpdatePackages(packages, dryRun, _logger);
+            var project = await config.UpdatePackagesAsync(packages, dryRun, _logger);
 
             if (project is not null)
             {
@@ -85,7 +85,7 @@ public sealed partial class Update
         Dictionary<string, string> unauthorizedSources = new();
 
         var projectsWithPackages = projects
-            .Select(x => (x.Path, x.PackageIds))
+            .Select(x => (x.Path, x.Packages.Keys.AsEnumerable()))
             .Union(dotnetTools.Select(x => (x.Path, x.PackageIds)));
 
         foreach (var (path, packageIds) in projectsWithPackages)
@@ -119,6 +119,7 @@ public sealed partial class Update
                             .Where(x => x.Identity.HasVersion)
                             .Select(x => new PackageMetadata(
                                 x.Identity.Version,
+                                x.DependencySets.Select(x => x.TargetFramework),
                                 x is PackageSearchMetadata y && y.DeprecationMetadata is not null
                                 ? new(
                                     y.DeprecationMetadata.Message,
@@ -127,7 +128,7 @@ public sealed partial class Update
                                     ? null
                                     : new(y.DeprecationMetadata.AlternatePackage.PackageId, y.DeprecationMetadata.AlternatePackage.Range))
                                 : null,
-                                x.Vulnerabilities?.Select(y => new Internals.PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
+                                x.Vulnerabilities?.Select(y => new PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
 
                         if (!metadata.Any())
                         {

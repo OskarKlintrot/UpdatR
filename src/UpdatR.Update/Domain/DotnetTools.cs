@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using NuGet.Frameworks;
 using NuGet.Versioning;
 using UpdatR.Update.Internals;
 
@@ -20,6 +21,7 @@ internal sealed partial class DotnetTools
     public string Path => _path.FullName;
 
     public string Parent => _path.DirectoryName!;
+
     public IEnumerable<string> PackageIds => GetPackageIds();
 
     public static DotnetTools Create(string path)
@@ -90,8 +92,16 @@ internal sealed partial class DotnetTools
                 {
                     if (packagesDict.TryGetValue(packageId, out var package))
                     {
-                        if (package.TryGetLatestComparedTo(version, out var updateTo))
+                        if (package.TryGetLatestComparedTo(version, NuGetFramework.AnyFramework, out var updateTo))
                         {
+                            // EF Bodge
+                            if (packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
+                                && State.EntityFrameworkVersion is not null
+                                && package.TryGet(State.EntityFrameworkVersion, out _))
+                            {
+                                updateTo = package.Get(State.EntityFrameworkVersion);
+                            }
+
                             toolObject.Add(property.Key, updateTo.Version.ToString());
 
                             project.AddUpdatedPackage(new(packageId, version, updateTo.Version));

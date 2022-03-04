@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using UpdatR.Update.Internals;
 
 namespace UpdatR.Update.Domain;
 
@@ -70,6 +71,12 @@ internal sealed class RootDir
             AttributesToSkip = FileAttributes.System
         }))
         {
+            if (dir.Csprojs is null)
+            {
+                // EF Bodge
+                SetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName);
+            }
+
             var config = Domain.DotnetTools.Create(configFile);
 
             dir.AddDotnetTools(config);
@@ -112,6 +119,9 @@ internal sealed class RootDir
 
         if (path.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
+            // EF Bodge
+            SetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName);
+
             var dir = new RootDir(path.Directory!);
 
             dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName));
@@ -133,6 +143,29 @@ internal sealed class RootDir
                 }
 
                 dir.AddDotnetTools(Domain.DotnetTools.Create(configPath));
+            }
+        }
+    }
+
+    private static void SetEfVersionBasedOnCsproj(string path)
+    {
+        foreach (var projectFile in Directory.EnumerateFiles(path, "*.csproj", new EnumerationOptions
+        {
+            MatchCasing = MatchCasing.CaseInsensitive,
+            RecurseSubdirectories = true,
+            MaxRecursionDepth = 1,
+        }))
+        {
+            var csproj = Csproj.Create(projectFile);
+
+            var efPackage = csproj.Packages.Keys
+                .FirstOrDefault(x => x.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase));
+
+            if (efPackage is not null)
+            {
+                State.SetEntityFrameworkVersion(csproj.Packages[efPackage]);
+
+                break;
             }
         }
     }

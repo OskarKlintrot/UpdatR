@@ -52,11 +52,22 @@ internal static class FileCreationUtils
         doc.Save(path);
     }
 
-    public static async Task<string> CreateTempCsprojAsync(string path, params KeyValuePair<string, string>[] packages)
+    public static Task<string> CreateTempCsprojAsync(string path, params KeyValuePair<string, string>[] packages)
+    {
+        return CreateTempCsprojAsync(path, "net6.0", packages);
+    }
+
+    public static async Task<string> CreateTempCsprojAsync(string path, string tfm = "net6.0", params KeyValuePair<string, string>[] packages)
     {
         var csprojStr = GetResource("UpdatR.Update.IntegrationTests.Resources.Templates.Dummy.App.csproj");
 
         var csproj = XDocument.Parse(csprojStr);
+
+        csproj
+            .Element("Project")!
+            .Element("PropertyGroup")!
+            .Element("TargetFramework")!
+            .SetValue(tfm);
 
         var itemGroup = csproj.Element("Project")!.Element("ItemGroup")!;
 

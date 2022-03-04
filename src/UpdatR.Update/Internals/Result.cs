@@ -159,10 +159,6 @@ internal sealed class DeprecatedPackage
     }
 }
 
-public sealed record PackageDeprecationMetadata(string Message, IEnumerable<string> Reasons, AlternatePackageMetadata? AlternatePackage);
-
-public sealed record AlternatePackageMetadata(string PackageId, VersionRange Range);
-
 internal sealed class VulnerablePackage
 {
     public string PackageId { get; }
@@ -176,9 +172,9 @@ internal sealed class VulnerablePackage
         Vulnerabilities = vulnerabilities;
     }
 }
-public sealed record PackageVulnerabilityMetadata(Uri AdvisoryUrl, int Severity);
 
 internal record PackageMetadata(
     NuGetVersion Version,
+    IEnumerable<NuGet.Frameworks.NuGetFramework> TargetFrameworks,
     PackageDeprecationMetadata? DeprecationMetadata,
     IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities);

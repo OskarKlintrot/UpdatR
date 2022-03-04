@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using BuildingBlocks;
 using Markdig;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -58,7 +59,7 @@ internal static partial class Program
         {
             var outputMd = MarkdownFormatter.Generate(summary);
 
-            var htmlPath = Path.Combine(Path.GetTempPath(), "dotnet-updatr");
+            var htmlPath = Paths.Temporary;
 
             Directory.CreateDirectory(htmlPath);
 

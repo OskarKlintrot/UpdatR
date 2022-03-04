@@ -1,13 +1,17 @@
 ﻿using System.Xml;
 using Microsoft.Extensions.Logging;
+using NuGet.Frameworks;
 using NuGet.Versioning;
+using UpdatR.Update.Domain.Utils;
 using UpdatR.Update.Internals;
+using static UpdatR.Update.Domain.Utils.RetriveTargetFramework;
 
 namespace UpdatR.Update.Domain;
 
 internal sealed partial class Csproj
 {
     private readonly FileInfo _path;
+    private NuGetFramework? _targetFramework;
 
     private Csproj(FileInfo path)
     {
@@ -20,7 +24,9 @@ internal sealed partial class Csproj
 
     public string Parent => _path.DirectoryName!;
 
-    public IEnumerable<string> PackageIds => GetPackageIds();
+    public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework();
+
+    public IDictionary<string, NuGetVersion> Packages => GetPackages();
 
     public static Csproj Create(string path)
     {
@@ -93,7 +99,7 @@ internal sealed partial class Csproj
                 CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
             }
 
-            if (!package.TryGetLatestComparedTo(version, out var updateTo))
+            if (!package.TryGetLatestComparedTo(version, TargetFramework, out var updateTo))
             {
                 CheckForDeprecationAndVulnerabilities(
                     project,
@@ -113,6 +119,12 @@ internal sealed partial class Csproj
                 updateTo.Version);
 
             project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+
+            // EF Bodge
+            if (packageId.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase))
+            {
+                State.SetEntityFrameworkVersion(updateTo.Version);
+            }
 
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
@@ -155,7 +167,18 @@ internal sealed partial class Csproj
         }
     }
 
-    private IEnumerable<string> GetPackageIds()
+    private NuGetFramework GetTargetFramework()
+    {
+        var targetFramework =
+            RetriveTargetFramework.GetTargetFramework(Path)
+            ?? GetTargetFrameworkFromDirectoryBuildProps(new(Parent));
+
+        return targetFramework is null
+            ? NuGetFramework.AnyFramework
+            : NuGetFramework.Parse(targetFramework);
+    }
+
+    private IDictionary<string, NuGetVersion> GetPackages()
     {
         var doc = new XmlDocument();
 
@@ -166,9 +189,10 @@ internal sealed partial class Csproj
             .OfType<XmlElement>()
             .Select(x => (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version")))
             .Where(x => !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _))
-            .Select(x => x.PackageId);
+            .ToDictionary(x => x.PackageId, x => NuGetVersion.Parse(x.Version), StringComparer.OrdinalIgnoreCase);
     }
 
+    #region LogMessages
     [LoggerMessage(Level = LogLevel.Warning, EventId = 1, Message = "Could not parse {Version} to NuGetVersion for package reference {PackageReference}.")]
     static partial void LogParseError(ILogger logger, string version, string packageReference);
 
@@ -183,4 +207,5 @@ internal sealed partial class Csproj
 
     [LoggerMessage(Level = LogLevel.Warning, EventId = 5, Message = "Package {PackageId} version {Version} has {Vulnerabilities} vulnerabilities")]
     static partial void LogVulnerablePackage(ILogger logger, string packageId, NuGetVersion version, int vulnerabilities);
+    #endregion
 }

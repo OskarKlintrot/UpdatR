@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="..\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
+
   <Import Project="$(MSBuildProjectDirectory)\..\Build\nuget.props" />
   
   <PropertyGroup>
