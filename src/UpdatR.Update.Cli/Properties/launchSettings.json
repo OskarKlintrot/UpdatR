@@ -1,12 +1,14 @@
 {
   "profiles": {
     "UpdatR.Update.Cli": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "--dry-run --browser",
+      "workingDirectory": "C:\\repos\\eparkering-core\\Kund"
     },
     "WSL": {
       "commandName": "WSL2",
-      "environmentVariables": {},
       "commandLineArgs": "UpdatR.Update.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.sln --verbosity Debug",
+      "environmentVariables": {},
       "distributionName": "Ubuntu"
     }
   }

@@ -20,7 +20,7 @@
   "isRoot": true,
   "tools": {
     "Has.Previews": {
-      "version": "0.0.3-preview.1",
+      "version": "0.0.3-preview.0",
       "commands": [
         "previews"
       ]

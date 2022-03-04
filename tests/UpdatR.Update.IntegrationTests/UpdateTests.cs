@@ -88,7 +88,7 @@ public class UpdateTests
 
         var original = await CreateToolsConfigAsync(
             path: tempDotnetConfig,
-            packageId: "Dummy",
+            packageId: "Dummy.Tool",
             version: version,
             command: "dummy");
 
@@ -123,7 +123,7 @@ public class UpdateTests
 
         var original = await CreateToolsConfigAsync(
             path: tempDotnetConfig,
-            packageId: "Dummy",
+            packageId: "Dummy.Tool",
             version: "0.0.1",
             command: "dummy");
 
@@ -170,7 +170,7 @@ public class UpdateTests
 
         var toolsOriginal = await CreateToolsConfigAsync(
             path: tempDotnetConfig,
-            packageId: "Dummy",
+            packageId: "Dummy.Tool",
             version: "0.0.1",
             command: "dummy");
 
@@ -228,7 +228,7 @@ public class UpdateTests
 
         var toolsOriginal = await CreateToolsConfigAsync(
             path: tempDotnetConfig,
-            packageId: "Dummy",
+            packageId: "Dummy.Tool",
             version: "0.0.1",
             command: "dummy");
 
@@ -286,7 +286,7 @@ public class UpdateTests
 
         var toolsOriginal = await CreateToolsConfigAsync(
             path: tempDotnetConfig,
-            packageId: "Dummy",
+            packageId: "Dummy.Tool",
             version: "0.0.1",
             command: "dummy");
 
@@ -383,7 +383,7 @@ public class UpdateTests
 
         var toolsOriginal = await CreateToolsConfigAsync(
             path: tempDotnetConfig,
-            packageId: "Dummy",
+            packageId: "Dummy.Tool",
             version: "0.0.1",
             command: "dummy");
 

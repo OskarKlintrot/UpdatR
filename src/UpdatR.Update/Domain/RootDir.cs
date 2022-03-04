@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using NuGet.Frameworks;
 
 namespace UpdatR.Update.Domain;
 
@@ -70,7 +71,7 @@ internal sealed class RootDir
             AttributesToSkip = FileAttributes.System
         }))
         {
-            var config = Domain.DotnetTools.Create(configFile);
+            var config = Domain.DotnetTools.Create(configFile, GetTargetFrameworkFromCsprojs(dir.Csprojs));
 
             dir.AddDotnetTools(config);
         }
@@ -94,7 +95,7 @@ internal sealed class RootDir
                 dir.AddCsproj(csproj);
             }
 
-            AddDotnetToolsFromCsproj(dir);
+            AddDotnetToolsFromCsproj(dir, GetTargetFrameworkFromCsprojs(dir.Csprojs));
 
             return dir;
         }
@@ -105,7 +106,7 @@ internal sealed class RootDir
 
             dir.AddCsproj(Csproj.Create(path.FullName));
 
-            AddDotnetToolsFromCsproj(dir);
+            AddDotnetToolsFromCsproj(dir, GetTargetFrameworkFromCsprojs(dir.Csprojs));
 
             return dir;
         }
@@ -114,14 +115,14 @@ internal sealed class RootDir
         {
             var dir = new RootDir(path.Directory!);
 
-            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName));
+            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName, null));
 
             return dir;
         }
 
         throw new ArgumentException($"'{nameof(path)}' is not a supported file.", nameof(path));
 
-        static void AddDotnetToolsFromCsproj(RootDir dir)
+        static void AddDotnetToolsFromCsproj(RootDir dir, NuGetFramework targetFramework)
         {
             foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
             {
@@ -132,9 +133,20 @@ internal sealed class RootDir
                     continue;
                 }
 
-                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath));
+                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath, targetFramework));
             }
         }
+    }
+
+    private static NuGetFramework GetTargetFrameworkFromCsprojs(IEnumerable<Csproj>? csprojs)
+    {
+        var csprojsTargetFrameworks = (csprojs ?? Array.Empty<Csproj>())
+            .Select(x => x.TargetFramework)
+            .Distinct();
+
+        return csprojsTargetFrameworks.Count() == 1
+            ? csprojsTargetFrameworks.Single()
+            : NuGetFramework.AnyFramework;
     }
 
     private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution)

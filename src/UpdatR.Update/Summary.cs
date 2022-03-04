@@ -99,3 +99,7 @@ public sealed record VulnerablePackage(
     string PackageId,
     IEnumerable<(VulnerableVersion Version, IEnumerable<string> Projects)> Versions);
 public sealed record VulnerableVersion(NuGetVersion Version, IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities);
+
+public sealed record PackageDeprecationMetadata(string Message, IEnumerable<string> Reasons, AlternatePackageMetadata? AlternatePackage);
+public sealed record AlternatePackageMetadata(string PackageId, VersionRange Range);
+public sealed record PackageVulnerabilityMetadata(Uri AdvisoryUrl, int Severity);

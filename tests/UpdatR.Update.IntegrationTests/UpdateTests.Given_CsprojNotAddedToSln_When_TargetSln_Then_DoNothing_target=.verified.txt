@@ -1,13 +1,18 @@
 ﻿[
   [
     {
-      PackageId: Dummy,
+      PackageId: Dummy.Tool,
       Updates: [
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
           Item3: src\.config\dotnet-tools.json
-        },
+        }
+      ]
+    },
+    {
+      PackageId: Dummy,
+      Updates: [
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
@@ -26,7 +31,7 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "Dummy": {
+    "Dummy.Tool": {
       "version": "0.0.1",
       "commands": [
         "dummy"
@@ -40,7 +45,7 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "Dummy": {
+    "Dummy.Tool": {
       "version": "0.0.2",
       "commands": [
         "dummy"

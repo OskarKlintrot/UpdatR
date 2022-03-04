@@ -1,21 +1,28 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using NuGet.Frameworks;
 using NuGet.Versioning;
 using UpdatR.Update.Internals;
 
 namespace UpdatR.Update.Domain;
 
-internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
+internal record NuGetPackage(string PackageId, bool IsTool, IEnumerable<PackageMetadata> PackageMetadatas)
 {
     private PackageMetadata? _latestStable;
     private PackageMetadata? _latestPrerelease;
+    private CompatibilityProvider? _compatibilityProvider;
 
-    public PackageMetadata? LatestStable => _latestStable ??= PackageMetadatas
-        .Where(x => !x.Version.IsPrerelease)
+    private CompatibilityProvider CompatibilityProvider
+        => _compatibilityProvider ??= new CompatibilityProvider(DefaultFrameworkNameProvider.Instance);
+
+    private PackageMetadata? LatestStable(NuGetFramework targetFramework) => _latestStable ??= PackageMetadatas
+        .Where(x => !x.Version.IsPrerelease
+            && (!x.TargetFrameworks.Any() || x.TargetFrameworks.Any(y => CompatibilityProvider.IsCompatible(targetFramework, y)))) // Todo: Bodge for tools
         .OrderByDescending(x => x.Version)
         .FirstOrDefault();
 
-    public PackageMetadata? LatestPrerelease => _latestPrerelease ??= PackageMetadatas
-        .Where(x => x.Version.IsPrerelease)
+    private PackageMetadata? LatestPrerelease(NuGetFramework targetFramework) => _latestPrerelease ??= PackageMetadatas
+        .Where(x => x.Version.IsPrerelease
+            && (!x.TargetFrameworks.Any() || x.TargetFrameworks.Any(y => CompatibilityProvider.IsCompatible(targetFramework, y)))) // Todo: Bodge for tools
         .OrderByDescending(x => x.Version)
         .FirstOrDefault();
 
@@ -28,17 +35,18 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     /// <returns></returns>
     public bool TryGetLatestComparedTo(
         NuGetVersion version,
+        NuGetFramework targetFramework,
         [NotNullWhen(returnValue: true)] out PackageMetadata? package)
     {
-        if (LatestStable?.Version > version)
+        if (LatestStable(targetFramework)?.Version > version)
         {
-            package = LatestStable;
+            package = LatestStable(targetFramework)!;
 
             return true;
         }
-        else if (version.IsPrerelease && LatestPrerelease?.Version > version)
+        else if (version.IsPrerelease && LatestPrerelease(targetFramework)?.Version > version)
         {
-            package = LatestPrerelease;
+            package = LatestPrerelease(targetFramework)!;
 
             return true;
         }

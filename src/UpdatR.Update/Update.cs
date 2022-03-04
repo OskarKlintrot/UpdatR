@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Credentials;
+using NuGet.Frameworks;
+using NuGet.Packaging.Core;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using UpdatR.Update.Domain;
@@ -48,7 +50,7 @@ public sealed partial class Update
 
         foreach (var config in dir.DotnetTools ?? Array.Empty<DotnetTools>())
         {
-            var project = await config.UpdatePackagesAsync(packages, dryRun, _logger);
+            var project = await config.UpdatePackagesAsync(packages.Where(x => x.IsTool), dryRun, _logger);
 
             if (project is not null)
             {
@@ -58,7 +60,7 @@ public sealed partial class Update
 
         foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
-            var project = csproj.UpdatePackages(packages, dryRun, _logger);
+            var project = csproj.UpdatePackages(packages.Where(x => !x.IsTool), dryRun, _logger);
 
             if (project is not null)
             {
@@ -88,6 +90,8 @@ public sealed partial class Update
             .Select(x => (x.Path, x.PackageIds))
             .Union(dotnetTools.Select(x => (x.Path, x.PackageIds)));
 
+        var tempPackages = Path.Combine(Paths.Temporary, "packages");
+
         foreach (var (path, packageIds) in projectsWithPackages)
         {
             var settings = Settings.LoadDefaultSettings(path);
@@ -104,6 +108,7 @@ public sealed partial class Update
                 {
                     foreach (var packageId in packageIds)
                     {
+                        var isTool = false;
                         var packageMetadataResource = repo.GetResource<PackageMetadataResource>();
 
                         var searchMetadata = await packageMetadataResource.GetMetadataAsync(
@@ -114,11 +119,55 @@ public sealed partial class Update
                             nuGetLogger,
                             CancellationToken.None);
 
+                        var supportedFrameworks = new Dictionary<(int, bool), IEnumerable<NuGetFramework>>();
+
+                        if (searchMetadata.LastOrDefault()?.DependencySets?.Any() == false)
+                        {
+                            var downloadResource = repo.GetResource<DownloadResource>();
+
+                            var identities = searchMetadata
+                                .Select(x => x.Identity)
+                                .OrderByDescending(x => x.Version)
+                                .DistinctBy(x => (x.Version.Major, x.Version.IsPrerelease));
+
+                            foreach (var identity in identities)
+                            {
+                                var nupkg = await downloadResource.GetDownloadResourceResultAsync(
+                                    searchMetadata.Last().Identity,
+                                    new PackageDownloadContext(cacheContext),
+                                    tempPackages,
+                                    nuGetLogger,
+                                    CancellationToken.None);
+
+                                if (nupkg.Status == DownloadResourceResultStatus.Available)
+                                {
+                                    var packageTypes = nupkg.PackageReader.NuspecReader.GetPackageTypes();
+
+                                    isTool = packageTypes.Count == 1
+                                        && (packageTypes[0] == PackageType.DotnetTool || packageTypes[0] == PackageType.DotnetCliTool);
+
+                                    if (!isTool)
+                                    {
+                                        break;
+                                    }
+
+                                    supportedFrameworks[(identity.Version.Major, identity.Version.IsPrerelease)] = nupkg.PackageReader.GetSupportedFrameworks();
+                                }
+                            }
+                        }
+
                         var metadata = searchMetadata
                             .OfType<IPackageSearchMetadata>()
                             .Where(x => x.Identity.HasVersion)
                             .Select(x => new PackageMetadata(
                                 x.Identity.Version,
+
+                                isTool
+                                    ? supportedFrameworks.ContainsKey((x.Identity.Version.Major, x.Identity.Version.IsPrerelease))
+                                        ? supportedFrameworks[(x.Identity.Version.Major, x.Identity.Version.IsPrerelease)]
+                                        : new[] { NuGetFramework.AnyFramework }
+                                    : x.DependencySets.Select(x => x.TargetFramework),
+
                                 x is PackageSearchMetadata y && y.DeprecationMetadata is not null
                                 ? new(
                                     y.DeprecationMetadata.Message,
@@ -127,7 +176,7 @@ public sealed partial class Update
                                     ? null
                                     : new(y.DeprecationMetadata.AlternatePackage.PackageId, y.DeprecationMetadata.AlternatePackage.Range))
                                 : null,
-                                x.Vulnerabilities?.Select(y => new Internals.PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
+                                x.Vulnerabilities?.Select(y => new PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
 
                         if (!metadata.Any())
                         {
@@ -146,7 +195,7 @@ public sealed partial class Update
                         }
                         else
                         {
-                            packageSearchMetadata[packageId] = new(packageId, metadata);
+                            packageSearchMetadata[packageId] = new(packageId, isTool, metadata);
                         }
                     }
                 }

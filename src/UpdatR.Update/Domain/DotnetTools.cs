@@ -1,18 +1,23 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using NuGet.Frameworks;
 using NuGet.Versioning;
+using UpdatR.Update.Domain.Utils;
 using UpdatR.Update.Internals;
+using static UpdatR.Update.Domain.Utils.RetriveTargetFramework;
 
 namespace UpdatR.Update.Domain;
 
 internal sealed partial class DotnetTools
 {
     private readonly FileInfo _path;
+    private NuGetFramework? _targetFramework;
 
-    private DotnetTools(FileInfo path)
+    private DotnetTools(FileInfo path, NuGetFramework? targetFramework)
     {
         _path = path;
+        _targetFramework = targetFramework;
     }
 
     public string Name => _path.Name;
@@ -20,9 +25,12 @@ internal sealed partial class DotnetTools
     public string Path => _path.FullName;
 
     public string Parent => _path.DirectoryName!;
+
+    public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework(Parent);
+
     public IEnumerable<string> PackageIds => GetPackageIds();
 
-    public static DotnetTools Create(string path)
+    public static DotnetTools Create(string path, NuGetFramework? targetFramework)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -41,7 +49,7 @@ internal sealed partial class DotnetTools
             throw new ArgumentException($"'{nameof(path)}' is not named dotnet-tools.json.", nameof(path));
         }
 
-        return new DotnetTools(new(System.IO.Path.GetFullPath(path)));
+        return new DotnetTools(new(System.IO.Path.GetFullPath(path)), targetFramework);
     }
 
     public async Task<ProjectWithPackages?> UpdatePackagesAsync(IEnumerable<NuGetPackage> packages, bool dryRun, ILogger logger)
@@ -90,7 +98,7 @@ internal sealed partial class DotnetTools
                 {
                     if (packagesDict.TryGetValue(packageId, out var package))
                     {
-                        if (package.TryGetLatestComparedTo(version, out var updateTo))
+                        if (package.TryGetLatestComparedTo(version, TargetFramework, out var updateTo))
                         {
                             toolObject.Add(property.Key, updateTo.Version.ToString());
 
@@ -156,6 +164,28 @@ internal sealed partial class DotnetTools
         }
 
         return tools;
+    }
+
+    private static NuGetFramework GetTargetFramework(string path)
+    {
+        var parent = Directory.GetParent(path)!;
+
+        var csproj = parent
+            .GetFiles("*.csproj", new EnumerationOptions
+            {
+                MatchCasing = MatchCasing.CaseInsensitive,
+                RecurseSubdirectories = true,
+                MaxRecursionDepth = 1,
+            })
+            .FirstOrDefault();
+
+        var targetFramework = csproj is not null
+            ? RetriveTargetFramework.GetTargetFramework(csproj.FullName)
+            : GetTargetFrameworkFromDirectoryBuildProps(new(parent.FullName));
+
+        return targetFramework is null
+            ? NuGetFramework.AnyFramework
+            : NuGetFramework.Parse(targetFramework);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Tool object in {Path} was null.")]
