@@ -4,13 +4,10 @@ using NuGet.Configuration;
 using NuGet.Credentials;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
-using NuGet.Versioning;
 using UpdatR.Update.Domain;
 using UpdatR.Update.Internals;
 
 namespace UpdatR.Update;
-
-internal delegate void SetEfVersionCallback(NuGetVersion version);
 
 public sealed partial class Update
 {
