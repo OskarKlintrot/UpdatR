@@ -39,7 +39,7 @@ internal static partial class Program
         var sw = Stopwatch.StartNew();
 
         var services = new ServiceCollection()
-            .AddTransient<Update>()
+            .AddTransient<Updater>()
             .AddLogging(builder =>
             {
                 builder.SetMinimumLevel(verbosity);
@@ -49,7 +49,7 @@ internal static partial class Program
 
         _logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(Program));
 
-        var update = services.GetRequiredService<Update>();
+        var update = services.GetRequiredService<Updater>();
 
         var summary = await update.UpdateAsync(args, dryRun, interactive);
 

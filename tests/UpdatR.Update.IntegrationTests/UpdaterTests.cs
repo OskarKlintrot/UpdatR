@@ -5,7 +5,7 @@ namespace UpdatR.Update.IntegrationTests;
 
 [UsesVerify]
 [SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores", Justification = "Test methods")]
-public class UpdateTests
+public class UpdaterTests
 {
     [Theory]
     [InlineData("0.0.1")]
@@ -25,7 +25,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(tempCsproj);
@@ -57,7 +57,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(tempCsproj);
@@ -94,7 +94,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(tempDotnetConfig);
@@ -129,7 +129,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(tempDotnetConfig);
@@ -176,7 +176,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(target, dryRun: true);
@@ -234,7 +234,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(target);
@@ -292,7 +292,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(Path.Combine(temp, target));
@@ -343,7 +343,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(temp);
@@ -392,7 +392,7 @@ public class UpdateTests
             CreateNuGetConfig(tempNuget);
         }
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(temp);
@@ -429,7 +429,7 @@ public class UpdateTests
 
         CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(tempCsproj);
@@ -473,7 +473,7 @@ public class UpdateTests
 
         //CreateNuGetConfig(tempNuget);
 
-        var update = new Update();
+        var update = new Updater();
 
         // Act
         var summary = await update.UpdateAsync(target);

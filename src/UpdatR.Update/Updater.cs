@@ -9,13 +9,13 @@ using UpdatR.Update.Internals;
 
 namespace UpdatR.Update;
 
-public sealed partial class Update
+public sealed partial class Updater
 {
     private readonly ILogger _logger;
 
-    public Update(ILogger<Update>? logger = null)
+    public Updater(ILogger<Updater>? logger = null)
     {
-        _logger = logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Update>();
+        _logger = logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Updater>();
     }
 
     /// <summary>
