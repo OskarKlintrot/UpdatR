@@ -94,7 +94,7 @@ Options:
   -?, -h, --help                                       Show help and usage information
 ```
 
-## UpdatR.Update
+## UpdatR
 
 [![Latest Nuget Version](https://badgen.net/nuget/v/UpdatR/latest)](https://www.nuget.org/packages/UpdatR/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR)](https://www.nuget.org/packages/UpdatR/)
