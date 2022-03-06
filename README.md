@@ -9,7 +9,7 @@
 
 Dotnet tool for updating package reference and dotnet-tools.json.
 
-See [UpdatR](#updatrupdate) for SDK.
+See [UpdatR](#updatr) for SDK.
 
 ### Installation
 
@@ -65,7 +65,7 @@ It's possible to get the title and the rest of the output as separate .md-files 
 
 then you can use `title.md` as the title for your pull request and `description.md` as the body.
 
-UpdatR is used to update it's own dependencies, have a look at [Build.cs](https://github.com/OskarKlintrot/UpdatR/blob/main/tools/Build/Build.cs) for an example that uses [Bullseye](https://www.nuget.org/packages/Bullseye) and [SimpleExec](https://www.nuget.org/packages/SimpleExec). However, if you are using C# in your CI/CD pipeline it's probably easier to just use [UpdatR.Update](#updatrupdate) directly instead. That's the package that powers UpdatR under the hood.
+UpdatR is used to update it's own dependencies, have a look at [Build.cs](https://github.com/OskarKlintrot/UpdatR/blob/main/tools/Build/Build.cs) for an example that uses [Bullseye](https://www.nuget.org/packages/Bullseye) and [SimpleExec](https://www.nuget.org/packages/SimpleExec). However, if you are using C# in your CI/CD pipeline it's probably easier to just use [UpdatR](#updatr) directly instead. That's the package that powers `dotnet-updatr` under the hood.
 
 #### All options
 
