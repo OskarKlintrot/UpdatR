@@ -32,6 +32,7 @@ var rootDir = await GetRepoRootDirectoryAsync();
 
 Directory.SetCurrentDirectory(rootDir.FullName);
 
+const int repositoryId = 459606942;
 var buildToolDir = Path.GetFullPath(Path.Combine("tools", "Build"));
 var artifactsDir = Path.GetFullPath("Artifacts");
 var logsDir = Path.Combine(artifactsDir, "logs");
@@ -103,16 +104,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         "git",
         "push --set-upstream origin update --force");
 
-    const int repositoryId = 459606942;
-
-    var githubToken = runsOnGitHubActions
-        ? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
-        : ((ConfigurationManager)new ConfigurationManager().AddUserSecrets<Program>()).GetSection("GitHub").GetValue<string>("PAT");
-
-    if (string.IsNullOrWhiteSpace(githubToken))
-    {
-        throw new InvalidOperationException("Access token not found. Should be set to environment variable 'GITHUB_TOKEN'");
-    }
+    var githubToken = GetToken();
 
     InMemoryCredentialStore credentials = new(new Credentials(githubToken));
     GitHubClient client = new(new ProductHeaderValue("UpdatR.Build"), credentials);
@@ -270,7 +262,7 @@ Target("test", DependsOn("build"), () =>
         $"test --configuration Release --no-build \"{solutionFile}\"");
 });
 
-Target("push", DependsOn("build"), async () =>
+Target("push", DependsOn("test"), async () =>
 {
     var accessToken = Environment.GetEnvironmentVariable("API_ACCESS_TOKEN");
 
@@ -310,11 +302,59 @@ Target("push", DependsOn("build"), async () =>
         nuGetLogger);
 });
 
+Target("create-release", DependsOn("test"), async () =>
+{
+    var githubToken = GetToken();
+
+    InMemoryCredentialStore credentials = new(new Credentials(githubToken));
+    GitHubClient client = new(new ProductHeaderValue("UpdatR.Build"), credentials);
+
+    var tag = await GetGitTag();
+    var version = await GetVersionAsync();
+    var prerelease = version.IsPrerelease;
+
+    await client.Repository.Release.Create(repositoryId, new(tag)
+    {
+        Name = "UpdatR v" + version.ToString(),
+        Prerelease = prerelease,
+    });
+});
+
 Target("default", DependsOn("test", "restore-tools"));
 
 await RunTargetsAndExitAsync(args);
 
 async Task<NuGetVersion> GetVersionAsync()
+{
+    var tag = await GetGitTag();
+
+    return NuGetVersion.TryParse(tag[1..], out var version)
+        ? version
+        : throw new InvalidOperationException($"$Invalid version: {tag}.");
+}
+
+static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
+{
+    var (stdOutput, stdError) = await ReadAsync("git", "rev-parse --show-toplevel");
+
+    return new DirectoryInfo(stdOutput.Trim());
+}
+
+string GetToken()
+{
+    var githubToken = runsOnGitHubActions
+            ? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
+            : ((ConfigurationManager)new ConfigurationManager().AddUserSecrets<Program>()).GetSection("GitHub").GetValue<string>("PAT");
+
+    if (string.IsNullOrWhiteSpace(githubToken))
+    {
+        throw new InvalidOperationException("Access token not found. Should be set to environment variable 'GITHUB_TOKEN'");
+    }
+
+    return githubToken;
+}
+
+async Task<string> GetGitTag()
 {
     var tag = string.Empty;
 
@@ -331,14 +371,5 @@ async Task<NuGetVersion> GetVersionAsync()
         (tag, _) = await ReadAsync("git", "describe --abbrev=0 --tags");
     }
 
-    return NuGetVersion.TryParse(tag[1..], out var version)
-        ? version
-        : throw new InvalidOperationException($"$Invalid version: {tag}.");
-}
-
-static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
-{
-    var (stdOutput, stdError) = await ReadAsync("git", "rev-parse --show-toplevel");
-
-    return new DirectoryInfo(stdOutput.Trim());
+    return tag.Trim();
 }

@@ -1,4 +1,4 @@
-name: push packages
+name: create release
 
 on:
   push:
@@ -9,7 +9,6 @@ jobs:
   push-packages:
 
     runs-on: ubuntu-latest
-    environment: Push package
 
     steps:
     - uses: actions/checkout@v2
@@ -18,7 +17,7 @@ jobs:
       with:
         dotnet-version: 6.x.x
     - name: Push NuGet Packages
-      run: dotnet run -- push
+      run: dotnet run -- create-release
       working-directory: tools/Build
       env:
           API_ACCESS_TOKEN: ${{ secrets.API_ACCESS_TOKEN }}
