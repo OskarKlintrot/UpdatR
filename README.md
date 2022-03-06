@@ -9,7 +9,7 @@
 
 Dotnet tool for updating package reference and dotnet-tools.json.
 
-See [UpdatR.Update](#updatrupdate) for SDK.
+See [UpdatR](#updatrupdate) for SDK.
 
 ### Installation
 
@@ -96,8 +96,8 @@ Options:
 
 ## UpdatR.Update
 
-[![Latest Nuget Version](https://badgen.net/nuget/v/UpdatR.Update/latest)](https://www.nuget.org/packages/UpdatR.Update/)
-[![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR.Update)](https://www.nuget.org/packages/UpdatR.Update/)
+[![Latest Nuget Version](https://badgen.net/nuget/v/UpdatR/latest)](https://www.nuget.org/packages/UpdatR/)
+[![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR)](https://www.nuget.org/packages/UpdatR/)
 
 NuGet package to programmatically update package reference and dotnet-tools.json.
 
