@@ -141,7 +141,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
 Target("build", DependsOn("artifactDirectories"), async () =>
 {
-    var version = await GetVersionAsync();
+    var (version, _) = await GetVersionAndTagAsync();
 
     var packagesToBe = GetPackagesIn(srcDir);
     var releaseNotes = Path.Combine(srcDir, "Build", "docs", "release-notes.txt");
@@ -271,8 +271,6 @@ Target("push", DependsOn("test"), async () =>
         throw new InvalidOperationException("Access token not found. Should be set to environment variable 'API_ACCESS_TOKEN'");
     }
 
-    var version = await GetVersionAsync();
-
     var nuGetLogger = new NuGetLogger(services.GetRequiredService<ILogger<NuGetLogger>>());
 
     SourceCacheContext cache = new();
@@ -309,11 +307,10 @@ Target("create-release", DependsOn("test"), async () =>
     InMemoryCredentialStore credentials = new(new Credentials(githubToken));
     GitHubClient client = new(new ProductHeaderValue("UpdatR.Build"), credentials);
 
-    var tag = await GetGitTag();
-    var version = await GetVersionAsync();
+    var (version, tagRef) = await GetVersionAndTagAsync();
     var prerelease = version.IsPrerelease;
 
-    await client.Repository.Release.Create(repositoryId, new(tag)
+    await client.Repository.Release.Create(repositoryId, new(tagRef)
     {
         Name = "UpdatR v" + version.ToString(),
         Prerelease = prerelease,
@@ -324,13 +321,31 @@ Target("default", DependsOn("test", "restore-tools"));
 
 await RunTargetsAndExitAsync(args);
 
-async Task<NuGetVersion> GetVersionAsync()
+async Task<(NuGetVersion NuGetVersion, string TagRef)> GetVersionAndTagAsync()
 {
-    var tag = await GetGitTag();
+    HashSet<string> tags = new();
 
-    return NuGetVersion.TryParse(tag[1..], out var version)
-        ? version
-        : throw new InvalidOperationException($"$Invalid version: {tag}.");
+    var (output, _) = await ReadAsync("git", "ls-remote --tags --refs origin");
+
+    foreach (var line in output.Split('\n'))
+    {
+        var tag = Regex.Match(line, @"refs\/tags\/(?<Tag>.*)").Groups["Tag"].Value;
+
+        if (!string.IsNullOrWhiteSpace(tag) && NuGetVersion.TryParse(tag[1..], out _))
+        {
+            tags.Add(tag);
+        }
+    }
+
+    return tags
+        .Select(x =>
+        {
+            _ = NuGetVersion.TryParse(x[1..], out var version);
+
+            return (version, x);
+        })
+        .OrderByDescending(x => x.version)
+        .First();
 }
 
 static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
@@ -354,22 +369,3 @@ string GetToken()
     return githubToken;
 }
 
-async Task<string> GetGitTag()
-{
-    var tag = string.Empty;
-
-    if (runsOnGitHubActions)
-    {
-        var (tags, _) = await ReadAsync("git", "ls-remote --tags --sort=-version:refname --refs origin");
-
-        var firstLine = tags.Split(Environment.NewLine)[0];
-
-        tag = Regex.Match(firstLine, @"refs\/tags\/(?<Tag>.*)").Groups["Tag"].Value;
-    }
-    else
-    {
-        (tag, _) = await ReadAsync("git", "describe --abbrev=0 --tags");
-    }
-
-    return tag.Trim();
-}
