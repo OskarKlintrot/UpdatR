@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\BuildingBlocks\BuildingBlocks.projitems" Label="Shared" />
+
+  <Import Project="$(MSBuildProjectDirectory)\..\Build\nuget.props" />
+  
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>dotnet-updatr</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>update</ToolCommandName>
+    <Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
+    <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
+    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.27.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
+    <PackageReference Include="NuGet.Credentials" Version="6.1.0" />
+    <PackageReference Include="NuGet.Protocol" Version="6.1.0" />
+    <PackageReference Include="NuGet.Versioning" Version="6.1.0" />
+    <PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.22114.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UpdatR\UpdatR.csproj" />
+  </ItemGroup>
+
+</Project>

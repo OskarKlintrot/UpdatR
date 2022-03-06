@@ -18,7 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Shared", ".Shared", "{F55D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{6743D5A3-318C-42A9-AAAA-AF8C7F303B44}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.Cli", "src\UpdatR.Update.Cli\UpdatR.Update.Cli.csproj", "{93D70CCB-9F73-4868-AD9D-DDAEF0EBFA00}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dotnet-updatr", "src\dotnet-updatr\dotnet-updatr.csproj", "{93D70CCB-9F73-4868-AD9D-DDAEF0EBFA00}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "BuildingBlocks", "src\BuildingBlocks\BuildingBlocks.shproj", "{A63910FE-F91F-4AA0-BF42-06B086F7556D}"
 EndProject
@@ -31,7 +31,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gh-workflows", "gh-workflow
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Build", "tools\Build\Build.csproj", "{E6115943-7C57-4F83-ABE9-1756C321C007}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update", "src\UpdatR.Update\UpdatR.Update.csproj", "{4533B82F-E253-427C-8EE7-E87B53498925}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR", "src\UpdatR\UpdatR.csproj", "{4533B82F-E253-427C-8EE7-E87B53498925}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Packages", "Packages", "{C5346D82-B741-4590-A848-64CF550B158D}"
 EndProject
@@ -46,11 +46,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1F5D2047-E
 		src\Build\docs\release-notes.txt = src\Build\docs\release-notes.txt
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.UnitTests", "tests\UpdatR.Update.UnitTests\UpdatR.Update.UnitTests.csproj", "{656203A1-D1BE-4E3D-AA49-68D00A3003CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.UnitTests", "tests\UpdatR.UnitTests\UpdatR.UnitTests.csproj", "{656203A1-D1BE-4E3D-AA49-68D00A3003CF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.E2eTests", "tests\UpdatR.Update.E2eTests\UpdatR.Update.E2eTests.csproj", "{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.E2eTests", "tests\UpdatR.E2eTests\UpdatR.E2eTests.csproj", "{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.Update.IntegrationTests", "tests\UpdatR.Update.IntegrationTests\UpdatR.Update.IntegrationTests.csproj", "{4E4232E1-DA24-4862-9E4B-389C47C968A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.IntegrationTests", "tests\UpdatR.IntegrationTests\UpdatR.IntegrationTests.csproj", "{4E4232E1-DA24-4862-9E4B-389C47C968A7}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution

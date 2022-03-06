@@ -354,4 +354,4 @@ MigrationBackup/
 *.verified.*.bak
 
 # Packages for integration testing
-!*/UpdatR.Update.IntegrationTests/Resources/Packages/**/*
+!*/UpdatR.IntegrationTests/Resources/Packages/**/*
