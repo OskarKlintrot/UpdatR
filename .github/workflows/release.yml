@@ -16,7 +16,7 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 6.x.x
-    - name: Push NuGet Packages
+    - name: Create GitHub Release
       run: dotnet run -- create-release
       working-directory: tools/Build
       env:
