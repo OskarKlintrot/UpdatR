@@ -26,6 +26,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gh-workflows", "gh-workflow
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\build.yml = .github\workflows\build.yml
 		.github\workflows\push.yml = .github\workflows\push.yml
+		.github\workflows\release.yml = .github\workflows\release.yml
 		.github\workflows\update.yml = .github\workflows\update.yml
 	EndProjectSection
 EndProject
