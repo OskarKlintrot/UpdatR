@@ -1,9 +1,10 @@
 name: create release
 
 on:
-  push:
-    tags:
-      - v**
+  workflow_run:
+    workflows: ["push packages"]
+    types:
+    - completed
 
 jobs:
   push-packages:
