@@ -107,6 +107,7 @@ See [dotnet-updatr](#dotnet-updatr) for a dotnet tool that can be run from the c
 
 ```csharp
 using UpdatR;
+using UpdatR.Formatters;
 
 var updatr = new Updater(); // Can take an ILogger
 
