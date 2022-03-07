@@ -101,7 +101,7 @@ public sealed partial class Updater
         }
     }
 
-    private async Task<(IEnumerable<NuGetPackage> Packages, IDictionary<string, string> UnauthorizedSources)>
+    private async Task<(IDictionary<string, NuGetPackage?> Packages, IDictionary<string, string> UnauthorizedSources)>
         GetPackageVersions(
             IEnumerable<Csproj> projects,
             IEnumerable<DotnetTools> dotnetTools,
@@ -113,9 +113,9 @@ public sealed partial class Updater
 
         using var cacheContext = new SourceCacheContext();
 
-        Dictionary<string, NuGetPackage> packageSearchMetadata = new();
+        Dictionary<string, NuGetPackage?> packageSearchMetadata = new(StringComparer.OrdinalIgnoreCase);
 
-        Dictionary<string, string> unauthorizedSources = new();
+        Dictionary<string, string> unauthorizedSources = new(StringComparer.OrdinalIgnoreCase);
 
         var projectsWithPackages = projects
             .Select(x => (x.Path, x.Packages.Keys.AsEnumerable()))
@@ -139,6 +139,8 @@ public sealed partial class Updater
                     {
                         if (shouldExcludePackage(packageId))
                         {
+                            packageSearchMetadata[packageId] = null;
+
                             continue;
                         }
 
@@ -173,7 +175,7 @@ public sealed partial class Updater
                             continue;
                         }
 
-                        if (packageSearchMetadata.TryGetValue(packageId, out var package))
+                        if (packageSearchMetadata.TryGetValue(packageId, out var package) && package is not null)
                         {
                             packageSearchMetadata[packageId] = package with
                             {
@@ -211,7 +213,7 @@ public sealed partial class Updater
             }
         }
 
-        return (packageSearchMetadata.Values, unauthorizedSources);
+        return (packageSearchMetadata, unauthorizedSources);
     }
 
 #pragma warning disable CA1822 // Mark members as static

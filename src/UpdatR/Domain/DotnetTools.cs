@@ -46,7 +46,7 @@ internal sealed partial class DotnetTools
         return new DotnetTools(new(System.IO.Path.GetFullPath(path)));
     }
 
-    public async Task<ProjectWithPackages?> UpdatePackagesAsync(IEnumerable<NuGetPackage> packages, bool dryRun, ILogger logger)
+    public async Task<ProjectWithPackages?> UpdatePackagesAsync(IDictionary<string, NuGetPackage?> packages, bool dryRun, ILogger logger)
     {
         var config = JsonSerializer.Deserialize<JsonObject>(await File.ReadAllTextAsync(Path));
 
@@ -63,8 +63,6 @@ internal sealed partial class DotnetTools
         }
 
         var project = new ProjectWithPackages(Path);
-
-        var packagesDict = packages.ToDictionary(x => x.PackageId, x => x, StringComparer.OrdinalIgnoreCase);
 
         foreach (var element in tools)
         {
@@ -87,10 +85,21 @@ internal sealed partial class DotnetTools
             foreach (var property in toolObject.ToList())
             {
                 toolObject.Remove(property.Key);
+
                 if (property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
                     && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version))
                 {
-                    if (packagesDict.TryGetValue(packageId, out var package))
+                    if (!packages.TryGetValue(packageId, out var package))
+                    {
+                        project.AddUnknownPackage(packageId);
+                    }
+                    else if (package is null)
+                    {
+                        // Ignore package
+
+                        toolObject.Add(property);
+                    }
+                    else
                     {
                         if (package.TryGetLatestComparedTo(version, NuGetFramework.AnyFramework, out var updateTo))
                         {
@@ -121,10 +130,6 @@ internal sealed partial class DotnetTools
                                 }
                             }
                         }
-                    }
-                    else
-                    {
-                        project.AddUnknownPackage(packageId);
                     }
                 }
                 else

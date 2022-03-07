@@ -50,7 +50,7 @@ internal sealed partial class Csproj
         return new Csproj(new(System.IO.Path.GetFullPath(path)));
     }
 
-    public ProjectWithPackages? UpdatePackages(IEnumerable<NuGetPackage> packages, bool dryRun, ILogger logger)
+    public ProjectWithPackages? UpdatePackages(IDictionary<string, NuGetPackage?> packages, bool dryRun, ILogger logger)
     {
         var project = new ProjectWithPackages(Path);
 
@@ -72,8 +72,6 @@ internal sealed partial class Csproj
             .SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>();
 
-        var packagesDict = packages.ToDictionary(x => x.PackageId, x => x, StringComparer.OrdinalIgnoreCase);
-
         foreach (var packageReference in packageReferences)
         {
             var packageId = packageReference.GetAttribute("Include");
@@ -86,11 +84,17 @@ internal sealed partial class Csproj
                 continue;
             }
 
-            if (!packagesDict.TryGetValue(packageId, out var package))
+            if (!packages.TryGetValue(packageId, out var package))
             {
                 LogMissingPackage(logger, packageId);
 
                 project.AddUnknownPackage(packageId);
+
+                continue;
+            }
+            else if (package is null)
+            {
+                // Ignore package
 
                 continue;
             }
