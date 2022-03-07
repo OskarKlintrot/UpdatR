@@ -9,6 +9,8 @@
 
 Dotnet tool for updating package reference and dotnet-tools.json.
 
+The tool will try to stick to package versions that is supported by the projects target framework.
+
 See [UpdatR](#updatr) for SDK.
 
 ### Installation
@@ -49,6 +51,12 @@ For larger solutions with multiple packages the console output is not optimal. Y
 > update --browser
 ```
 
+If you don't want to update a package or packages you can exclude them:
+
+```
+> update --exclude-package Microsoft.* --exclude-package Newtonsoft.*
+```
+
 #### As part of CI/CD
 
 You can get the output as a markdown by setting a path for the output:
@@ -71,27 +79,25 @@ UpdatR is used to update it's own dependencies, have a look at [Build.cs](https:
 
 ```
 Usage:
-  UpdatR.Update.Cli [<args>] [options]
+  update [<args>] [options]
 
 Arguments:
-  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or
-          folder. If target is a folder then all *.csproj-files and dontet-config.json-files will be
-          processed. [default: .]
+  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If
+          target is a folder then all *.csproj-files and dontet-config.json-files will be processed. [default: .]
 
 Options:
-  --output <output>                                    Defaults to "output.md". Explicitly set to
-                                                       fileName.txt to generate plain text instead of
-                                                       markdown. []
-  --title <title>                                      Outputs title to path. []
-  --description <description>                          Outputs description to path. []
-  --verbosity                                          Log level. [default: Warning]
-  <Critical|Debug|Error|Information|None|Trace|Warnin
-  g>
-  --dry-run                                            Do not save any changes. [default: False]
-  --browser                                            Open summary in browser. [default: False]
-  --interactive                                        Interaction with user is possible. [default: False]
-  --version                                            Show version information
-  -?, -h, --help                                       Show help and usage information
+  --exclude-package <exclude-package>                    Packages to exlude. Supports * as wildcard. []
+  --output <output>                                      Defaults to "output.md". Explicitly set to fileName.txt to
+                                                         generate plain text instead of markdown. []
+  --title <title>                                        Outputs title to path. []
+  --description <description>                            Outputs description to path. []
+  --verbosity                                            Log level. [default: Warning]
+  <Critical|Debug|Error|Information|None|Trace|Warning>
+  --dry-run                                              Do not save any changes. [default: False]
+  --browser                                              Open summary in browser. [default: False]
+  --interactive                                          Interaction with user is possible. [default: False]
+  --version                                              Show version information
+  -?, -h, --help                                         Show help and usage information
 ```
 
 ## UpdatR
@@ -100,6 +106,8 @@ Options:
 [![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR)](https://www.nuget.org/packages/UpdatR/)
 
 NuGet package to programmatically update package reference and dotnet-tools.json.
+
+The tool will try to stick to package versions that is supported by the projects target framework.
 
 See [dotnet-updatr](#dotnet-updatr) for a dotnet tool that can be run from the command-line.
 
