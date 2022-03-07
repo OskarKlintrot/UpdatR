@@ -1,4 +1,5 @@
-﻿using BuildingBlocks;
+﻿using System.Text.RegularExpressions;
+using BuildingBlocks;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Credentials;
@@ -22,14 +23,23 @@ public sealed partial class Updater
     /// Update all packages in solution or project(s).
     /// </summary>
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
+    /// <param name="excludePackages">Packages to exlude. Supports * as wildcard.</param>
+    /// <param name="dryRun">Do not save any changes.</param>
+    /// <param name="interactive">Interaction with user is possible.</param>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<Summary> UpdateAsync(string? path = null, bool dryRun = false, bool interactive = false)
+    public async Task<Summary> UpdateAsync(
+        string? path = null,
+        string[]? excludePackages = null,
+        bool dryRun = false,
+        bool interactive = false)
     {
         if (path == null)
         {
             path = Directory.GetCurrentDirectory();
         }
+
+        var shouldExcludePackage = CreateSearch(excludePackages);
 
         var dir = RootDir.Create(path);
 
@@ -38,6 +48,7 @@ public sealed partial class Updater
         var (packages, unauthorizedSources) = await GetPackageVersions(
             dir.Csprojs ?? Array.Empty<Csproj>(),
             dir.DotnetTools ?? Array.Empty<DotnetTools>(),
+            shouldExcludePackage,
             interactive,
             new NuGetLogger(_logger));
 
@@ -69,10 +80,32 @@ public sealed partial class Updater
         return Summary.Create(result);
     }
 
+    private static Func<string, bool> CreateSearch(string[]? strs)
+    {
+        if (strs is null || strs.Length == 0)
+        {
+            return _ => false;
+        }
+
+        var regexes = strs.Select(x => ConvertSearchPatternToRegex(x)).ToList();
+
+        return str => regexes.Any(x => x.IsMatch(str));
+
+        static Regex ConvertSearchPatternToRegex(string matchAgainst)
+        {
+            var pattern = "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
+
+            pattern = pattern.Replace("()$", "$");
+
+            return new Regex(pattern, RegexOptions.IgnoreCase);
+        }
+    }
+
     private async Task<(IEnumerable<NuGetPackage> Packages, IDictionary<string, string> UnauthorizedSources)>
         GetPackageVersions(
             IEnumerable<Csproj> projects,
             IEnumerable<DotnetTools> dotnetTools,
+            Func<string, bool> shouldExcludePackage,
             bool interactive,
             NuGet.Common.ILogger nuGetLogger)
     {
@@ -104,6 +137,11 @@ public sealed partial class Updater
                 {
                     foreach (var packageId in packageIds)
                     {
+                        if (shouldExcludePackage(packageId))
+                        {
+                            continue;
+                        }
+
                         var packageMetadataResource = repo.GetResource<PackageMetadataResource>();
 
                         var searchMetadata = await packageMetadataResource.GetMetadataAsync(

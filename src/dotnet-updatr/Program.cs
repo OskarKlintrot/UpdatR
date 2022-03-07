@@ -17,6 +17,7 @@ internal static partial class Program
     /// Update all packages in solution or project(s).
     /// </summary>
     /// <param name="args">Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dontet-config.json-files will be processed.</param>
+    /// <param name="excludePackage">Package to exlude. Supports * as wildcard.</param>
     /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
     /// <param name="title">Outputs title to path.</param>
     /// <param name="description">Outputs description to path.</param>
@@ -28,6 +29,7 @@ internal static partial class Program
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
         string? args = ".",
+        string[]? excludePackage = null,
         string? output = null,
         string? title = null,
         string? description = null,
@@ -51,7 +53,7 @@ internal static partial class Program
 
         var update = services.GetRequiredService<Updater>();
 
-        var summary = await update.UpdateAsync(args, dryRun, interactive);
+        var summary = await update.UpdateAsync(args, excludePackage, dryRun, interactive);
 
         var outputStr = TextFormatter.PlainText(summary);
 

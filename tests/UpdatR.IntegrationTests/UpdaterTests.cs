@@ -256,6 +256,46 @@ public class UpdaterTests
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData("Microsoft.*")]
+    [InlineData("Dummy.*")]
+    [InlineData("Dummy.*", "Microsoft.*")]
+    [InlineData("Dummy.*", "has.*")]
+    public async Task Given_ExcludedPackage_When_Update_Then_DoNotUpdate(params string[]? excludedPackages)
+    {
+        // Arrange
+        var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_ExcludedPackage_When_Update_Then_DoNotUpdate));
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1"),
+            new KeyValuePair<string, string>("Has.Previews", "0.0.1"));
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp, excludedPackages);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(string.Join('/', excludedPackages ?? Array.Empty<string>()));
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("Dummy.sln")]
     public async Task Given_CsprojNotAddedToSln_When_TargetSln_Then_DoNothing(string target)
