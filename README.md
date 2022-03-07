@@ -113,6 +113,11 @@ var updatr = new Updater(); // Can take an ILogger
 
 var summary = await updatr.UpdateAsync("path");
 
+if (summary.UpdatedPackagesCount == 0) // No packages where updated
+{
+    return;
+}
+
 var title = MarkdownFormatter.GenerateTitle(summary);
 
 var description = "# PR created automatically by UpdatR"
