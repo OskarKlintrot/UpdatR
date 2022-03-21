@@ -2,9 +2,12 @@ name: build
 
 on:
   push:
-    branches: [ main, update ]
+    branches: 
+    - main
+    - update
   pull_request:
-    branches: [ main ]
+    branches:
+    - main
 
 jobs:
   run-tests:
