@@ -98,7 +98,7 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
 
     await RunAsync(
         "git",
-        "commit -am \"chore: Update all packages\"");
+        $"commit -am \"chore: {title}\"");
 
     await RunAsync(
         "git",
