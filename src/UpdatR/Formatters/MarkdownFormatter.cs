@@ -11,15 +11,15 @@ public static class MarkdownFormatter
 
         if (summary.UpdatedPackagesCount == 0)
         {
-            sb.Append("📦 Updated no packages.");
+            sb.Append("📦 Update no packages");
         }
         else if (summary.UpdatedPackagesCount == 1)
         {
-            sb.Append("📦 Updated ").Append(summary.UpdatedPackages.Single().PackageId);
+            sb.Append("📦 Update ").Append(summary.UpdatedPackages.Single().PackageId);
         }
         else
         {
-            sb.Append("📦 Updated ").Append(summary.UpdatedPackagesCount).Append(" packages.");
+            sb.Append("📦 Update ").Append(summary.UpdatedPackagesCount).Append(" packages");
         }
 
         return sb.ToString();

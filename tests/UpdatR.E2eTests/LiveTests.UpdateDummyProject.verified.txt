@@ -1,5 +1,5 @@
 ﻿[  
-# 📦 Updated 2 packages.
+# 📦 Update 2 packages
 
 2 package(s) were updated in 1 projects:
 
@@ -56,7 +56,7 @@ Package used in:
 
 
 ,
-  📦 Updated 2 packages.
+  📦 Update 2 packages
   
 2 package(s) were updated in 1 projects:
 

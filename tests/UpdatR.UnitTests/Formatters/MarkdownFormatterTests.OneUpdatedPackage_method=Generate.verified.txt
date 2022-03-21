@@ -1,4 +1,4 @@
-﻿# 📦 Updated Updated.Package
+﻿# 📦 Update Updated.Package
 
 1 package(s) were updated in 1 projects:
 
