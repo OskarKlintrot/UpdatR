@@ -1,0 +1,9 @@
+{
+    "stryker-config":
+    {
+        "test-projects": [
+            "../../tests/UpdatR.IntegrationTests/UpdatR.IntegrationTests.csproj",
+            "../../tests/UpdatR.UnitTests/UpdatR.UnitTests.csproj"
+        ]
+    }
+}

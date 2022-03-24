@@ -1,0 +1,7 @@
+{
+    "stryker-config":
+    {
+        "mutation-level": "Basic",
+        "test-projects": ["../../tests/UpdatR.E2eTests/UpdatR.E2eTests.csproj"]
+    }
+}
