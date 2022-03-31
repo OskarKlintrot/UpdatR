@@ -193,6 +193,7 @@ internal sealed partial class Csproj
             .OfType<XmlElement>()
             .Select(x => (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version")))
             .Where(x => !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _))
+            .DistinctBy(x => x.PackageId)
             .ToDictionary(x => x.PackageId, x => NuGetVersion.Parse(x.Version), StringComparer.OrdinalIgnoreCase);
     }
 
