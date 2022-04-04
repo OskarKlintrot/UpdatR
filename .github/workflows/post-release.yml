@@ -1,0 +1,25 @@
+name: post release cleanup
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["push packages"]
+    types:
+    - completed
+
+jobs:
+  post-release-cleanup:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.x.x
+    - name: Clean up after release
+      run: dotnet run -- post-release
+      working-directory: tools/Build
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

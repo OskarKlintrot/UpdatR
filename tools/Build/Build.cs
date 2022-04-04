@@ -26,6 +26,14 @@ var runsOnGitHubActions = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentV
 if (runsOnGitHubActions)
 {
     Console.WriteLine("Running on GitHub Actions.");
+
+    await RunAsync(
+        "git",
+        "config user.name \"GitHub Actions Bot\"");
+
+    await RunAsync(
+        "git",
+        "config user.email \"<>\"");
 }
 
 var rootDir = await GetRepoRootDirectoryAsync();
@@ -40,6 +48,7 @@ var buildLogFile = Path.Combine(logsDir, "build.binlog");
 
 var solutionFile = Path.Combine(rootDir.FullName, "UpdatR.sln");
 var srcDir = Path.Combine(rootDir.FullName, "src");
+var releaseNotes = Path.Combine(srcDir, "Build", "docs", "release-notes.txt");
 
 Target("artifactDirectories", () =>
 {
@@ -69,17 +78,6 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
         + Environment.NewLine
         + Environment.NewLine
         + description;
-
-    if (runsOnGitHubActions)
-    {
-        await RunAsync(
-            "git",
-            "config user.name \"GitHub Actions Bot\"");
-
-        await RunAsync(
-            "git",
-            "config user.email \"<>\"");
-    }
 
     var (message, _) = await ReadAsync("git", "status");
 
@@ -144,7 +142,6 @@ Target("build", DependsOn("artifactDirectories"), async () =>
     var (version, _) = await GetVersionAndTagAsync();
 
     var packagesToBe = GetPackagesIn(srcDir);
-    var releaseNotes = Path.Combine(srcDir, "Build", "docs", "release-notes.txt");
     var readme = Path.Combine(rootDir.FullName, "README.md");
     var icon = Path.Combine(srcDir, "Build", "icon.png");
 
@@ -317,9 +314,57 @@ Target("create-release", DependsOn("test"), async () =>
     });
 });
 
+Target("restore-release-notes-txt", async () =>
+{
+    var version = await GetLatestVersionAsync();
+
+    if (version.IsPrerelease)
+    {
+        return;
+    }
+
+    await File.WriteAllTextAsync(releaseNotes, null);
+
+    var (message, _) = await ReadAsync("git", "status");
+
+    var dirty = !message.Contains("nothing to commit, working tree clean", StringComparison.OrdinalIgnoreCase);
+
+    if (!dirty)
+    {
+        Console.WriteLine("No changes made.");
+
+        return;
+    }
+
+    var tag = await GetLatestTagAsync();
+
+    await RunAsync("git", $"add {releaseNotes}");
+    await RunAsync("git", $"commit -m \"chore: Reset release-notes.txt after release {tag}\"");
+
+    if (runsOnGitHubActions)
+    {
+        await RunAsync("git", "push");
+    }
+});
+
+Target("post-release", DependsOn("restore-release-notes-txt"));
 Target("default", DependsOn("test", "restore-tools"));
 
 await RunTargetsAndExitAsync(args);
+
+async Task<NuGetVersion> GetLatestVersionAsync()
+{
+    var (version, _) = await GetVersionAndTagAsync();
+
+    return version;
+}
+
+async Task<string> GetLatestTagAsync()
+{
+    var (_, tag) = await GetVersionAndTagAsync();
+
+    return tag;
+}
 
 async Task<(NuGetVersion NuGetVersion, string TagRef)> GetVersionAndTagAsync()
 {
@@ -368,4 +413,3 @@ string GetToken()
 
     return githubToken;
 }
-
