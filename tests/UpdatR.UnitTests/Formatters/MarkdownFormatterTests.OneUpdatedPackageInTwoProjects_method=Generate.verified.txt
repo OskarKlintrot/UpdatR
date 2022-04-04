@@ -9,7 +9,7 @@
 ### Updated.Package
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
 | Bar\Bar.csproj | 1.0.0 | 2.0.0 |
+| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
 
 
