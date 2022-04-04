@@ -41,7 +41,11 @@ public sealed class Summary
         var updatedPackages = result.Projects
             .SelectMany(x => x.UpdatedPackages.Select(y => (Package: y, Project: x.Path)))
             .GroupBy(x => x.Package.PackageId)
-            .Select(x => new UpdatedPackage(PackageId: x.Key, Updates: x.Select(y => (y.Package.From, y.Package.To, y.Project))));
+            .Select(x => new UpdatedPackage(
+                PackageId: x.Key,
+                Updates: x
+                    .Select(y => (y.Package.From, y.Package.To, y.Project))
+                    .OrderBy(x => x.Project)));
 
         var deprecatedPackages = result.Projects
             .SelectMany(x => x.DeprecatedPackages.Select(y => (Package: y, Project: x.Path)))
