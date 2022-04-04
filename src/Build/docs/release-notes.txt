@@ -1,1 +1,1 @@
-- Use present tense in title
+- bug: Removed backtick from nuget log message

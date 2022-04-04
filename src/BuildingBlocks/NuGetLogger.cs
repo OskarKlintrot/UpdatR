@@ -36,6 +36,6 @@ internal partial class NuGetLogger : NuGet.Common.LoggerBase
         _ => throw new NotImplementedException("Unknown verbosity."),
     };
 
-    [LoggerMessage(EventId = 0, Message = "nuget: ({NuGetLogLevel}): {Message}`")]
+    [LoggerMessage(EventId = 0, Message = "nuget: ({NuGetLogLevel}): {Message}")]
     static partial void Log(ILogger logger, LogLevel level, NuGet.Common.LogLevel nuGetLogLevel, string message);
 }
