@@ -113,6 +113,13 @@ internal sealed partial class DotnetTools
 
                             toolObject.Add(property.Key, updateTo.Version.ToString());
 
+                            LogUpdateSuccessful(
+                                logger,
+                                Name,
+                                packageId,
+                                version,
+                                updateTo.Version);
+
                             project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
                         }
                         else
@@ -175,4 +182,7 @@ internal sealed partial class DotnetTools
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Tool object in {Path} was null.")]
     static partial void LogToolObjectNull(ILogger logger, string path);
+
+    [LoggerMessage(Level = LogLevel.Information, EventId = 3, Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}")]
+    static partial void LogUpdateSuccessful(ILogger logger, string name, string packageId, NuGetVersion fromVersion, NuGetVersion toVersion);
 }

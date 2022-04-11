@@ -1,0 +1,1 @@
+- Log when package updates in dotnet-tools.json
