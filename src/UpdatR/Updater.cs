@@ -5,6 +5,7 @@ using NuGet.Configuration;
 using NuGet.Credentials;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
+using NuGet.Versioning;
 using UpdatR.Domain;
 using UpdatR.Internals;
 
