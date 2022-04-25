@@ -12,6 +12,8 @@ internal sealed partial class Csproj
 {
     private readonly FileInfo _path;
     private NuGetFramework? _targetFramework;
+    private NuGetVersion? _entityFrameworkVersion;
+    private bool _entityFrameworkVersionLoaded;
 
     private Csproj(FileInfo path)
     {
@@ -25,6 +27,10 @@ internal sealed partial class Csproj
     public string Parent => _path.DirectoryName!;
 
     public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework();
+
+    public NuGetVersion? EntityFrameworkVersion => _entityFrameworkVersionLoaded
+        ? _entityFrameworkVersion
+        : _entityFrameworkVersion ??= GetEntityFrameworkVersion();
 
     public IDictionary<string, NuGetVersion> Packages => GetPackages();
 
@@ -124,12 +130,6 @@ internal sealed partial class Csproj
 
             project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
 
-            // EF Bodge
-            if (packageId.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase))
-            {
-                State.SetEntityFrameworkVersion(updateTo.Version);
-            }
-
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
 
@@ -180,6 +180,23 @@ internal sealed partial class Csproj
         return targetFramework is null
             ? NuGetFramework.AnyFramework
             : NuGetFramework.Parse(targetFramework);
+    }
+
+    private NuGetVersion? GetEntityFrameworkVersion()
+    {
+        foreach (var (packageId, version) in Packages)
+        {
+            if (packageId.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase))
+            {
+                _entityFrameworkVersionLoaded = true;
+
+                return version;
+            }
+        }
+
+        _entityFrameworkVersionLoaded = true;
+
+        return null;
     }
 
     private IDictionary<string, NuGetVersion> GetPackages()

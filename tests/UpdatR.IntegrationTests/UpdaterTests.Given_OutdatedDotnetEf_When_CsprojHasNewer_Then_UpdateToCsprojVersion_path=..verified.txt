@@ -1,12 +1,22 @@
 ﻿[
   [
     {
+      PackageId: Microsoft.EntityFrameworkCore,
+      Updates: [
+        {
+          Item1: 5.0.12,
+          Item2: 5.0.16,
+          Item3: Dummy.App.csproj
+        }
+      ]
+    },
+    {
       PackageId: dotnet-ef,
       Updates: [
         {
           Item1: 5.0.5,
           Item2: 5.0.12,
-          Item3: dotnet-tools.json
+          Item3: .config\dotnet-tools.json
         }
       ]
     }
@@ -44,7 +54,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -57,12 +67,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.16" />
   </ItemGroup>
 </Project>
 ]

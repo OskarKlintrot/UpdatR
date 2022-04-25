@@ -1,5 +1,5 @@
 ﻿using System.Text.RegularExpressions;
-using UpdatR.Internals;
+using NuGet.Versioning;
 
 namespace UpdatR.Domain;
 
@@ -71,13 +71,7 @@ internal sealed class RootDir
             AttributesToSkip = FileAttributes.System
         }))
         {
-            if (dir.Csprojs is null)
-            {
-                // EF Bodge
-                SetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName);
-            }
-
-            var config = Domain.DotnetTools.Create(configFile);
+            var config = Domain.DotnetTools.Create(configFile, GetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName));
 
             dir.AddDotnetTools(config);
         }
@@ -119,12 +113,9 @@ internal sealed class RootDir
 
         if (path.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
-            // EF Bodge
-            SetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName);
+            var dir = new RootDir(path.Directory!); ;
 
-            var dir = new RootDir(path.Directory!);
-
-            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName));
+            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName, GetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName)));
 
             return dir;
         }
@@ -142,12 +133,12 @@ internal sealed class RootDir
                     continue;
                 }
 
-                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath));
+                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath, GetEfVersionBasedOnCsproj(new FileInfo(configPath).Directory!.Parent!.FullName)));
             }
         }
     }
 
-    private static void SetEfVersionBasedOnCsproj(string path)
+    private static NuGetVersion? GetEfVersionBasedOnCsproj(string path)
     {
         foreach (var projectFile in Directory.EnumerateFiles(path, "*.csproj", new EnumerationOptions
         {
@@ -158,16 +149,15 @@ internal sealed class RootDir
         {
             var csproj = Csproj.Create(projectFile);
 
-            var efPackage = csproj.Packages.Keys
-                .FirstOrDefault(x => x.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase));
+            var efVersion = csproj.EntityFrameworkVersion;
 
-            if (efPackage is not null)
+            if (efVersion is not null)
             {
-                State.SetEntityFrameworkVersion(csproj.Packages[efPackage]);
-
-                break;
+                return efVersion;
             }
         }
+
+        return null;
     }
 
     private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution)

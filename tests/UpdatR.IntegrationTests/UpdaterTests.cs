@@ -490,13 +490,15 @@ public class UpdaterTests
     }
 
     [Theory]
+    [InlineData(".")]
     [InlineData(".config")]
     [InlineData(".config", "dotnet-tools.json")]
     public async Task Given_OutdatedDotnetEf_When_CsprojHasNewer_Then_UpdateToCsprojVersion(params string[] path)
     {
         // Arrange
+        var targetPath = Path.Combine(path);
         var temp = Path.Combine(Paths.Temporary.Root, "kjsdfj");
-        var target = Path.Combine(temp, "src", Path.Combine(path));
+        var target = Path.Combine(temp, "src", targetPath);
         var tempSln = Path.Combine(temp, "Dummy.sln");
         var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
         var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
@@ -507,6 +509,7 @@ public class UpdaterTests
 
         var csprojOriginal = await CreateTempCsprojAsync(
             tempCsproj,
+            "net5.0",
             new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.12"));
 
         var toolsOriginal = await CreateToolsConfigAsync(
@@ -523,7 +526,7 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(target);
 
         // Assert
-        await Verify(GetVerifyObjects()).UseParameters(path.Length);
+        await Verify(GetVerifyObjects()).UseParameters(targetPath);
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {

@@ -22,9 +22,11 @@ internal sealed partial class DotnetTools
 
     public string Parent => _path.DirectoryName!;
 
+    public NuGetVersion? HighestAllowedDotnetEf { get; init; }
+
     public IEnumerable<string> PackageIds => GetPackageIds();
 
-    public static DotnetTools Create(string path)
+    public static DotnetTools Create(string path, NuGetVersion? highestAllowedDotnetEf)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -43,7 +45,10 @@ internal sealed partial class DotnetTools
             throw new ArgumentException($"'{nameof(path)}' is not named dotnet-tools.json.", nameof(path));
         }
 
-        return new DotnetTools(new(System.IO.Path.GetFullPath(path)));
+        return new DotnetTools(new(System.IO.Path.GetFullPath(path)))
+        {
+            HighestAllowedDotnetEf = highestAllowedDotnetEf,
+        };
     }
 
     public async Task<ProjectWithPackages?> UpdatePackagesAsync(IDictionary<string, NuGetPackage?> packages, bool dryRun, ILogger logger)
@@ -105,10 +110,11 @@ internal sealed partial class DotnetTools
                         {
                             // EF Bodge
                             if (packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
-                                && State.EntityFrameworkVersion is not null
-                                && package.TryGet(State.EntityFrameworkVersion, out _))
+                                && HighestAllowedDotnetEf is not null
+                                && package.TryGet(HighestAllowedDotnetEf, out _)
+                                && HighestAllowedDotnetEf <= updateTo.Version)
                             {
-                                updateTo = package.Get(State.EntityFrameworkVersion);
+                                updateTo = package.Get(HighestAllowedDotnetEf);
                             }
 
                             toolObject.Add(property.Key, updateTo.Version.ToString());
@@ -120,7 +126,11 @@ internal sealed partial class DotnetTools
                                 version,
                                 updateTo.Version);
 
-                            project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+                            // EF Bodge
+                            if (version != updateTo.Version)
+                            {
+                                project.AddUpdatedPackage(new(packageId, version, updateTo.Version)); 
+                            }
                         }
                         else
                         {
