@@ -44,7 +44,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{E30AD9
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1F5D2047-E0F7-40C1-8B53-B72D0FDD0E79}"
 	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
+		README.source.md = README.source.md
 		src\Build\docs\release-notes.txt = src\Build\docs\release-notes.txt
 	EndProjectSection
 EndProject
@@ -53,6 +53,19 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.E2eTests", "tests\UpdatR.E2eTests\UpdatR.E2eTests.csproj", "{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.IntegrationTests", "tests\UpdatR.IntegrationTests\UpdatR.IntegrationTests.csproj", "{4E4232E1-DA24-4862-9E4B-389C47C968A7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mdsource", "mdsource", "{308F2D6A-6348-4391-B925-AAEBFFC2D053}"
+	ProjectSection(SolutionItems) = preProject
+		mdsource\cli-readme.include.md = mdsource\cli-readme.include.md
+		mdsource\cli-usage.txt = mdsource\cli-usage.txt
+		mdsource\footer.include.md = mdsource\footer.include.md
+		mdsource\header.include.md = mdsource\header.include.md
+		mdsource\sdk-readme.include.md = mdsource\sdk-readme.include.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Docs", ".Docs", "{A609A78D-B3C3-4377-8912-C2EE24C8F91C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdatR.SampleApp", "docs\UpdatR.SampleApp\UpdatR.SampleApp.csproj", "{FB7FF689-E572-415E-90C4-20FF3BF66B67}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -90,6 +103,10 @@ Global
 		{4E4232E1-DA24-4862-9E4B-389C47C968A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E4232E1-DA24-4862-9E4B-389C47C968A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E4232E1-DA24-4862-9E4B-389C47C968A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB7FF689-E572-415E-90C4-20FF3BF66B67}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB7FF689-E572-415E-90C4-20FF3BF66B67}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB7FF689-E572-415E-90C4-20FF3BF66B67}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB7FF689-E572-415E-90C4-20FF3BF66B67}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -104,6 +121,8 @@ Global
 		{656203A1-D1BE-4E3D-AA49-68D00A3003CF} = {6743D5A3-318C-42A9-AAAA-AF8C7F303B44}
 		{E1F9E4FA-8BD5-4E48-9F87-415014E0AB25} = {6743D5A3-318C-42A9-AAAA-AF8C7F303B44}
 		{4E4232E1-DA24-4862-9E4B-389C47C968A7} = {6743D5A3-318C-42A9-AAAA-AF8C7F303B44}
+		{308F2D6A-6348-4391-B925-AAEBFFC2D053} = {A609A78D-B3C3-4377-8912-C2EE24C8F91C}
+		{FB7FF689-E572-415E-90C4-20FF3BF66B67} = {A609A78D-B3C3-4377-8912-C2EE24C8F91C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A9587870-FAEC-4EFD-BF65-CF818DE85DD9}

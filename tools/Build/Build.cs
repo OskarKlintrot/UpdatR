@@ -137,11 +137,11 @@ Target("create-update-pr", DependsOn("update-packages"), async () =>
     }
 });
 
-Target("build", DependsOn("artifactDirectories"), async () =>
+Target("generate-docs", DependsOn("restore-tools"), async () =>
 {
     var (version, _) = await GetVersionAndTagAsync();
 
-    var packagesToBe = GetPackagesIn(srcDir);
+    var packagesToBe = GetPackagesInSrc();
     var readme = Path.Combine(rootDir.FullName, "README.md");
     var icon = Path.Combine(srcDir, "Build", "icon.png");
 
@@ -160,61 +160,50 @@ Target("build", DependsOn("artifactDirectories"), async () =>
         throw new InvalidOperationException($"{icon} not found.");
     }
 
-    await CopyReadmeSections(packagesToBe, readme);
-    CopyIconAndReleaseNotes(packagesToBe, releaseNotes, icon);
+    await RunAsync("dotnet",
+        $"build \"{solutionFile}\"");
+
+    var cli = Path.Combine(srcDir, "dotnet-updatr", "bin", "Debug", "net6.0");
+
+    var (helpDescription, _) = await ReadAsync(
+        "dotnet",
+        $"exec dotnet-updatr.dll --help",
+        workingDirectory: cli);
+
+    await File.WriteAllLinesAsync(
+        Path.Combine("mdsource", "cli-usage.txt"),
+        helpDescription.Replace("dotnet-updatr", "update").Split(Environment.NewLine)[3..]);
 
     await RunAsync("dotnet",
-        $"build --configuration Release /p:Version=\"{version}\" /bl:\"{buildLogFile}\" \"{solutionFile}\"");
+        $"mdsnippets {rootDir.FullName}",
+        workingDirectory: buildToolDir);
 
-    static IEnumerable<(string Csproj, string PackageId)> GetPackagesIn(string srcDir)
+    await AdjustReadmeForNuGet(packagesToBe);
+    CopyIconAndReleaseNotes(packagesToBe, releaseNotes, icon);
+
+    static async Task AdjustReadmeForNuGet(IEnumerable<(string Csproj, string PackageId)> packagesToBe)
     {
-        foreach (var project in Directory.EnumerateFiles(srcDir, "*.csproj", SearchOption.AllDirectories))
-        {
-            var doc = new XmlDocument
-            {
-                PreserveWhitespace = true,
-            };
-
-            doc.Load(project);
-
-            var packageId = doc.SelectSingleNode("/Project/PropertyGroup/PackageId");
-
-            if (packageId is not null)
-            {
-                yield return (project, packageId.InnerText);
-            }
-        }
-    }
-
-    static async Task CopyReadmeSections(IEnumerable<(string Csproj, string PackageId)> packagesToBe, string readme)
-    {
-        var fullReadmeContent = await File.ReadAllLinesAsync(readme);
-        var readmeIconStart = Array.IndexOf(fullReadmeContent, "# Icon");
-
         foreach (var (csproj, packageId) in packagesToBe)
         {
+            var readmePath = Path.Combine(new FileInfo(csproj).DirectoryName!, "docs", "README.md");
+
+            var originalReadmeContent = await File.ReadAllLinesAsync(readmePath);
+            
             var projectRoot = Directory.GetParent(csproj)!.FullName;
 
-            var subHeadings = fullReadmeContent.Where(x => Regex.IsMatch(x, "^#{1,2}[^#].*")).ToArray();
+            var subHeadings = originalReadmeContent.Where(x => Regex.IsMatch(x, "^#{1,2}[^#].*")).ToArray();
 
-            if (subHeadings[^1] != "# Icon")
-            {
-                throw new InvalidOperationException("Icon info should be last in README.md");
-            }
-
-            var iconContent = fullReadmeContent[Array.IndexOf(fullReadmeContent, "# Icon")..]
-                .Select(x => x.Replace("# Icon", "## Icon"));
-
-            var readmeContentStart = Array.IndexOf(fullReadmeContent, $"## {packageId}");
-
-            if (readmeContentStart == -1)
+            if (!subHeadings[0].StartsWith($"## {packageId}", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException($"Missing README.md-section for {packageId}.");
             }
 
-            var readmeContentEnd = Array.IndexOf(fullReadmeContent, subHeadings[Array.IndexOf(subHeadings, $"## {packageId}") + 1]);
+            if (!subHeadings[^1].StartsWith("# Icon", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Icon info should be last in README.md");
+            }
 
-            var readmeContent = fullReadmeContent[readmeContentStart..readmeContentEnd]
+            var newReadmeContent = originalReadmeContent
                 .Select(x => x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x)
                 .Select(line =>
                 {
@@ -232,12 +221,7 @@ Target("build", DependsOn("artifactDirectories"), async () =>
                     return line;
                 });
 
-            foreach (var line in iconContent)
-            {
-                readmeContent = readmeContent.Append(line); // Union removes all empty lines except the first.
-            }
-
-            await File.WriteAllLinesAsync(Path.Combine(projectRoot, "docs", "README.md"), readmeContent, Encoding.UTF8);
+            await File.WriteAllLinesAsync(Path.Combine(projectRoot, "docs", "README.md"), newReadmeContent, Encoding.UTF8);
         }
     }
 
@@ -253,7 +237,47 @@ Target("build", DependsOn("artifactDirectories"), async () =>
     }
 });
 
-Target("test", DependsOn("build"), () =>
+Target("pack", DependsOn("artifactDirectories", "generate-docs"), async () =>
+{
+    var (version, _) = await GetVersionAndTagAsync();
+
+    await RunAsync("dotnet",
+        $"build --configuration Release /p:Version=\"{version}\" /bl:\"{buildLogFile}\" \"{solutionFile}\"");
+});
+
+Target("reset-generated-docs", DependsOn("pack"), () =>
+{
+    var packages = GetPackagesInSrc();
+
+    List<string> filesToReset = new();
+
+    foreach (var (csproj, _) in packages)
+    {
+        var docsPath = Path.Combine(new FileInfo(csproj).DirectoryName!, "docs");
+        var readmePath = Path.Combine(docsPath, "README.md");
+        var releaseNotesPath = Path.Combine(docsPath, "release-notes.txt");
+
+        if (!File.Exists(readmePath))
+        {
+            throw new InvalidOperationException($"Could not find {readmePath}.");
+        }
+
+        if (!File.Exists(releaseNotesPath))
+        {
+            throw new InvalidOperationException($"Could not find {releaseNotesPath}.");
+        }
+
+        filesToReset.Add(readmePath);
+        filesToReset.Add(releaseNotesPath);
+    }
+
+    Run(
+        "git",
+        $"checkout {string.Join(' ', filesToReset)}",
+        workingDirectory: rootDir.FullName);
+});
+
+Target("test", DependsOn("pack", "reset-generated-docs"), () =>
 {
     Run("dotnet",
         $"test --configuration Release --no-build \"{solutionFile}\"");
@@ -412,4 +436,24 @@ string GetToken()
     }
 
     return githubToken;
+}
+
+IEnumerable<(string Csproj, string PackageId)> GetPackagesInSrc()
+{
+    foreach (var project in Directory.EnumerateFiles(srcDir, "*.csproj", SearchOption.AllDirectories))
+    {
+        var doc = new XmlDocument
+        {
+            PreserveWhitespace = true,
+        };
+
+        doc.Load(project);
+
+        var packageId = doc.SelectSingleNode("/Project/PropertyGroup/PackageId");
+
+        if (packageId is not null)
+        {
+            yield return (project, packageId.InnerText);
+        }
+    }
 }

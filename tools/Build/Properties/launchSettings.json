@@ -2,7 +2,7 @@
   "profiles": {
     "Build": {
       "commandName": "Project",
-      "commandLineArgs": "restore-release-notes-txt"
+      "commandLineArgs": "reset-generated-docs"
     },
     "Build-WSL2": {
       "commandName": "WSL",
