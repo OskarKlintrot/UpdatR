@@ -22,5 +22,5 @@ jobs:
       with:
         dotnet-version: 6.x.x
     - name: Run tests
-      run: dotnet run -- test
+      run: dotnet run -- test update-README --parallel
       working-directory: tools/Build

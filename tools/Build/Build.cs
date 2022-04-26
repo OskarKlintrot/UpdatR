@@ -371,6 +371,28 @@ Target("restore-release-notes-txt", async () =>
     }
 });
 
+Target("update-README", DependsOn("generate-docs"), async () =>
+{
+    var (message, _) = await ReadAsync("git", "status README.md");
+
+    var dirty = !message.Contains("nothing to commit, working tree clean", StringComparison.OrdinalIgnoreCase);
+
+    if (!dirty)
+    {
+        Console.WriteLine("No changes made.");
+
+        return;
+    }
+
+    await RunAsync("git", $"add README.md");
+    await RunAsync("git", $"commit -m \"chore: Updated README.md\"");
+
+    if (runsOnGitHubActions)
+    {
+        await RunAsync("git", "push");
+    }
+});
+
 Target("post-release", DependsOn("restore-release-notes-txt"));
 Target("default", DependsOn("test", "restore-tools"));
 
