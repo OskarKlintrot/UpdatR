@@ -85,7 +85,6 @@ UpdatR is used to update it's own dependencies, have a look at [Build.cs](https:
 ### All options
 
 <!-- snippet: cli-usage.txt -->
-<a id='snippet-cli-usage.txt'></a>
 ```txt
 Usage:
   update [<args>] [options]
@@ -105,7 +104,6 @@ Options:
   --version                                                          Show version information
   -?, -h, --help                                                     Show help and usage information
 ```
-<sup><a href='/mdsource/cli-usage.txt#L1-L21' title='Snippet source file'>snippet source</a> | <a href='#snippet-cli-usage.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 <!-- endInclude -->
 
@@ -123,7 +121,6 @@ See [dotnet-updatr](#dotnet-updatr) for a dotnet tool that can be run from the c
 ### Usage
 
 <!-- snippet: SampleUsage -->
-<a id='snippet-sampleusage'></a>
 ```cs
 using UpdatR;
 using UpdatR.Formatters;
@@ -146,7 +143,6 @@ var description = "# PR created automatically by UpdatR"
 
 // Use title as title in the PR and description as the description/body in the PR
 ```
-<sup><a href='/docs/UpdatR.SampleApp/Program.cs#L1-L22' title='Snippet source file'>snippet source</a> | <a href='#snippet-sampleusage' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 <!-- endInclude -->
 
