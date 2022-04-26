@@ -175,7 +175,7 @@ Target("generate-docs", DependsOn("restore-tools"), async () =>
         helpDescription.Replace("dotnet-updatr", "update").Split(Environment.NewLine)[3..]);
 
     await RunAsync("dotnet",
-        $"mdsnippets {rootDir.FullName}",
+        $"mdsnippets {rootDir.FullName} --omit-snippet-links true",
         workingDirectory: buildToolDir);
 
     await AdjustReadmeForNuGet(packagesToBe);

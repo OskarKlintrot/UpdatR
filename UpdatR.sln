@@ -59,6 +59,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mdsource", "mdsource", "{30
 		mdsource\cli-usage.txt = mdsource\cli-usage.txt
 		mdsource\footer.include.md = mdsource\footer.include.md
 		mdsource\header.include.md = mdsource\header.include.md
+		mdsource\README.source.md = mdsource\README.source.md
 		mdsource\sdk-readme.include.md = mdsource\sdk-readme.include.md
 	EndProjectSection
 EndProject
