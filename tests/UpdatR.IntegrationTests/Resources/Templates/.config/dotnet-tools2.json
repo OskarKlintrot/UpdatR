@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "<PACKAGEID>": {
+      "version": "<VERSION>",
+      "commands": [
+        "<COMMAND>"
+      ]
+    },
+    "<PACKAGEID2>": {
+      "version": "<VERSION2>",
+      "commands": [
+        "<COMMAND2>"
+      ]
+    }
+  }
+}

@@ -45,7 +45,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1F5D2047-E0F7-40C1-8B53-B72D0FDD0E79}"
 	ProjectSection(SolutionItems) = preProject
 		README.source.md = README.source.md
-		src\Build\docs\release-notes.txt = src\Build\docs\release-notes.txt
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.UnitTests", "tests\UpdatR.UnitTests\UpdatR.UnitTests.csproj", "{656203A1-D1BE-4E3D-AA49-68D00A3003CF}"
@@ -64,8 +63,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mdsource", "mdsource", "{30
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Docs", ".Docs", "{A609A78D-B3C3-4377-8912-C2EE24C8F91C}"
+	ProjectSection(SolutionItems) = preProject
+		src\Build\docs\release-notes.txt = src\Build\docs\release-notes.txt
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdatR.SampleApp", "docs\UpdatR.SampleApp\UpdatR.SampleApp.csproj", "{FB7FF689-E572-415E-90C4-20FF3BF66B67}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdatR.SampleApp", "docs\UpdatR.SampleApp\UpdatR.SampleApp.csproj", "{FB7FF689-E572-415E-90C4-20FF3BF66B67}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution

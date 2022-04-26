@@ -31,7 +31,34 @@ internal static class FileCreationUtils
         return await File.ReadAllTextAsync(path)!;
     }
 
-    public static void CreateNuGetConfig(string path)
+    // TODO: Generate json on-the-fly instead
+    public static async Task<string> CreateToolsConfigAsync(
+        string path,
+        string packageId,
+        string version,
+        string command,
+        string packageId2,
+        string version2,
+        string command2)
+    {
+        var content = GetResource("UpdatR.IntegrationTests.Resources.Templates..config.dotnet-tools2.json");
+
+        content = content
+            .Replace("<PACKAGEID>", packageId)
+            .Replace("<VERSION>", version)
+            .Replace("<COMMAND>", command);
+
+        content = content
+            .Replace("<PACKAGEID2>", packageId2)
+            .Replace("<VERSION2>", version2)
+            .Replace("<COMMAND2>", command2);
+
+        await File.WriteAllTextAsync(path, content);
+
+        return await File.ReadAllTextAsync(path)!;
+    }
+
+    public static void CreateNuGetConfig(string path, bool addNuGetOrg = false)
     {
         var nugetContent = GetResource("UpdatR.IntegrationTests.Resources.Templates.nuget.config");
 
@@ -41,13 +68,24 @@ internal static class FileCreationUtils
             .Element("configuration")!
             .Element("packageSources")!;
 
-        var add = new XElement("add");
+        if (addNuGetOrg)
+        {
+            var nugetOrg = new XElement("add");
 
-        add.Add(
+            nugetOrg.Add(
+                new XAttribute("key", "nuget.org"),
+                new XAttribute("value", "https://api.nuget.org/v3/index.json"));
+
+            packageSources.Add(nugetOrg);
+        }
+
+        var local = new XElement("add");
+
+        local.Add(
             new XAttribute("key", "local"),
             new XAttribute("value", Paths.Temporary.Packages));
 
-        packageSources.Add(add);
+        packageSources.Add(local);
 
         doc.Save(path);
     }

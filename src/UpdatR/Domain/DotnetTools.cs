@@ -98,13 +98,7 @@ internal sealed partial class DotnetTools
                     {
                         project.AddUnknownPackage(packageId);
                     }
-                    else if (package is null)
-                    {
-                        // Ignore package
-
-                        toolObject.Add(property);
-                    }
-                    else
+                    else if (package is not null)
                     {
                         if (package.TryGetLatestComparedTo(version, NuGetFramework.AnyFramework, out var updateTo))
                         {
@@ -119,16 +113,16 @@ internal sealed partial class DotnetTools
 
                             toolObject.Add(property.Key, updateTo.Version.ToString());
 
-                            LogUpdateSuccessful(
-                                logger,
-                                Name,
-                                packageId,
-                                version,
-                                updateTo.Version);
-
                             // EF Bodge
                             if (version != updateTo.Version)
                             {
+                                LogUpdateSuccessful(
+                                    logger,
+                                    Name,
+                                    packageId,
+                                    version,
+                                    updateTo.Version);
+
                                 project.AddUpdatedPackage(new(packageId, version, updateTo.Version)); 
                             }
                         }
@@ -149,10 +143,9 @@ internal sealed partial class DotnetTools
                         }
                     }
                 }
-                else
-                {
-                    toolObject.Add(property);
-                }
+
+                // Add it back if needed
+                toolObject.TryAdd(property.Key, property.Value);
             }
         }
 

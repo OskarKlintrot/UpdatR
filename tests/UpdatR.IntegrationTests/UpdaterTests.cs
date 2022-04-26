@@ -539,4 +539,56 @@ public class UpdaterTests
             yield return await File.ReadAllTextAsync(tempCsproj);
         }
     }
+
+    [Theory]
+    [InlineData(".config")]
+    [InlineData(".config", "dotnet-tools.json")]
+    public async Task Given_MultiplePackagesInDotnetTools_When_OneOutdated_Then_UpdateThatOne(params string[] path)
+    {
+        // Arrange
+        var targetPath = Path.Combine(path);
+        var temp = Path.Combine(Paths.Temporary.Root, "dfgdfg");
+        var target = Path.Combine(temp, "src", targetPath);
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.12"));
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.5",
+            command: "dotnet",
+            packageId2: "Dummy.Tool",
+            version2: "0.0.2",
+            command2: "dummy");
+
+        CreateNuGetConfig(tempNuget, addNuGetOrg: true);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(target);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(targetPath);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
 }
