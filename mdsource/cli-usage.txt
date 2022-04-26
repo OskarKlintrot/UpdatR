@@ -1,0 +1,21 @@
+Usage:
+  update [<args>] [options]
+
+Arguments:
+  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dontet-config.json-files will be processed. [default: .]
+
+Options:
+  --exclude-package <exclude-package>                                Package to exlude. Supports * as wildcard. []
+  --output <output>                                                  Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown. []
+  --title <title>                                                    Outputs title to path. []
+  --description <description>                                        Outputs description to path. []
+  --verbosity <Critical|Debug|Error|Information|None|Trace|Warning>  Log level. [default: Warning]
+  --dry-run                                                          Do not save any changes. [default: False]
+  --browser                                                          Open summary in browser. [default: False]
+  --interactive                                                      Interaction with user is possible. [default: False]
+  --version                                                          Show version information
+  -?, -h, --help                                                     Show help and usage information
+
+
+
+

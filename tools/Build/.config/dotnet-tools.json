@@ -7,6 +7,12 @@
       "commands": [
         "update"
       ]
+    },
+    "markdownsnippets.tool": {
+      "version": "24.3.0",
+      "commands": [
+        "mdsnippets"
+      ]
     }
   }
 }
