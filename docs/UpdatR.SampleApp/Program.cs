@@ -1,4 +1,4 @@
-﻿#region SampleUsage
+﻿// begin-snippet: SampleUsage
 using UpdatR;
 using UpdatR.Formatters;
 
@@ -19,4 +19,4 @@ var description = "# PR created automatically by UpdatR"
     + MarkdownFormatter.GenerateDescription(summary);
 
 // Use title as title in the PR and description as the description/body in the PR
-#endregion
+// end-snippet
