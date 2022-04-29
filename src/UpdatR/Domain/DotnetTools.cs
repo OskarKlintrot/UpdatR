@@ -30,7 +30,10 @@ internal sealed partial class DotnetTools
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException($"'{nameof(path)}' cannot be null or whitespace.", nameof(path));
+            throw new ArgumentException(
+                $"'{nameof(path)}' cannot be null or whitespace.",
+                nameof(path)
+            );
         }
 
         var file = new FileInfo(path);
@@ -42,7 +45,10 @@ internal sealed partial class DotnetTools
 
         if (!file.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException($"'{nameof(path)}' is not named dotnet-tools.json.", nameof(path));
+            throw new ArgumentException(
+                $"'{nameof(path)}' is not named dotnet-tools.json.",
+                nameof(path)
+            );
         }
 
         return new DotnetTools(new(System.IO.Path.GetFullPath(path)))
@@ -51,7 +57,11 @@ internal sealed partial class DotnetTools
         };
     }
 
-    public async Task<ProjectWithPackages?> UpdatePackagesAsync(IDictionary<string, NuGetPackage?> packages, bool dryRun, ILogger logger)
+    public async Task<ProjectWithPackages?> UpdatePackagesAsync(
+        IDictionary<string, NuGetPackage?> packages,
+        bool dryRun,
+        ILogger logger
+    )
     {
         var config = JsonSerializer.Deserialize<JsonObject>(await File.ReadAllTextAsync(Path));
 
@@ -91,8 +101,10 @@ internal sealed partial class DotnetTools
             {
                 toolObject.Remove(property.Key);
 
-                if (property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
-                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version))
+                if (
+                    property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
+                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version)
+                )
                 {
                     if (!packages.TryGetValue(packageId, out var package))
                     {
@@ -100,13 +112,21 @@ internal sealed partial class DotnetTools
                     }
                     else if (package is not null)
                     {
-                        if (package.TryGetLatestComparedTo(version, NuGetFramework.AnyFramework, out var updateTo))
+                        if (
+                            package.TryGetLatestComparedTo(
+                                version,
+                                NuGetFramework.AnyFramework,
+                                out var updateTo
+                            )
+                        )
                         {
                             // EF Bodge
-                            if (packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
+                            if (
+                                packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
                                 && HighestAllowedDotnetEf is not null
                                 && package.TryGet(HighestAllowedDotnetEf, out _)
-                                && HighestAllowedDotnetEf <= updateTo.Version)
+                                && HighestAllowedDotnetEf <= updateTo.Version
+                            )
                             {
                                 updateTo = package.Get(HighestAllowedDotnetEf);
                             }
@@ -121,9 +141,12 @@ internal sealed partial class DotnetTools
                                     Name,
                                     packageId,
                                     version,
-                                    updateTo.Version);
+                                    updateTo.Version
+                                );
 
-                                project.AddUpdatedPackage(new(packageId, version, updateTo.Version)); 
+                                project.AddUpdatedPackage(
+                                    new(packageId, version, updateTo.Version)
+                                );
                             }
                         }
                         else
@@ -132,12 +155,16 @@ internal sealed partial class DotnetTools
                             {
                                 if (packageMetadata.DeprecationMetadata is not null)
                                 {
-                                    project.AddDeprecatedPackage(new(packageId, version, packageMetadata.DeprecationMetadata));
+                                    project.AddDeprecatedPackage(
+                                        new(packageId, version, packageMetadata.DeprecationMetadata)
+                                    );
                                 }
 
                                 if (packageMetadata.Vulnerabilities?.Any() == true)
                                 {
-                                    project.AddVulnerablePackage(new(packageId, version, packageMetadata.Vulnerabilities));
+                                    project.AddVulnerablePackage(
+                                        new(packageId, version, packageMetadata.Vulnerabilities)
+                                    );
                                 }
                             }
                         }
@@ -151,10 +178,10 @@ internal sealed partial class DotnetTools
 
         if (!dryRun && project.UpdatedPackages.Any())
         {
-            var json = JsonSerializer.Serialize(config, new JsonSerializerOptions(JsonSerializerDefaults.Web)
-            {
-                WriteIndented = true,
-            });
+            var json = JsonSerializer.Serialize(
+                config,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true, }
+            );
 
             await File.WriteAllTextAsync(Path, json + Environment.NewLine);
         }
@@ -169,8 +196,7 @@ internal sealed partial class DotnetTools
         var json = File.ReadAllText(Path);
         var foo = JsonSerializer.Deserialize<JsonObject>(json);
 
-        var packageIds = foo?["tools"]?
-            .AsObject()
+        var packageIds = foo?["tools"]?.AsObject()
             .Select(x => (PackageId: x.Key, Version: x.Value?["version"]?.GetValue<string>()))
             .Where(x => NuGetVersion.TryParse(x.Version, out _))
             .Select(x => x.PackageId);
@@ -186,6 +212,16 @@ internal sealed partial class DotnetTools
     [LoggerMessage(Level = LogLevel.Warning, Message = "Tool object in {Path} was null.")]
     static partial void LogToolObjectNull(ILogger logger, string path);
 
-    [LoggerMessage(Level = LogLevel.Information, EventId = 3, Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}")]
-    static partial void LogUpdateSuccessful(ILogger logger, string name, string packageId, NuGetVersion fromVersion, NuGetVersion toVersion);
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        EventId = 3,
+        Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}"
+    )]
+    static partial void LogUpdateSuccessful(
+        ILogger logger,
+        string name,
+        string packageId,
+        NuGetVersion fromVersion,
+        NuGetVersion toVersion
+    );
 }

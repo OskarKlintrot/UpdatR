@@ -28,9 +28,10 @@ internal sealed partial class Csproj
 
     public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework();
 
-    public NuGetVersion? EntityFrameworkVersion => _entityFrameworkVersionLoaded
-        ? _entityFrameworkVersion
-        : _entityFrameworkVersion ??= GetEntityFrameworkVersion();
+    public NuGetVersion? EntityFrameworkVersion =>
+        _entityFrameworkVersionLoaded
+            ? _entityFrameworkVersion
+            : _entityFrameworkVersion ??= GetEntityFrameworkVersion();
 
     public IDictionary<string, NuGetVersion> Packages => GetPackages();
 
@@ -38,7 +39,10 @@ internal sealed partial class Csproj
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException($"'{nameof(path)}' cannot be null or whitespace.", nameof(path));
+            throw new ArgumentException(
+                $"'{nameof(path)}' cannot be null or whitespace.",
+                nameof(path)
+            );
         }
 
         var file = new FileInfo(path);
@@ -50,20 +54,24 @@ internal sealed partial class Csproj
 
         if (!file.Extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException($"'{nameof(path)}' does not have the correct file extension.", nameof(path));
+            throw new ArgumentException(
+                $"'{nameof(path)}' does not have the correct file extension.",
+                nameof(path)
+            );
         }
 
         return new Csproj(new(System.IO.Path.GetFullPath(path)));
     }
 
-    public ProjectWithPackages? UpdatePackages(IDictionary<string, NuGetPackage?> packages, bool dryRun, ILogger logger)
+    public ProjectWithPackages? UpdatePackages(
+        IDictionary<string, NuGetPackage?> packages,
+        bool dryRun,
+        ILogger logger
+    )
     {
         var project = new ProjectWithPackages(Path);
 
-        var doc = new XmlDocument
-        {
-            PreserveWhitespace = true,
-        };
+        var doc = new XmlDocument { PreserveWhitespace = true, };
 
         doc.Load(Path);
 
@@ -74,8 +82,7 @@ internal sealed partial class Csproj
         doc.NodeInserted += handler;
         doc.NodeRemoved += handler;
 
-        var packageReferences = doc
-            .SelectNodes("/Project/ItemGroup/PackageReference")!
+        var packageReferences = doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>();
 
         foreach (var packageReference in packageReferences)
@@ -114,19 +121,15 @@ internal sealed partial class Csproj
                 CheckForDeprecationAndVulnerabilities(
                     project,
                     packageId,
-                    package.PackageMetadatas.SingleOrDefault(x => x.Version == version));
+                    package.PackageMetadatas.SingleOrDefault(x => x.Version == version)
+                );
 
                 continue;
             }
 
             packageReference.SetAttribute("Version", updateTo.Version.ToString());
 
-            LogUpdateSuccessful(
-                logger,
-                Name,
-                packageId,
-                version,
-                updateTo.Version);
+            LogUpdateSuccessful(logger, Name, packageId, version, updateTo.Version);
 
             project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
 
@@ -140,7 +143,11 @@ internal sealed partial class Csproj
 
         return project.AnyPackages() ? project : null;
 
-        void CheckForDeprecationAndVulnerabilities(ProjectWithPackages project, string packageId, PackageMetadata? packageMetadata)
+        void CheckForDeprecationAndVulnerabilities(
+            ProjectWithPackages project,
+            string packageId,
+            PackageMetadata? packageMetadata
+        )
         {
             if (packageMetadata is null)
             {
@@ -149,24 +156,30 @@ internal sealed partial class Csproj
 
             if (packageMetadata.DeprecationMetadata is not null)
             {
-                project.AddDeprecatedPackage(new(packageId, packageMetadata.Version, packageMetadata.DeprecationMetadata));
+                project.AddDeprecatedPackage(
+                    new(packageId, packageMetadata.Version, packageMetadata.DeprecationMetadata)
+                );
 
                 LogDeprecatedPackage(
                     logger,
                     packageId,
                     packageMetadata.Version,
-                    string.Join(", ", packageMetadata.DeprecationMetadata.Reasons));
+                    string.Join(", ", packageMetadata.DeprecationMetadata.Reasons)
+                );
             }
 
             if (packageMetadata.Vulnerabilities?.Any() == true)
             {
-                project.AddVulnerablePackage(new(packageId, packageMetadata.Version, packageMetadata.Vulnerabilities));
+                project.AddVulnerablePackage(
+                    new(packageId, packageMetadata.Version, packageMetadata.Vulnerabilities)
+                );
 
                 LogVulnerablePackage(
                     logger,
                     packageId,
                     packageMetadata.Version,
-                    packageMetadata.Vulnerabilities.Count());
+                    packageMetadata.Vulnerabilities.Count()
+                );
             }
         }
     }
@@ -178,15 +191,20 @@ internal sealed partial class Csproj
             ?? GetTargetFrameworkFromDirectoryBuildProps(new(Parent));
 
         return targetFramework is null
-            ? NuGetFramework.AnyFramework
-            : NuGetFramework.Parse(targetFramework);
+          ? NuGetFramework.AnyFramework
+          : NuGetFramework.Parse(targetFramework);
     }
 
     private NuGetVersion? GetEntityFrameworkVersion()
     {
         foreach (var (packageId, version) in Packages)
         {
-            if (packageId.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase))
+            if (
+                packageId.StartsWith(
+                    "Microsoft.EntityFrameworkCore",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
                 _entityFrameworkVersionLoaded = true;
 
@@ -205,29 +223,70 @@ internal sealed partial class Csproj
 
         doc.Load(Path);
 
-        return doc
-            .SelectNodes("/Project/ItemGroup/PackageReference")!
+        return doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>()
-            .Select(x => (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version")))
-            .Where(x => !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _))
+            .Select(
+                x => (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
+            )
+            .Where(
+                x =>
+                    !string.IsNullOrWhiteSpace(x.PackageId)
+                    && NuGetVersion.TryParse(x.Version, out _)
+            )
             .DistinctBy(x => x.PackageId)
-            .ToDictionary(x => x.PackageId, x => NuGetVersion.Parse(x.Version), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                x => x.PackageId,
+                x => NuGetVersion.Parse(x.Version),
+                StringComparer.OrdinalIgnoreCase
+            );
     }
 
     #region LogMessages
-    [LoggerMessage(Level = LogLevel.Warning, EventId = 1, Message = "Could not parse {Version} to NuGetVersion for package reference {PackageReference}.")]
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 1,
+        Message = "Could not parse {Version} to NuGetVersion for package reference {PackageReference}."
+    )]
     static partial void LogParseError(ILogger logger, string version, string packageReference);
 
     [LoggerMessage(Level = LogLevel.Warning, EventId = 2, Message = "Could not find {PackageId}.")]
     static partial void LogMissingPackage(ILogger logger, string packageId);
 
-    [LoggerMessage(Level = LogLevel.Information, EventId = 3, Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}")]
-    static partial void LogUpdateSuccessful(ILogger logger, string name, string packageId, NuGetVersion fromVersion, NuGetVersion toVersion);
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        EventId = 3,
+        Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}"
+    )]
+    static partial void LogUpdateSuccessful(
+        ILogger logger,
+        string name,
+        string packageId,
+        NuGetVersion fromVersion,
+        NuGetVersion toVersion
+    );
 
-    [LoggerMessage(Level = LogLevel.Warning, EventId = 4, Message = "Package {PackageId} version {Version} is deprecated with reasons: {Reasons}")]
-    static partial void LogDeprecatedPackage(ILogger logger, string packageId, NuGetVersion version, string reasons);
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 4,
+        Message = "Package {PackageId} version {Version} is deprecated with reasons: {Reasons}"
+    )]
+    static partial void LogDeprecatedPackage(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        string reasons
+    );
 
-    [LoggerMessage(Level = LogLevel.Warning, EventId = 5, Message = "Package {PackageId} version {Version} has {Vulnerabilities} vulnerabilities")]
-    static partial void LogVulnerablePackage(ILogger logger, string packageId, NuGetVersion version, int vulnerabilities);
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 5,
+        Message = "Package {PackageId} version {Version} has {Vulnerabilities} vulnerabilities"
+    )]
+    static partial void LogVulnerablePackage(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        int vulnerabilities
+    );
     #endregion
 }

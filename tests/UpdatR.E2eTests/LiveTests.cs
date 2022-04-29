@@ -21,7 +21,9 @@ public sealed class LiveTests : IDisposable
     [Fact]
     public async Task UpdateDummyProject()
     {
-        var runsOnGitHubActions = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
+        var runsOnGitHubActions = !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("GITHUB_ACTIONS")
+        );
 
         var root = await GetRepoRootDirectoryAsync();
 
@@ -58,7 +60,8 @@ public sealed class LiveTests : IDisposable
             await RunAsync(
                 "dotnet",
                 "build --configuration Release",
-                workingDirectory: cliProjectPath);
+                workingDirectory: cliProjectPath
+            );
         }
 
         var cli = Path.Combine(cliProjectPath, "bin", "Release", "net6.0", "dotnet-updatr.dll");
@@ -66,7 +69,8 @@ public sealed class LiveTests : IDisposable
         await RunAsync(
             "dotnet",
             $"exec {cli} --output {log} --title {title} --description {description}",
-            workingDirectory: dummyProject);
+            workingDirectory: dummyProject
+        );
 
         await Verify(GetVerifyObjects());
 
@@ -76,10 +80,16 @@ public sealed class LiveTests : IDisposable
             yield return await File.ReadAllTextAsync(title)!;
             yield return await File.ReadAllTextAsync(description)!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProjectSrc, "Dummy.sln"))!;
-            yield return await File.ReadAllTextAsync(Path.Combine(dummyProjectSrc, "Dummy.App", "Dummy.App.csproj"))!;
-            yield return await File.ReadAllTextAsync(Path.Combine(dummyProjectSrc, "nuget.config"))!;
+            yield return await File.ReadAllTextAsync(
+                Path.Combine(dummyProjectSrc, "Dummy.App", "Dummy.App.csproj")
+            )!;
+            yield return await File.ReadAllTextAsync(
+                Path.Combine(dummyProjectSrc, "nuget.config")
+            )!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProject, "Dummy.sln"))!;
-            yield return await File.ReadAllTextAsync(Path.Combine(dummyProject, "Dummy.App", "Dummy.App.csproj"))!;
+            yield return await File.ReadAllTextAsync(
+                Path.Combine(dummyProject, "Dummy.App", "Dummy.App.csproj")
+            )!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProject, "nuget.config"))!;
         }
     }

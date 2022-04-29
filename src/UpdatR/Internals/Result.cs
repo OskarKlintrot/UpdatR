@@ -5,10 +5,12 @@ namespace UpdatR.Internals;
 internal sealed class Result
 {
     private readonly List<(string Name, string Source)> _unauthorizedSources = new();
-    private readonly Dictionary<string, HashSet<string>> _unknownPackages = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<string>> _unknownPackages =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly string _rootPath;
 
-    private Dictionary<string, ProjectWithPackages> _projects { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ProjectWithPackages> _projects { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     internal Result(string rootPath)
     {
@@ -37,8 +39,7 @@ internal sealed class Result
     {
         project = project with
         {
-            Path = Path
-                .GetRelativePath(_rootPath, project.Path)
+            Path = Path.GetRelativePath(_rootPath, project.Path)
                 .Replace(Path.DirectorySeparatorChar, '\\')
         };
 
@@ -125,10 +126,10 @@ internal sealed record ProjectWithPackages
         _vulnerablePackages.Add(package);
     }
 
-    public bool AnyPackages()
-        => _updatedPackages.Count > 0
-            || _deprecatedPackages.Count > 0
-            || _vulnerablePackages.Count > 0;
+    public bool AnyPackages() =>
+        _updatedPackages.Count > 0
+        || _deprecatedPackages.Count > 0
+        || _vulnerablePackages.Count > 0;
 }
 
 internal sealed class UpdatedPackage
@@ -151,7 +152,11 @@ internal sealed class DeprecatedPackage
     public NuGetVersion Version { get; }
     public PackageDeprecationMetadata DeprecationMetadata { get; }
 
-    public DeprecatedPackage(string packageId, NuGetVersion version, PackageDeprecationMetadata deprecationMetadata)
+    public DeprecatedPackage(
+        string packageId,
+        NuGetVersion version,
+        PackageDeprecationMetadata deprecationMetadata
+    )
     {
         PackageId = packageId;
         Version = version;
@@ -165,7 +170,11 @@ internal sealed class VulnerablePackage
     public NuGetVersion Version { get; }
     public IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities { get; }
 
-    public VulnerablePackage(string packageId, NuGetVersion version, IEnumerable<PackageVulnerabilityMetadata> vulnerabilities)
+    public VulnerablePackage(
+        string packageId,
+        NuGetVersion version,
+        IEnumerable<PackageVulnerabilityMetadata> vulnerabilities
+    )
     {
         PackageId = packageId;
         Version = version;
@@ -177,4 +186,5 @@ internal record PackageMetadata(
     NuGetVersion Version,
     IEnumerable<NuGet.Frameworks.NuGetFramework> TargetFrameworks,
     PackageDeprecationMetadata? DeprecationMetadata,
-    IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities);
+    IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities
+);

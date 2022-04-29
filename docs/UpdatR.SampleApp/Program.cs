@@ -13,7 +13,8 @@ if (summary.UpdatedPackagesCount == 0) // No packages where updated
 
 var title = MarkdownFormatter.GenerateTitle(summary);
 
-var description = "# PR created automatically by UpdatR"
+var description =
+    "# PR created automatically by UpdatR"
     + Environment.NewLine
     + Environment.NewLine
     + MarkdownFormatter.GenerateDescription(summary);

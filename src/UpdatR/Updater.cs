@@ -33,7 +33,8 @@ public sealed partial class Updater
         string? path = null,
         string[]? excludePackages = null,
         bool dryRun = false,
-        bool interactive = false)
+        bool interactive = false
+    )
     {
         if (path == null)
         {
@@ -51,7 +52,8 @@ public sealed partial class Updater
             dir.DotnetTools ?? Array.Empty<DotnetTools>(),
             shouldExcludePackage,
             interactive,
-            new NuGetLogger(_logger));
+            new NuGetLogger(_logger)
+        );
 
         foreach (var unauthorizedSource in unauthorizedSources)
         {
@@ -94,7 +96,8 @@ public sealed partial class Updater
 
         static Regex ConvertSearchPatternToRegex(string matchAgainst)
         {
-            var pattern = "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
+            var pattern =
+                "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
 
             pattern = pattern.Replace("()$", "$");
 
@@ -102,19 +105,23 @@ public sealed partial class Updater
         }
     }
 
-    private async Task<(IDictionary<string, NuGetPackage?> Packages, IDictionary<string, string> UnauthorizedSources)>
-        GetPackageVersions(
-            IEnumerable<Csproj> projects,
-            IEnumerable<DotnetTools> dotnetTools,
-            Func<string, bool> shouldExcludePackage,
-            bool interactive,
-            NuGet.Common.ILogger nuGetLogger)
+    private async Task<(IDictionary<string, NuGetPackage?> Packages, IDictionary<
+            string,
+            string
+        > UnauthorizedSources)> GetPackageVersions(
+        IEnumerable<Csproj> projects,
+        IEnumerable<DotnetTools> dotnetTools,
+        Func<string, bool> shouldExcludePackage,
+        bool interactive,
+        NuGet.Common.ILogger nuGetLogger
+    )
     {
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(nuGetLogger, !interactive);
 
         using var cacheContext = new SourceCacheContext();
 
-        Dictionary<string, NuGetPackage?> packageSearchMetadata = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, NuGetPackage?> packageSearchMetadata =
+            new(StringComparer.OrdinalIgnoreCase);
 
         Dictionary<string, string> unauthorizedSources = new(StringComparer.OrdinalIgnoreCase);
 
@@ -128,11 +135,16 @@ public sealed partial class Updater
 
             var packageSourceProvider = new PackageSourceProvider(settings);
 
-            var sourceRepositoryProvider = new SourceRepositoryProvider(packageSourceProvider, Repository.Provider.GetCoreV3());
+            var sourceRepositoryProvider = new SourceRepositoryProvider(
+                packageSourceProvider,
+                Repository.Provider.GetCoreV3()
+            );
 
-            foreach (var repo in sourceRepositoryProvider
-                .GetRepositories()
-                .Where(x => !unauthorizedSources.ContainsKey(x.PackageSource.Name)))
+            foreach (
+                var repo in sourceRepositoryProvider
+                    .GetRepositories()
+                    .Where(x => !unauthorizedSources.ContainsKey(x.PackageSource.Name))
+            )
             {
                 try
                 {
@@ -153,30 +165,51 @@ public sealed partial class Updater
                             includeUnlisted: false,
                             cacheContext,
                             nuGetLogger,
-                            CancellationToken.None);
+                            CancellationToken.None
+                        );
 
                         var metadata = searchMetadata
                             .OfType<IPackageSearchMetadata>()
                             .Where(x => x.Identity.HasVersion)
-                            .Select(x => new PackageMetadata(
-                                x.Identity.Version,
-                                x.DependencySets.Select(x => x.TargetFramework),
-                                x is PackageSearchMetadata y && y.DeprecationMetadata is not null
-                                ? new(
-                                    y.DeprecationMetadata.Message,
-                                    y.DeprecationMetadata.Reasons,
-                                    y.DeprecationMetadata.AlternatePackage is null
-                                    ? null
-                                    : new(y.DeprecationMetadata.AlternatePackage.PackageId, y.DeprecationMetadata.AlternatePackage.Range))
-                                : null,
-                                x.Vulnerabilities?.Select(y => new PackageVulnerabilityMetadata(y.AdvisoryUrl, y.Severity))));
+                            .Select(
+                                x =>
+                                    new PackageMetadata(
+                                        x.Identity.Version,
+                                        x.DependencySets.Select(x => x.TargetFramework),
+                                        x is PackageSearchMetadata y
+                                            && y.DeprecationMetadata is not null
+                                          ? new(
+                                                y.DeprecationMetadata.Message,
+                                                y.DeprecationMetadata.Reasons,
+                                                y.DeprecationMetadata.AlternatePackage is null
+                                                  ? null
+                                                  : new(
+                                                        y.DeprecationMetadata
+                                                            .AlternatePackage
+                                                            .PackageId,
+                                                        y.DeprecationMetadata.AlternatePackage.Range
+                                                    )
+                                            )
+                                          : null,
+                                        x.Vulnerabilities?.Select(
+                                            y =>
+                                                new PackageVulnerabilityMetadata(
+                                                    y.AdvisoryUrl,
+                                                    y.Severity
+                                                )
+                                        )
+                                    )
+                            );
 
                         if (!metadata.Any())
                         {
                             continue;
                         }
 
-                        if (packageSearchMetadata.TryGetValue(packageId, out var package) && package is not null)
+                        if (
+                            packageSearchMetadata.TryGetValue(packageId, out var package)
+                            && package is not null
+                        )
                         {
                             packageSearchMetadata[packageId] = package with
                             {
@@ -193,8 +226,10 @@ public sealed partial class Updater
                     }
                 }
                 catch (AggregateException exception)
-                when (exception.InnerException?.InnerException is HttpRequestException httpRequestException
-                    && httpRequestException.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    when (exception.InnerException?.InnerException
+                            is HttpRequestException httpRequestException
+                        && httpRequestException.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    )
                 {
                     LogSourceFailure(repo.PackageSource.Name, repo.PackageSource.Source);
 
@@ -203,7 +238,7 @@ public sealed partial class Updater
                     continue;
                 }
                 catch (HttpRequestException exception)
-                when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
                     LogSourceFailure(repo.PackageSource.Name, repo.PackageSource.Source);
 
@@ -218,7 +253,10 @@ public sealed partial class Updater
     }
 
 #pragma warning disable CA1822 // Mark members as static
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to get package metadata from {Name} ({Source})")]
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to get package metadata from {Name} ({Source})"
+    )]
     partial void LogSourceFailure(string name, string source);
 #pragma warning restore CA1822 // Mark members as static
 }

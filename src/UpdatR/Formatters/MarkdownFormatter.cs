@@ -31,13 +31,21 @@ public static class MarkdownFormatter
 
         if (summary.UpdatedPackages.Any())
         {
-            sb
-                .Append(summary.UpdatedPackagesCount)
+            sb.Append(summary.UpdatedPackagesCount)
                 .Append(" package(s) were updated in ")
-                .Append(summary.UpdatedPackages.SelectMany(x => x.Updates.Select(y => y.Project)).Distinct().Count())
+                .Append(
+                    summary.UpdatedPackages
+                        .SelectMany(x => x.Updates.Select(y => y.Project))
+                        .Distinct()
+                        .Count()
+                )
                 .AppendLine(" projects:")
                 .AppendLine()
-                .Append("| ").Append(string.Join('|', summary.UpdatedPackages.Select(x => $" {x.PackageId} ")).Trim()).AppendLine(" |")
+                .Append("| ")
+                .Append(
+                    string.Join('|', summary.UpdatedPackages.Select(x => $" {x.PackageId} ")).Trim()
+                )
+                .AppendLine(" |")
                 .AppendLine();
         }
 
@@ -101,33 +109,30 @@ public static class MarkdownFormatter
         return sb.ToString();
     }
 
-    private static void UnauthorizedSources(StringBuilder sb, IEnumerable<(string Name, string Source)> unauthorizedSources)
+    private static void UnauthorizedSources(
+        StringBuilder sb,
+        IEnumerable<(string Name, string Source)> unauthorizedSources
+    )
     {
         sb.AppendLine("| Name | Source |");
         sb.AppendLine("|:-----|:-------|");
 
         foreach (var (name, source) in unauthorizedSources)
         {
-            sb
-                .AppendFormat(
-                    new CultureInfo("en-US"),
-                    "| {0} | {1} |",
-                    name,
-                    source)
-                .AppendLine();
+            sb.AppendFormat(new CultureInfo("en-US"), "| {0} | {1} |", name, source).AppendLine();
         }
 
         sb.AppendLine();
     }
 
-    private static void UnknownPackages(StringBuilder sb, IDictionary<string, IEnumerable<string>> unknownPackages)
+    private static void UnknownPackages(
+        StringBuilder sb,
+        IDictionary<string, IEnumerable<string>> unknownPackages
+    )
     {
         foreach (var package in unknownPackages)
         {
-            sb
-                .Append("### ")
-                .AppendLine(package.Key)
-                .AppendLine();
+            sb.Append("### ").AppendLine(package.Key).AppendLine();
 
             sb.AppendLine("Used in:");
 
@@ -140,7 +145,10 @@ public static class MarkdownFormatter
         }
     }
 
-    private static void DeprecatedPackages(StringBuilder sb, IEnumerable<DeprecatedPackage> deprecatedPackages)
+    private static void DeprecatedPackages(
+        StringBuilder sb,
+        IEnumerable<DeprecatedPackage> deprecatedPackages
+    )
     {
         foreach (var (packageId, versions) in deprecatedPackages)
         {
@@ -153,34 +161,36 @@ public static class MarkdownFormatter
 
             foreach (var ((version, metadata), projects) in versions)
             {
-                sb
-                    .AppendJoin(Environment.NewLine, metadata.Message.Split("\n").Select(x => $"> {x}"))
+                sb.AppendJoin(
+                        Environment.NewLine,
+                        metadata.Message.Split("\n").Select(x => $"> {x}")
+                    )
                     .AppendLine()
                     .AppendLine();
 
-                sb
-                    .AppendFormat(
+                sb.AppendFormat(
                         new CultureInfo("en-US"),
                         "Reason(s): {0}",
-                        string.Join(", ", metadata.Reasons))
+                        string.Join(", ", metadata.Reasons)
+                    )
                     .AppendLine()
                     .AppendLine();
 
                 if (metadata.AlternatePackage is not null)
                 {
-                    sb
-                        .AppendFormat(
+                    sb.AppendFormat(
                             new CultureInfo("en-US"),
                             "Alternate Package: {0}",
-                            metadata.AlternatePackage.PackageId)
+                            metadata.AlternatePackage.PackageId
+                        )
                         .AppendLine()
                         .AppendLine();
 
-                    sb
-                        .AppendFormat(
+                    sb.AppendFormat(
                             new CultureInfo("en-US"),
                             "Version range: {0}",
-                            metadata.AlternatePackage.Range)
+                            metadata.AlternatePackage.Range
+                        )
                         .AppendLine()
                         .AppendLine();
                 }
@@ -192,12 +202,12 @@ public static class MarkdownFormatter
 
                 foreach (var project in projects)
                 {
-                    sb
-                        .AppendFormat(
+                    sb.AppendFormat(
                             new CultureInfo("en-US"),
                             "| {0} | {1} |",
                             project.PadRight(padding),
-                            version)
+                            version
+                        )
                         .AppendLine();
                 }
             }
@@ -205,7 +215,10 @@ public static class MarkdownFormatter
         }
     }
 
-    private static void VulnerablePackages(StringBuilder sb, IEnumerable<VulnerablePackage> vulnerablePackages)
+    private static void VulnerablePackages(
+        StringBuilder sb,
+        IEnumerable<VulnerablePackage> vulnerablePackages
+    )
     {
         foreach (var package in vulnerablePackages)
         {
@@ -215,13 +228,13 @@ public static class MarkdownFormatter
             {
                 foreach (var vulnerability in vulnerabilities)
                 {
-                    sb
-                        .AppendFormat(
+                    sb.AppendFormat(
                             new CultureInfo("en-US"),
                             "Version {0} with severity {1}: {2}",
                             version,
                             vulnerability.Severity,
-                            vulnerability.AdvisoryUrl)
+                            vulnerability.AdvisoryUrl
+                        )
                         .AppendLine();
                 }
 
@@ -238,7 +251,10 @@ public static class MarkdownFormatter
         }
     }
 
-    private static void UpdatedPackages(StringBuilder sb, IEnumerable<UpdatedPackage> updatedPackages)
+    private static void UpdatedPackages(
+        StringBuilder sb,
+        IEnumerable<UpdatedPackage> updatedPackages
+    )
     {
         foreach (var packages in updatedPackages)
         {
@@ -264,13 +280,13 @@ public static class MarkdownFormatter
 
             foreach (var (from, to, project) in packages.Updates)
             {
-                sb
-                    .AppendFormat(
+                sb.AppendFormat(
                         new CultureInfo("en-US"),
                         "| {0} | {1} | {2} |",
                         project.PadRight(padRightProject),
                         from.ToString().PadRight(padRightFrom),
-                        to)
+                        to
+                    )
                     .AppendLine();
             }
             sb.AppendLine();

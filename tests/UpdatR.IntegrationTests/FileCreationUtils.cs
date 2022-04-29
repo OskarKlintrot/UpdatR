@@ -4,22 +4,36 @@ namespace UpdatR.IntegrationTests;
 
 internal static class FileCreationUtils
 {
-    public static async Task<string> CreateSlnAsync(string path, string projectName, string projectPath)
+    public static async Task<string> CreateSlnAsync(
+        string path,
+        string projectName,
+        string projectPath
+    )
     {
         var content = GetResource("UpdatR.IntegrationTests.Resources.Templates.Dummy.sln");
 
         content = content
             .Replace("<PROJECTNAME>", projectName)
-            .Replace("<PROJECTPATH>", Path.GetRelativePath(new FileInfo(path).DirectoryName!, projectPath));
+            .Replace(
+                "<PROJECTPATH>",
+                Path.GetRelativePath(new FileInfo(path).DirectoryName!, projectPath)
+            );
 
         await File.WriteAllTextAsync(path, content);
 
         return await File.ReadAllTextAsync(path)!;
     }
 
-    public static async Task<string> CreateToolsConfigAsync(string path, string packageId, string version, string command)
+    public static async Task<string> CreateToolsConfigAsync(
+        string path,
+        string packageId,
+        string version,
+        string command
+    )
     {
-        var content = GetResource("UpdatR.IntegrationTests.Resources.Templates..config.dotnet-tools.json");
+        var content = GetResource(
+            "UpdatR.IntegrationTests.Resources.Templates..config.dotnet-tools.json"
+        );
 
         content = content
             .Replace("<PACKAGEID>", packageId)
@@ -39,9 +53,12 @@ internal static class FileCreationUtils
         string command,
         string packageId2,
         string version2,
-        string command2)
+        string command2
+    )
     {
-        var content = GetResource("UpdatR.IntegrationTests.Resources.Templates..config.dotnet-tools2.json");
+        var content = GetResource(
+            "UpdatR.IntegrationTests.Resources.Templates..config.dotnet-tools2.json"
+        );
 
         content = content
             .Replace("<PACKAGEID>", packageId)
@@ -64,9 +81,7 @@ internal static class FileCreationUtils
 
         var doc = XDocument.Parse(nugetContent);
 
-        var packageSources = doc
-            .Element("configuration")!
-            .Element("packageSources")!;
+        var packageSources = doc.Element("configuration")!.Element("packageSources")!;
 
         if (addNuGetOrg)
         {
@@ -74,7 +89,8 @@ internal static class FileCreationUtils
 
             nugetOrg.Add(
                 new XAttribute("key", "nuget.org"),
-                new XAttribute("value", "https://api.nuget.org/v3/index.json"));
+                new XAttribute("value", "https://api.nuget.org/v3/index.json")
+            );
 
             packageSources.Add(nugetOrg);
         }
@@ -83,19 +99,27 @@ internal static class FileCreationUtils
 
         local.Add(
             new XAttribute("key", "local"),
-            new XAttribute("value", Paths.Temporary.Packages));
+            new XAttribute("value", Paths.Temporary.Packages)
+        );
 
         packageSources.Add(local);
 
         doc.Save(path);
     }
 
-    public static Task<string> CreateTempCsprojAsync(string path, params KeyValuePair<string, string>[] packages)
+    public static Task<string> CreateTempCsprojAsync(
+        string path,
+        params KeyValuePair<string, string>[] packages
+    )
     {
         return CreateTempCsprojAsync(path, "net6.0", packages);
     }
 
-    public static async Task<string> CreateTempCsprojAsync(string path, string tfm = "net6.0", params KeyValuePair<string, string>[] packages)
+    public static async Task<string> CreateTempCsprojAsync(
+        string path,
+        string tfm = "net6.0",
+        params KeyValuePair<string, string>[] packages
+    )
     {
         var csprojStr = GetResource("UpdatR.IntegrationTests.Resources.Templates.Dummy.App.csproj");
 
@@ -115,7 +139,8 @@ internal static class FileCreationUtils
 
             packageReference.Add(
                 new XAttribute("Include", package.Key),
-                new XAttribute("Version", package.Value));
+                new XAttribute("Version", package.Value)
+            );
 
             itemGroup.Add(packageReference);
         }
@@ -127,7 +152,9 @@ internal static class FileCreationUtils
 
     private static string GetResource(string resourceName)
     {
-        using var stream = typeof(FileCreationUtils).Assembly.GetManifestResourceStream(resourceName);
+        using var stream = typeof(FileCreationUtils).Assembly.GetManifestResourceStream(
+            resourceName
+        );
 
         if (stream is null)
         {

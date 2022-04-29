@@ -36,17 +36,20 @@ internal static partial class Program
         LogLevel verbosity = LogLevel.Warning,
         bool dryRun = false,
         bool browser = false,
-        bool interactive = false)
+        bool interactive = false
+    )
     {
         var sw = Stopwatch.StartNew();
 
         var services = new ServiceCollection()
             .AddTransient<Updater>()
-            .AddLogging(builder =>
-            {
-                builder.SetMinimumLevel(verbosity);
-                builder.AddConsole();
-            })
+            .AddLogging(
+                builder =>
+                {
+                    builder.SetMinimumLevel(verbosity);
+                    builder.AddConsole();
+                }
+            )
             .BuildServiceProvider();
 
         _logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(Program));
@@ -83,7 +86,10 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(new FileInfo(output).Extension))
             {
-                await File.WriteAllTextAsync(Path.Combine(output, "output.md"), MarkdownFormatter.Generate(summary));
+                await File.WriteAllTextAsync(
+                    Path.Combine(output, "output.md"),
+                    MarkdownFormatter.Generate(summary)
+                );
             }
             else
             {
@@ -102,15 +108,22 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(new FileInfo(title).Extension))
             {
-                await File.WriteAllTextAsync(Path.Combine(title, "title.md"), MarkdownFormatter.GenerateTitle(summary));
+                await File.WriteAllTextAsync(
+                    Path.Combine(title, "title.md"),
+                    MarkdownFormatter.GenerateTitle(summary)
+                );
             }
-            else if (new FileInfo(title).Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+            else if (
+                new FileInfo(title).Extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 await File.WriteAllTextAsync(title, MarkdownFormatter.GenerateTitle(summary));
             }
             else
             {
-                throw new InvalidOperationException("Unsupported file extension. Only .md is supported.");
+                throw new InvalidOperationException(
+                    "Unsupported file extension. Only .md is supported."
+                );
             }
         }
 
@@ -118,15 +131,28 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(new FileInfo(description).Extension))
             {
-                await File.WriteAllTextAsync(Path.Combine(description, "description.md"), MarkdownFormatter.GenerateDescription(summary));
+                await File.WriteAllTextAsync(
+                    Path.Combine(description, "description.md"),
+                    MarkdownFormatter.GenerateDescription(summary)
+                );
             }
-            else if (new FileInfo(description).Extension.Equals(".md", StringComparison.OrdinalIgnoreCase))
+            else if (
+                new FileInfo(description).Extension.Equals(
+                    ".md",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
-                await File.WriteAllTextAsync(description, MarkdownFormatter.GenerateDescription(summary));
+                await File.WriteAllTextAsync(
+                    description,
+                    MarkdownFormatter.GenerateDescription(summary)
+                );
             }
             else
             {
-                throw new InvalidOperationException("Unsupported file extension. Only .md is supported.");
+                throw new InvalidOperationException(
+                    "Unsupported file extension. Only .md is supported."
+                );
             }
         }
 

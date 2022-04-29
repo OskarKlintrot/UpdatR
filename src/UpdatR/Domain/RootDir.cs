@@ -32,7 +32,10 @@ internal sealed class RootDir
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException($"'{nameof(path)}' cannot be null or whitespace.", nameof(path));
+            throw new ArgumentException(
+                $"'{nameof(path)}' cannot be null or whitespace.",
+                nameof(path)
+            );
         }
 
         if (!Directory.Exists(path) && !File.Exists(path))
@@ -53,32 +56,50 @@ internal sealed class RootDir
     {
         var dir = new RootDir(path);
 
-        foreach (var projectFile in Directory.EnumerateFiles(path.FullName, "*.csproj", new EnumerationOptions
-        {
-            MatchCasing = MatchCasing.CaseInsensitive,
-            RecurseSubdirectories = true
-        }))
+        foreach (
+            var projectFile in Directory.EnumerateFiles(
+                path.FullName,
+                "*.csproj",
+                new EnumerationOptions
+                {
+                    MatchCasing = MatchCasing.CaseInsensitive,
+                    RecurseSubdirectories = true
+                }
+            )
+        )
         {
             var csproj = Csproj.Create(projectFile);
 
             dir.AddCsproj(csproj);
         }
 
-        foreach (var configFile in Directory.EnumerateFiles(path.FullName, "dotnet-tools.json", new EnumerationOptions
+        foreach (
+            var configFile in Directory.EnumerateFiles(
+                path.FullName,
+                "dotnet-tools.json",
+                new EnumerationOptions
+                {
+                    MatchCasing = MatchCasing.CaseInsensitive,
+                    RecurseSubdirectories = true,
+                    AttributesToSkip = FileAttributes.System
+                }
+            )
+        )
         {
-            MatchCasing = MatchCasing.CaseInsensitive,
-            RecurseSubdirectories = true,
-            AttributesToSkip = FileAttributes.System
-        }))
-        {
-            var config = Domain.DotnetTools.Create(configFile, GetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName));
+            var config = Domain.DotnetTools.Create(
+                configFile,
+                GetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName)
+            );
 
             dir.AddDotnetTools(config);
         }
 
         if (dir.Csprojs is null && dir.DotnetTools is null)
         {
-            throw new ArgumentException("Path contains no .csproj files or dotnet-tools.json files.", nameof(path));
+            throw new ArgumentException(
+                "Path contains no .csproj files or dotnet-tools.json files.",
+                nameof(path)
+            );
         }
 
         return dir;
@@ -113,9 +134,15 @@ internal sealed class RootDir
 
         if (path.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
-            var dir = new RootDir(path.Directory!); ;
+            var dir = new RootDir(path.Directory!);
+            ;
 
-            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName, GetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName)));
+            dir.AddDotnetTools(
+                Domain.DotnetTools.Create(
+                    path.FullName,
+                    GetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName)
+                )
+            );
 
             return dir;
         }
@@ -126,26 +153,43 @@ internal sealed class RootDir
         {
             foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
             {
-                var configPath = System.IO.Path.Combine(csproj.Parent, ".config", "dotnet-tools.json");
+                var configPath = System.IO.Path.Combine(
+                    csproj.Parent,
+                    ".config",
+                    "dotnet-tools.json"
+                );
 
                 if (!File.Exists(configPath))
                 {
                     continue;
                 }
 
-                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath, GetEfVersionBasedOnCsproj(new FileInfo(configPath).Directory!.Parent!.FullName)));
+                dir.AddDotnetTools(
+                    Domain.DotnetTools.Create(
+                        configPath,
+                        GetEfVersionBasedOnCsproj(
+                            new FileInfo(configPath).Directory!.Parent!.FullName
+                        )
+                    )
+                );
             }
         }
     }
 
     private static NuGetVersion? GetEfVersionBasedOnCsproj(string path)
     {
-        foreach (var projectFile in Directory.EnumerateFiles(path, "*.csproj", new EnumerationOptions
-        {
-            MatchCasing = MatchCasing.CaseInsensitive,
-            RecurseSubdirectories = true,
-            MaxRecursionDepth = 1,
-        }))
+        foreach (
+            var projectFile in Directory.EnumerateFiles(
+                path,
+                "*.csproj",
+                new EnumerationOptions
+                {
+                    MatchCasing = MatchCasing.CaseInsensitive,
+                    RecurseSubdirectories = true,
+                    MaxRecursionDepth = 1,
+                }
+            )
+        )
         {
             var csproj = Csproj.Create(projectFile);
 
@@ -160,12 +204,13 @@ internal sealed class RootDir
         return null;
     }
 
-    private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution)
-        => Regex
+    private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution) =>
+        Regex
             .Matches(
                 File.ReadAllText(solution.FullName),
                 @"(Project).*(?<="")(?<Project>\S*\.csproj)(?="")",
-                RegexOptions.Multiline)
+                RegexOptions.Multiline
+            )
             .Select(x => System.IO.Path.Combine(x.Groups["Project"].Value.Split('\\'))) // sln has windows-style paths, will not work on linux
             .Select(x => System.IO.Path.Combine(solution.DirectoryName!, x))
             .Select(x => new FileInfo(x))

@@ -31,11 +31,10 @@ internal static class RetriveTargetFramework
 
         static FileInfo? GetDirectoryBuildProps(DirectoryInfo path)
         {
-            return path
-                .GetFiles("Directory.Build.props", new EnumerationOptions
-                {
-                    MatchCasing = MatchCasing.CaseInsensitive
-                })
+            return path.GetFiles(
+                    "Directory.Build.props",
+                    new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive }
+                )
                 .FirstOrDefault();
         }
     }
@@ -46,10 +45,9 @@ internal static class RetriveTargetFramework
 
         doc.Load(path);
 
-        return doc
-            .SelectNodes("/Project/PropertyGroup/TargetFramework")?
-            .OfType<XmlElement>()
-            .SingleOrDefault()?
-            .InnerText;
+        return doc.SelectNodes("/Project/PropertyGroup/TargetFramework")
+            ?.OfType<XmlElement>()
+            .SingleOrDefault()
+            ?.InnerText;
     }
 }

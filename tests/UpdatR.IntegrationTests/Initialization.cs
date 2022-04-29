@@ -27,10 +27,7 @@ public static class Initialization
 
         foreach (var package in Directory.EnumerateFiles(Paths.Packages, "*.nupkg"))
         {
-            File.Copy(
-                package,
-                Path.Combine(source, new FileInfo(package).Name),
-                overwrite: true);
+            File.Copy(package, Path.Combine(source, new FileInfo(package).Name), overwrite: true);
         }
     }
 }

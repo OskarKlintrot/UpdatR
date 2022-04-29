@@ -11,20 +11,38 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     private PackageMetadata? _latestPrerelease;
     private CompatibilityProvider? _compatibilityProvider;
 
-    private CompatibilityProvider CompatibilityProvider
-        => _compatibilityProvider ??= new CompatibilityProvider(DefaultFrameworkNameProvider.Instance);
+    private CompatibilityProvider CompatibilityProvider =>
+        _compatibilityProvider ??= new CompatibilityProvider(DefaultFrameworkNameProvider.Instance);
 
-    private PackageMetadata? LatestStable(NuGetFramework targetFramework) => _latestStable ??= PackageMetadatas
-        .Where(x => !x.Version.IsPrerelease
-            && (!x.TargetFrameworks.Any() || x.TargetFrameworks.Any(y => CompatibilityProvider.IsCompatible(targetFramework, y)))) // Todo: Bodge for tools
-        .OrderByDescending(x => x.Version)
-        .FirstOrDefault();
+    private PackageMetadata? LatestStable(NuGetFramework targetFramework) =>
+        _latestStable ??= PackageMetadatas
+            .Where(
+                x =>
+                    !x.Version.IsPrerelease
+                    && (
+                        !x.TargetFrameworks.Any()
+                        || x.TargetFrameworks.Any(
+                            y => CompatibilityProvider.IsCompatible(targetFramework, y)
+                        )
+                    )
+            ) // Todo: Bodge for tools
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefault();
 
-    private PackageMetadata? LatestPrerelease(NuGetFramework targetFramework) => _latestPrerelease ??= PackageMetadatas
-        .Where(x => x.Version.IsPrerelease
-            && (!x.TargetFrameworks.Any() || x.TargetFrameworks.Any(y => CompatibilityProvider.IsCompatible(targetFramework, y)))) // Todo: Bodge for tools
-        .OrderByDescending(x => x.Version)
-        .FirstOrDefault();
+    private PackageMetadata? LatestPrerelease(NuGetFramework targetFramework) =>
+        _latestPrerelease ??= PackageMetadatas
+            .Where(
+                x =>
+                    x.Version.IsPrerelease
+                    && (
+                        !x.TargetFrameworks.Any()
+                        || x.TargetFrameworks.Any(
+                            y => CompatibilityProvider.IsCompatible(targetFramework, y)
+                        )
+                    )
+            ) // Todo: Bodge for tools
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefault();
 
     /// <summary>
     /// Get latest stable if <paramref name="version"/> is stable and older than <see cref="LatestStable"/>.
@@ -36,7 +54,8 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     public bool TryGetLatestComparedTo(
         NuGetVersion version,
         NuGetFramework targetFramework,
-        [NotNullWhen(returnValue: true)] out PackageMetadata? package)
+        [NotNullWhen(returnValue: true)] out PackageMetadata? package
+    )
     {
         if (LatestStable(targetFramework)?.Version > version)
         {
@@ -56,7 +75,10 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
         return false;
     }
 
-    public bool TryGet(NuGetVersion version, [NotNullWhen(returnValue: true)] out PackageMetadata? package)
+    public bool TryGet(
+        NuGetVersion version,
+        [NotNullWhen(returnValue: true)] out PackageMetadata? package
+    )
     {
         package = PackageMetadatas.SingleOrDefault(x => x.Version == version);
 

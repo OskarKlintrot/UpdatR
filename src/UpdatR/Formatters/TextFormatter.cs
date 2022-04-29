@@ -2,6 +2,7 @@
 using System.Text;
 
 namespace UpdatR.Formatters;
+
 public static class TextFormatter
 {
     public static string PlainText(Summary summary)
@@ -61,21 +62,23 @@ public static class TextFormatter
         return sb.ToString();
     }
 
-    private static void UnauthorizedSources(StringBuilder sb, IEnumerable<(string Name, string Source)> unauthorizedSources)
+    private static void UnauthorizedSources(
+        StringBuilder sb,
+        IEnumerable<(string Name, string Source)> unauthorizedSources
+    )
     {
         foreach (var (name, source) in unauthorizedSources)
         {
-            sb.AppendFormat(
-                new CultureInfo("en-US"),
-                "{0} ({1})",
-                name,
-                source);
+            sb.AppendFormat(new CultureInfo("en-US"), "{0} ({1})", name, source);
             sb.AppendLine();
             sb.AppendLine("--");
         }
     }
 
-    private static void UnknownPackages(StringBuilder sb, IDictionary<string, IEnumerable<string>> unknownPackages)
+    private static void UnknownPackages(
+        StringBuilder sb,
+        IDictionary<string, IEnumerable<string>> unknownPackages
+    )
     {
         foreach (var package in unknownPackages)
         {
@@ -105,7 +108,10 @@ public static class TextFormatter
         }
     }
 
-    private static void DeprecatedPackages(StringBuilder sb, IEnumerable<DeprecatedPackage> deprecatedPackages)
+    private static void DeprecatedPackages(
+        StringBuilder sb,
+        IEnumerable<DeprecatedPackage> deprecatedPackages
+    )
     {
         foreach (var (packageId, versions) in deprecatedPackages)
         {
@@ -121,7 +127,8 @@ public static class TextFormatter
                 sb.AppendFormat(
                     new CultureInfo("en-US"),
                     "Reason(s): {0}",
-                    string.Join(", ", metadata.Reasons));
+                    string.Join(", ", metadata.Reasons)
+                );
 
                 sb.AppendLine();
 
@@ -129,18 +136,18 @@ public static class TextFormatter
 
                 if (metadata.AlternatePackage is not null)
                 {
-                    sb
-                        .AppendFormat(
+                    sb.AppendFormat(
                             new CultureInfo("en-US"),
                             "Alternate Package: {0}",
-                            metadata.AlternatePackage.PackageId)
+                            metadata.AlternatePackage.PackageId
+                        )
                         .AppendLine();
 
-                    sb
-                        .AppendFormat(
+                    sb.AppendFormat(
                             new CultureInfo("en-US"),
                             "Version range: {0}",
-                            metadata.AlternatePackage.Range)
+                            metadata.AlternatePackage.Range
+                        )
                         .AppendLine();
                 }
 
@@ -152,7 +159,8 @@ public static class TextFormatter
                         new CultureInfo("en-US"),
                         "{0} {1}",
                         project.PadRight(padding),
-                        version);
+                        version
+                    );
 
                     sb.AppendLine();
                 }
@@ -161,7 +169,10 @@ public static class TextFormatter
         }
     }
 
-    private static void VulnerablePackages(StringBuilder sb, IEnumerable<VulnerablePackage> vulnerablePackages)
+    private static void VulnerablePackages(
+        StringBuilder sb,
+        IEnumerable<VulnerablePackage> vulnerablePackages
+    )
     {
         foreach (var package in vulnerablePackages)
         {
@@ -176,7 +187,8 @@ public static class TextFormatter
                         "Version {0} with severity {1}: {2}",
                         version,
                         vulnerability.Severity,
-                        vulnerability.AdvisoryUrl);
+                        vulnerability.AdvisoryUrl
+                    );
                 }
 
                 sb.AppendLine();
@@ -192,7 +204,10 @@ public static class TextFormatter
         }
     }
 
-    private static void UpdatedPackages(StringBuilder sb, IEnumerable<UpdatedPackage> updatedPackages)
+    private static void UpdatedPackages(
+        StringBuilder sb,
+        IEnumerable<UpdatedPackage> updatedPackages
+    )
     {
         foreach (var packages in updatedPackages)
         {
@@ -220,7 +235,8 @@ public static class TextFormatter
                     "{0} {1} => {2}",
                     project.PadRight(padRightProject),
                     from.ToString().PadRight(padRightFrom),
-                    to);
+                    to
+                );
 
                 sb.AppendLine();
             }
