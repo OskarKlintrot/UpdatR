@@ -546,7 +546,7 @@ public class UpdaterTests
         var tempSln = Path.Combine(temp, "Dummy.sln");
         var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
         var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
-        //var tempNuget = Path.Combine(temp, "nuget.config");
+        var tempNuget = Path.Combine(temp, "nuget.config");
 
         Directory.CreateDirectory(temp);
         Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
@@ -564,7 +564,7 @@ public class UpdaterTests
             command: "dotnet"
         );
 
-        //CreateNuGetConfig(tempNuget);
+        CreateNuGetConfig(tempNuget);
 
         var update = new Updater();
 
@@ -620,7 +620,7 @@ public class UpdaterTests
             command2: "dummy"
         );
 
-        CreateNuGetConfig(tempNuget, addNuGetOrg: true);
+        CreateNuGetConfig(tempNuget);
 
         var update = new Updater();
 
