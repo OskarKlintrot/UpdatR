@@ -47,6 +47,12 @@ For larger solutions with multiple packages the console output is not optimal. Y
 > update --browser
 ```
 
+To update only one or more specific packages you can use the `--package` option:
+
+```
+> update --package Microsoft.* --package Newtonsoft.*
+```
+
 If you don't want to update a package or packages you can exclude them:
 
 ```

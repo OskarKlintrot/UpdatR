@@ -1,0 +1,42 @@
+﻿[
+  [
+    {
+      PackageId: Dummy.Tool,
+      Updates: [
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: src\Dummy.App.csproj
+        }
+      ]
+    }
+  ]
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dummy.Tool" Version="0.0.1" />
+    <PackageReference Include="Has.Previews" Version="0.0.1" />
+  </ItemGroup>
+</Project>
+  
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dummy.Tool" Version="0.0.2" />
+    <PackageReference Include="Has.Previews" Version="0.0.1" />
+  </ItemGroup>
+</Project>
+]

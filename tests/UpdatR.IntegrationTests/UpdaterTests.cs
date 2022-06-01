@@ -279,6 +279,53 @@ public class UpdaterTests
     [InlineData("Dummy.*")]
     [InlineData("Dummy.*", "Microsoft.*")]
     [InlineData("Dummy.*", "has.*")]
+    public async Task Given_Packages_When_Update_Then_OnlyUpdateThatPackages(
+        params string[]? packages
+    )
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_Packages_When_Update_Then_OnlyUpdateThatPackages)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1"),
+            new KeyValuePair<string, string>("Has.Previews", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp, null, packages);
+
+        // Assert
+        await Verify(GetVerifyObjects())
+            .UseParameters(string.Join('/', packages ?? Array.Empty<string>()));
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Microsoft.*")]
+    [InlineData("Dummy.*")]
+    [InlineData("Dummy.*", "Microsoft.*")]
+    [InlineData("Dummy.*", "has.*")]
     public async Task Given_ExcludedPackage_When_Update_Then_DoNotUpdate(
         params string[]? excludedPackages
     )
@@ -310,6 +357,54 @@ public class UpdaterTests
         // Assert
         await Verify(GetVerifyObjects())
             .UseParameters(string.Join('/', excludedPackages ?? Array.Empty<string>()));
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
+    [InlineData("Dummy.*", "Microsoft.*")]
+    [InlineData("Dummy.*", "Dummy.Tool")]
+    public async Task Given_PackageAndExcludedPackage_When_Update_Then_ExcludeWins(
+        string packages,
+        string? excludedPackages
+    )
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_Packages_When_Update_Then_OnlyUpdateThatPackages)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1"),
+            new KeyValuePair<string, string>("Has.Previews", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            temp,
+            excludedPackages is null ? null : new[] { excludedPackages },
+            new[] { packages }
+        );
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(packages + ' ' + excludedPackages);
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {

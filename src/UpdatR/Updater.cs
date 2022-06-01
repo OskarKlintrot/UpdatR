@@ -5,7 +5,6 @@ using NuGet.Configuration;
 using NuGet.Credentials;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
-using NuGet.Versioning;
 using UpdatR.Domain;
 using UpdatR.Internals;
 
@@ -25,6 +24,7 @@ public sealed partial class Updater
     /// </summary>
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
     /// <param name="excludePackages">Packages to exlude. Supports * as wildcard.</param>
+    /// <param name="packages">Packages to update. Supports * as wildcard. If <see langword="null"/> or empty then all packages, except <paramref name="excludePackages"/>, will be updated.</param>
     /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
     /// <returns><see cref="Summary"/></returns>
@@ -32,6 +32,7 @@ public sealed partial class Updater
     public async Task<Summary> UpdateAsync(
         string? path = null,
         string[]? excludePackages = null,
+        string[]? packages = null,
         bool dryRun = false,
         bool interactive = false
     )
@@ -41,15 +42,17 @@ public sealed partial class Updater
             path = Directory.GetCurrentDirectory();
         }
 
-        var shouldExcludePackage = CreateSearch(excludePackages);
+        var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
+        var shouldExcludePackage = CreateSearch(excludePackages, treatNullOrEmptyAs: false);
 
         var dir = RootDir.Create(path);
 
         var result = new Result(path);
 
-        var (packages, unauthorizedSources) = await GetPackageVersions(
+        var (nugetPackages, unauthorizedSources) = await GetPackageVersions(
             dir.Csprojs ?? Array.Empty<Csproj>(),
             dir.DotnetTools ?? Array.Empty<DotnetTools>(),
+            shouldIncludePackage,
             shouldExcludePackage,
             interactive,
             new NuGetLogger(_logger)
@@ -62,7 +65,7 @@ public sealed partial class Updater
 
         foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
-            var project = csproj.UpdatePackages(packages, dryRun, _logger);
+            var project = csproj.UpdatePackages(nugetPackages, dryRun, _logger);
 
             if (project is not null)
             {
@@ -72,7 +75,7 @@ public sealed partial class Updater
 
         foreach (var config in dir.DotnetTools ?? Array.Empty<DotnetTools>())
         {
-            var project = await config.UpdatePackagesAsync(packages, dryRun, _logger);
+            var project = await config.UpdatePackagesAsync(nugetPackages, dryRun, _logger);
 
             if (project is not null)
             {
@@ -83,11 +86,11 @@ public sealed partial class Updater
         return Summary.Create(result);
     }
 
-    private static Func<string, bool> CreateSearch(string[]? strs)
+    private static Func<string, bool> CreateSearch(string[]? strs, bool treatNullOrEmptyAs)
     {
         if (strs is null || strs.Length == 0)
         {
-            return _ => false;
+            return _ => treatNullOrEmptyAs;
         }
 
         var regexes = strs.Select(x => ConvertSearchPatternToRegex(x)).ToList();
@@ -111,6 +114,7 @@ public sealed partial class Updater
         > UnauthorizedSources)> GetPackageVersions(
         IEnumerable<Csproj> projects,
         IEnumerable<DotnetTools> dotnetTools,
+        Func<string, bool> shouldIncludePackage,
         Func<string, bool> shouldExcludePackage,
         bool interactive,
         NuGet.Common.ILogger nuGetLogger
@@ -150,7 +154,7 @@ public sealed partial class Updater
                 {
                     foreach (var packageId in packageIds)
                     {
-                        if (shouldExcludePackage(packageId))
+                        if (!shouldIncludePackage(packageId) || shouldExcludePackage(packageId))
                         {
                             packageSearchMetadata[packageId] = null;
 
