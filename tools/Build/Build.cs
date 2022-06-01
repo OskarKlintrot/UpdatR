@@ -184,7 +184,7 @@ Target(
 
         var (helpDescription, _) = await ReadAsync(
             "dotnet",
-            $"exec dotnet-updatr.dll --help",
+            "exec dotnet-updatr.dll --help",
             workingDirectory: cli
         );
 
@@ -465,8 +465,9 @@ Target(
             return;
         }
 
-        await RunAsync("git", $"add README.md");
-        await RunAsync("git", $"commit -m \"chore: Updated README.md\"");
+        await RunAsync("git", "add README.md");
+        await RunAsync("git", "add mdsource");
+        await RunAsync("git", "commit -m \"chore: Update README.md\"");
 
         if (runsOnGitHubActions)
         {
