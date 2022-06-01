@@ -58,6 +58,12 @@ For larger solutions with multiple packages the console output is not optimal. Y
 > update --browser
 ```
 
+To update only one or more specific packages you can use the `--package` option:
+
+```
+> update --package Microsoft.* --package Newtonsoft.*
+```
+
 If you don't want to update a package or packages you can exclude them:
 
 ```
@@ -93,6 +99,7 @@ Arguments:
   <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dontet-config.json-files will be processed. [default: .]
 
 Options:
+  --package <package>                                                Package to update. Supports * as wildcard. Will update all unless specified. []
   --exclude-package <exclude-package>                                Package to exlude. Supports * as wildcard. []
   --output <output>                                                  Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown. []
   --title <title>                                                    Outputs title to path. []
