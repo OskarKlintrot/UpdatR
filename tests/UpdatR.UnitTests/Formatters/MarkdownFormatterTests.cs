@@ -370,7 +370,7 @@ public class MarkdownFormatterTests
         return Verify(md).UseParameters(method);
     }
 
-    private static IEnumerable<object[]> GetMethods()
+    public static IEnumerable<object[]> GetMethods()
     {
         yield return new object[] { "Generate" };
         yield return new object[] { "GenerateTitle" };
