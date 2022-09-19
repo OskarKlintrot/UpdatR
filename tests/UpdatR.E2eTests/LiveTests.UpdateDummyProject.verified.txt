@@ -13,6 +13,7 @@ Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-655q-9gvg-q4cm
 Version 2.1.3 with severity 1: https://github.com/advisories/GHSA-23cv-jh4v-vffm
 Version 2.1.3 with severity 1: https://github.com/advisories/GHSA-prrf-397v-83xh
 Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-6px8-22w5-w334
+Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-hxrm-9w7p-39cc
 
 #### Used in:
 - Dummy.App\Dummy.App.csproj
@@ -74,6 +75,7 @@ Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-655q-9gvg-q4cm
 Version 2.1.3 with severity 1: https://github.com/advisories/GHSA-23cv-jh4v-vffm
 Version 2.1.3 with severity 1: https://github.com/advisories/GHSA-prrf-397v-83xh
 Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-6px8-22w5-w334
+Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-hxrm-9w7p-39cc
 
 #### Used in:
 - Dummy.App\Dummy.App.csproj
