@@ -37,10 +37,7 @@ public sealed partial class Updater
         bool interactive = false
     )
     {
-        if (path == null)
-        {
-            path = Directory.GetCurrentDirectory();
-        }
+        path ??= Directory.GetCurrentDirectory();
 
         var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
         var shouldExcludePackage = CreateSearch(excludePackages, treatNullOrEmptyAs: false);
