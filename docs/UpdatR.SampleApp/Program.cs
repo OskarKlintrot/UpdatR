@@ -1,4 +1,7 @@
-﻿// begin-snippet: SampleUsage
+﻿// CA1852 Type 'Program' can be sealed because it has no subtypes in its containing assembly and is not externally visible
+#pragma warning disable CA1852 // <-- Disabled due to bug: https://github.com/dotnet/roslyn-analyzers/issues/6141
+
+// begin-snippet: SampleUsage
 using UpdatR;
 using UpdatR.Formatters;
 

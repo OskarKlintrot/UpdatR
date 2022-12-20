@@ -2,7 +2,7 @@
 
 namespace BuildingBlocks;
 
-internal partial class NuGetLogger : NuGet.Common.LoggerBase
+internal sealed partial class NuGetLogger : NuGet.Common.LoggerBase
 {
     private readonly ILogger _logger;
 

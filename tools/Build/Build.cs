@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿// CA1852 Type 'Program' can be sealed because it has no subtypes in its containing assembly and is not externally visible
+#pragma warning disable CA1852 // <-- Disabled due to bug: https://github.com/dotnet/roslyn-analyzers/issues/6141
+
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using BuildingBlocks;
