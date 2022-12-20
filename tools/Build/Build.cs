@@ -152,6 +152,13 @@ Target(
                 "Found multiple open PR:s from UpdatR, how did that happen?"
             );
         }
+
+        await client.Actions.Workflows.CreateDispatch(
+            "OskarKlintrot",
+            "UpdatR",
+            "build.yml",
+            new("update")
+        );
     }
 );
 
