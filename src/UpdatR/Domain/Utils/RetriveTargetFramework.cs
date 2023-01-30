@@ -10,9 +10,15 @@ internal static class RetriveTargetFramework
 
         var targetFramework = file is null ? null : GetTargetFramework(file.FullName);
 
-        while (Path.GetPathRoot(path.FullName) != path.FullName)
+        while (targetFramework is null)
         {
-            if (file is null)
+            // Make sure we don't try to go beyond C:\
+            if (Path.GetPathRoot(path.FullName) == path.FullName)
+            {
+                return null;
+            }
+
+            if (file is null || ImportsFromAbove(file))
             {
                 path = path.Parent!;
 
@@ -20,14 +26,13 @@ internal static class RetriveTargetFramework
 
                 targetFramework = file is null ? null : GetTargetFramework(file.FullName);
             }
-
-            if (targetFramework is not null)
+            else
             {
-                return targetFramework;
+                return null;
             }
         }
 
-        return null;
+        return targetFramework;
 
         static FileInfo? GetDirectoryBuildProps(DirectoryInfo path)
         {
@@ -37,6 +42,21 @@ internal static class RetriveTargetFramework
                 )
                 .FirstOrDefault();
         }
+    }
+
+    public static bool ImportsFromAbove(FileInfo file)
+    {
+        var doc = new XmlDocument();
+
+        doc.Load(file.FullName);
+
+        // Check if current Directory.Build.props imports another Directory.Build.props:
+        // <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+        return doc.SelectSingleNode(
+            "//Import[@Project=\"$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))\"]"
+        )
+            is not null;
     }
 
     public static string? GetTargetFramework(string path)

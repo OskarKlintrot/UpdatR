@@ -1,0 +1,1 @@
+- bug: Tool might get stuck in an endless loop when using Directory.Build.props
