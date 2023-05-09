@@ -22,6 +22,17 @@ Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-f8qx-mjcq-wfgx
 
 ## Deprecated packages
 
+### Microsoft.AspNetCore.App
+> Deprecated as part of .NET Package Deprecation effort.
+
+Reason(s): Other, Legacy
+
+Package used in:
+
+| Project | Version |
+|:--------|:--------|
+| Dummy.App\Dummy.App.csproj | 2.2.8 |
+
 ### Microsoft.Azure.ServiceBus
 > Please note, a newer package is available at https://nuget.org/packages/Azure.Messaging.ServiceBus as of 11/2020.
 > While this package will continue to receive critical bug fixes, we strongly encourage you to upgrade.
@@ -84,6 +95,17 @@ Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-f8qx-mjcq-wfgx
 
 
 ## Deprecated packages
+
+### Microsoft.AspNetCore.App
+> Deprecated as part of .NET Package Deprecation effort.
+
+Reason(s): Other, Legacy
+
+Package used in:
+
+| Project | Version |
+|:--------|:--------|
+| Dummy.App\Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
 > Please note, a newer package is available at https://nuget.org/packages/Azure.Messaging.ServiceBus as of 11/2020.
