@@ -57,13 +57,16 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
         [NotNullWhen(returnValue: true)] out PackageMetadata? package
     )
     {
-        if (LatestStable(targetFramework)?.Version > version)
+        if ((LatestStable(targetFramework)?.Version ?? NuGetVersion.Parse("0.0.0")) > version)
         {
             package = LatestStable(targetFramework)!;
 
             return true;
         }
-        else if (version.IsPrerelease && LatestPrerelease(targetFramework)?.Version > version)
+        else if (
+            version.IsPrerelease
+            && (LatestPrerelease(targetFramework)?.Version ?? NuGetVersion.Parse("0.0.0")) > version
+        )
         {
             package = LatestPrerelease(targetFramework)!;
 

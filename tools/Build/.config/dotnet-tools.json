@@ -9,7 +9,7 @@
       ]
     },
     "markdownsnippets.tool": {
-      "version": "24.5.1",
+      "version": "25.1.0",
       "commands": [
         "mdsnippets"
       ]
