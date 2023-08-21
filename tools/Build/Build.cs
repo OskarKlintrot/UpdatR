@@ -522,11 +522,11 @@ async Task<(NuGetVersion NuGetVersion, string TagRef)> GetVersionAndTagAsync()
     }
 
     return tags.Select(
-            x =>
+            tagRef =>
             {
-                _ = NuGetVersion.TryParse(x[1..], out var version);
+                _ = NuGetVersion.TryParse(tagRef[1..], out var version);
 
-                return (version, x);
+                return (version: version ?? NuGetVersion.Parse("0.0.0"), tagRef);
             }
         )
         .OrderByDescending(x => x.version)
