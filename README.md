@@ -5,11 +5,11 @@ Source File: /mdsource/README.source.md
 To change this file edit the source file and then run MarkdownSnippets.
 -->
 
-[![build](https://github.com/OskarKlintrot/UpdatR/actions/workflows/build.yml/badge.svg)](https://github.com/OskarKlintrot/UpdatR/actions/workflows/build.yml) <!-- singleLineInclude: header. path: /mdsource/header.include.md -->
+[![build](https://github.com/OskarKlintrot/UpdatR/actions/workflows/build.yml/badge.svg)](https://github.com/OskarKlintrot/UpdatR/actions/workflows/build.yml)<!-- singleLineInclude: header. path: /mdsource/header.include.md -->
 
 # UpdatR packages
 
-## dotnet-updatr <!-- include: cli-readme. path: /mdsource/cli-readme.include.md -->
+## dotnet-updatr<!-- include: cli-readme. path: /mdsource/cli-readme.include.md -->
 
 [![Latest Nuget Version](https://badgen.net/nuget/v/dotnet-updatr/latest)](https://www.nuget.org/packages/dotnet-updatr/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/dotnet-updatr)](https://www.nuget.org/packages/dotnet-updatr/)
@@ -114,7 +114,7 @@ Options:
 <!-- endSnippet -->
 <!-- endInclude -->
 
-## UpdatR <!-- include: sdk-readme. path: /mdsource/sdk-readme.include.md -->
+## UpdatR<!-- include: sdk-readme. path: /mdsource/sdk-readme.include.md -->
 
 [![Latest Nuget Version](https://badgen.net/nuget/v/UpdatR/latest)](https://www.nuget.org/packages/UpdatR/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR)](https://www.nuget.org/packages/UpdatR/)
@@ -154,5 +154,5 @@ var description =
 <!-- endSnippet -->
 <!-- endInclude -->
 
-# Icon <!-- include: footer. path: /mdsource/footer.include.md -->
-Package by Sergey Novosyolov from [NounProject.com](http://NounProject.com) <!-- endInclude -->
+# Icon<!-- include: footer. path: /mdsource/footer.include.md -->
+Package by Sergey Novosyolov from [NounProject.com](http://NounProject.com)<!-- endInclude -->
