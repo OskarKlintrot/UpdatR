@@ -16,9 +16,9 @@ internal static partial class Program
     /// <summary>
     /// Update all packages in solution or project(s).
     /// </summary>
-    /// <param name="args">Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dontet-config.json-files will be processed.</param>
+    /// <param name="args">Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dotnet-config.json-files will be processed.</param>
     /// <param name="package">Package to update. Supports * as wildcard. Will update all unless specified.</param>
-    /// <param name="excludePackage">Package to exlude. Supports * as wildcard.</param>
+    /// <param name="excludePackage">Package to exclude. Supports * as wildcard.</param>
     /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
     /// <param name="title">Outputs title to path.</param>
     /// <param name="description">Outputs description to path.</param>
@@ -26,6 +26,7 @@ internal static partial class Program
     /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="browser">Open summary in browser.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
+    /// <param name="tfm">Lowest TFM to support.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
@@ -38,7 +39,8 @@ internal static partial class Program
         LogLevel verbosity = LogLevel.Warning,
         bool dryRun = false,
         bool browser = false,
-        bool interactive = false
+        bool interactive = false,
+        string? tfm = null
     )
     {
         var sw = Stopwatch.StartNew();
@@ -63,7 +65,8 @@ internal static partial class Program
             excludePackages: excludePackage,
             packages: package,
             dryRun,
-            interactive
+            interactive,
+            tfm
         );
 
         var outputStr = TextFormatter.PlainText(summary);

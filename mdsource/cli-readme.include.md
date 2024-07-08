@@ -5,7 +5,7 @@
 
 Dotnet tool for updating package reference and dotnet-tools.json.
 
-The tool will try to stick to package versions that is supported by the projects target framework.
+The tool will try to stick to package versions that is supported by the projects target framework moniker.
 
 See [UpdatR](#updatr) for SDK.
 
@@ -17,13 +17,13 @@ See [UpdatR](#updatr) for SDK.
 
 ### Basic Usage
 
-To update all `*.csproj` and `dotnet-tools.json` recursivly:
+To update all `*.csproj` and `dotnet-tools.json` recursively:
 
 ```
 > update
 ```
 
-If you only want to update the `*.csproj` and `dotnet-tools.json` that is part of a solution you can specifiy the solution directly:
+If you only want to update the `*.csproj` and `dotnet-tools.json` that is part of a solution you can specify the solution directly:
 
 ```
 > update path/to/solution.sln
@@ -57,6 +57,12 @@ If you don't want to update a package or packages you can exclude them:
 
 ```
 > update --exclude-package Microsoft.* --exclude-package Newtonsoft.*
+```
+
+If UpdatR fails to find the correct lowest TFM to support, for example for projects that supports multiple TFM's, then it's possible to set the TFM manually:
+
+```
+> update --tfm net6.0
 ```
 
 ### As part of CI/CD

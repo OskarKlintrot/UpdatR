@@ -3,6 +3,7 @@ using BuildingBlocks;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Credentials;
+using NuGet.Frameworks;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using UpdatR.Domain;
@@ -27,6 +28,7 @@ public sealed partial class Updater
     /// <param name="packages">Packages to update. Supports * as wildcard. If <see langword="null"/> or empty then all packages, except <paramref name="excludePackages"/>, will be updated.</param>
     /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
+    /// <param name="targetFrameworkMoniker">Lowest Target Framework Moniker to support.</param>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
     public async Task<Summary> UpdateAsync(
@@ -34,9 +36,12 @@ public sealed partial class Updater
         string[]? excludePackages = null,
         string[]? packages = null,
         bool dryRun = false,
-        bool interactive = false
+        bool interactive = false,
+        string? targetFrameworkMoniker = null
     )
     {
+        var tfm = ParseTFM(targetFrameworkMoniker);
+
         path ??= Directory.GetCurrentDirectory();
 
         var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
@@ -62,7 +67,7 @@ public sealed partial class Updater
 
         foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
-            var project = csproj.UpdatePackages(nugetPackages, dryRun, _logger);
+            var project = csproj.UpdatePackages(nugetPackages, dryRun, _logger, tfm);
 
             if (project is not null)
             {
@@ -81,6 +86,23 @@ public sealed partial class Updater
         }
 
         return Summary.Create(result);
+    }
+
+    private static NuGetFramework? ParseTFM(string? targetFrameworkMoniker)
+    {
+        var tfm = string.IsNullOrWhiteSpace(targetFrameworkMoniker)
+          ? null
+          : NuGetFramework.Parse(targetFrameworkMoniker);
+
+        if (tfm == NuGetFramework.UnsupportedFramework)
+        {
+            throw new ArgumentException(
+                $"'{targetFrameworkMoniker}' is not a supported TFM.",
+                nameof(targetFrameworkMoniker)
+            );
+        }
+
+        return tfm;
     }
 
     private static Func<string, bool> CreateSearch(string[]? strs, bool treatNullOrEmptyAs)

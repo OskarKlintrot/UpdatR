@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using static UpdatR.IntegrationTests.FileCreationUtils;
 
 namespace UpdatR.IntegrationTests;
@@ -80,6 +81,45 @@ public class UpdaterTests
 
         // Assert
         await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
+    [InlineData("net5.0")] // Unsupported in 0.0.2
+    [InlineData("net6.0")] // Current TFM
+    [InlineData("net7.0")] // Future TFM
+    public async Task Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing(string tfm)
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempCsproj, targetFrameworkMoniker: tfm);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(tfm);
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {
