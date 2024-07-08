@@ -217,7 +217,7 @@ internal sealed partial class Csproj
         return null;
     }
 
-    private IDictionary<string, NuGetVersion> GetPackages()
+    private Dictionary<string, NuGetVersion> GetPackages()
     {
         var doc = new XmlDocument();
 

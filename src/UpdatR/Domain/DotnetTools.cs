@@ -10,6 +10,8 @@ namespace UpdatR.Domain;
 internal sealed partial class DotnetTools
 {
     private readonly FileInfo _path;
+    private static readonly JsonSerializerOptions s_jsonSerializerOptions =
+        new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true, };
 
     private DotnetTools(FileInfo path)
     {
@@ -178,10 +180,7 @@ internal sealed partial class DotnetTools
 
         if (!dryRun && project.UpdatedPackages.Any())
         {
-            var json = JsonSerializer.Serialize(
-                config,
-                new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true, }
-            );
+            var json = JsonSerializer.Serialize(config, s_jsonSerializerOptions);
 
             await File.WriteAllTextAsync(Path, json + Environment.NewLine);
         }
@@ -189,7 +188,7 @@ internal sealed partial class DotnetTools
         return project;
     }
 
-    private IEnumerable<string> GetPackageIds()
+    private List<string> GetPackageIds()
     {
         var tools = new List<string>();
 
