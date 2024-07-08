@@ -54,6 +54,42 @@ public class UpdaterTests
     }
 
     [Fact]
+    public async Task Given_DirectoryAsTarget_When_SingleCsproj_Then_Update()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DirectoryAsTarget_When_SingleCsproj_Then_Update)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempCsproj);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Fact]
     public async Task Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing()
     {
         // Arrange
