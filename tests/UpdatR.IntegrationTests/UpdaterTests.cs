@@ -54,12 +54,12 @@ public class UpdaterTests
     }
 
     [Fact]
-    public async Task Given_DirectoryAsTarget_When_SingleCsproj_Then_Update()
+    public async Task Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing()
     {
         // Arrange
         var temp = Path.Combine(
             Paths.Temporary.Root,
-            nameof(Given_DirectoryAsTarget_When_SingleCsproj_Then_Update)
+            nameof(Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing)
         );
         var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
         var tempNuget = Path.Combine(temp, "nuget.config");
@@ -76,7 +76,7 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempCsproj);
+        var summary = await update.UpdateAsync(tempCsproj, targetFrameworkMoniker: "net5.0");
 
         // Assert
         await Verify(GetVerifyObjects());

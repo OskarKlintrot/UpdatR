@@ -26,6 +26,7 @@ internal static partial class Program
     /// <param name="dryRun">Do not save any changes.</param>
     /// <param name="browser">Open summary in browser.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
+    /// <param name="tfm">Lowest TFM to support.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     internal static async Task Main(
@@ -38,7 +39,8 @@ internal static partial class Program
         LogLevel verbosity = LogLevel.Warning,
         bool dryRun = false,
         bool browser = false,
-        bool interactive = false
+        bool interactive = false,
+        string? tfm = null
     )
     {
         var sw = Stopwatch.StartNew();
@@ -63,7 +65,8 @@ internal static partial class Program
             excludePackages: excludePackage,
             packages: package,
             dryRun,
-            interactive
+            interactive,
+            tfm
         );
 
         var outputStr = TextFormatter.PlainText(summary);

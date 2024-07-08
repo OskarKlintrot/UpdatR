@@ -66,7 +66,8 @@ internal sealed partial class Csproj
     public ProjectWithPackages? UpdatePackages(
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
-        ILogger logger
+        ILogger logger,
+        NuGetFramework? tfm = null
     )
     {
         var project = new ProjectWithPackages(Path);
@@ -116,7 +117,7 @@ internal sealed partial class Csproj
                 CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
             }
 
-            if (!package.TryGetLatestComparedTo(version, TargetFramework, out var updateTo))
+            if (!package.TryGetLatestComparedTo(version, tfm ?? TargetFramework, out var updateTo))
             {
                 CheckForDeprecationAndVulnerabilities(
                     project,
