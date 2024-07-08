@@ -3,11 +3,15 @@ using static UpdatR.IntegrationTests.FileCreationUtils;
 
 namespace UpdatR.IntegrationTests;
 
-[UsesVerify]
 [SuppressMessage(
     "Naming",
     "CA1707:Identifiers should not contain underscores",
     Justification = "Test methods"
+)]
+[SuppressMessage(
+    "Usage",
+    "xUnit1012:Null should only be used for nullable parameters",
+    Justification = "https://github.com/xunit/xunit/issues/2973"
 )]
 public class UpdaterTests
 {

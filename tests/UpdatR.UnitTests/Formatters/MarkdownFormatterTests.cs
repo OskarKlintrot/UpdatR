@@ -4,7 +4,6 @@ using UpdatR.Internals;
 
 namespace UpdatR.UnitTests;
 
-[UsesVerify]
 public class MarkdownFormatterTests
 {
     [Theory]
