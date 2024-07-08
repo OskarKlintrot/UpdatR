@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using static UpdatR.IntegrationTests.FileCreationUtils;
 
 namespace UpdatR.IntegrationTests;
@@ -89,8 +90,11 @@ public class UpdaterTests
         }
     }
 
-    [Fact]
-    public async Task Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing()
+    [Theory]
+    [InlineData("net5.0")] // Unsupported in 0.0.2
+    [InlineData("net6.0")] // Current TFM
+    [InlineData("net7.0")] // Future TFM
+    public async Task Given_TFM_When_UnsupportedInNewerVersions_Then_DoNothing(string tfm)
     {
         // Arrange
         var temp = Path.Combine(
@@ -112,10 +116,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempCsproj, targetFrameworkMoniker: "net5.0");
+        var summary = await update.UpdateAsync(tempCsproj, targetFrameworkMoniker: tfm);
 
         // Assert
-        await Verify(GetVerifyObjects());
+        await Verify(GetVerifyObjects()).UseParameters(tfm);
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {
