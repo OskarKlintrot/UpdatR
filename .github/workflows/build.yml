@@ -20,7 +20,9 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.x.x
+        dotnet-version: |
+          6.x.x
+          8.x.x
     - name: Run tests
       run: dotnet run -- test --parallel
       working-directory: tools/Build
