@@ -3,7 +3,6 @@ using static SimpleExec.Command;
 
 namespace UpdatR.E2e;
 
-[UsesVerify]
 public sealed class LiveTests : IDisposable
 {
     private readonly TextWriter _originalConsoleOut;
