@@ -1,0 +1,1 @@
+bug: `dotnet-ef` didn't always get updated in `.config/dotnet-tools.json`
