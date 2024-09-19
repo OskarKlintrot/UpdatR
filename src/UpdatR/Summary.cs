@@ -3,39 +3,30 @@ using UpdatR.Internals;
 
 namespace UpdatR;
 
-public sealed class Summary
+public sealed class Summary(
+    IDictionary<string, IEnumerable<string>> unknownPackages,
+    IEnumerable<(string Name, string Source)> unauthorizedSources,
+    IEnumerable<UpdatedPackage> updatedPackages,
+    IEnumerable<DeprecatedPackage> deprecatedPackages,
+    IEnumerable<VulnerablePackage> vulnerablePackages
+    )
 {
     private int? _updatedPackagesCount;
 
-    public Summary(
-        IDictionary<string, IEnumerable<string>> unknownPackages,
-        IEnumerable<(string Name, string Source)> unauthorizedSources,
-        IEnumerable<UpdatedPackage> updatedPackages,
-        IEnumerable<DeprecatedPackage> deprecatedPackages,
-        IEnumerable<VulnerablePackage> vulnerablePackages
-    )
-    {
-        UnknownPackages = unknownPackages;
-        UnauthorizedSources = unauthorizedSources;
-        UpdatedPackages = updatedPackages;
-        DeprecatedPackages = deprecatedPackages;
-        VulnerablePackages = vulnerablePackages;
-    }
-
     public int UpdatedPackagesCount => _updatedPackagesCount ??= UpdatedPackages.Count();
-    public IEnumerable<UpdatedPackage> UpdatedPackages { get; }
-    public IEnumerable<DeprecatedPackage> DeprecatedPackages { get; }
-    public IEnumerable<VulnerablePackage> VulnerablePackages { get; }
+    public IEnumerable<UpdatedPackage> UpdatedPackages { get; } = updatedPackages;
+    public IEnumerable<DeprecatedPackage> DeprecatedPackages { get; } = deprecatedPackages;
+    public IEnumerable<VulnerablePackage> VulnerablePackages { get; } = vulnerablePackages;
 
     /// <summary>
     /// PackageId as key and projects and value.
     /// </summary>
-    public IDictionary<string, IEnumerable<string>> UnknownPackages { get; }
+    public IDictionary<string, IEnumerable<string>> UnknownPackages { get; } = unknownPackages;
 
     /// <summary>
     /// Sources that failed to use due to 401.
     /// </summary>
-    public IEnumerable<(string Name, string Source)> UnauthorizedSources { get; }
+    public IEnumerable<(string Name, string Source)> UnauthorizedSources { get; } = unauthorizedSources;
 
     internal static Summary Create(Result result)
     {

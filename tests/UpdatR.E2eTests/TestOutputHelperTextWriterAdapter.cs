@@ -3,16 +3,11 @@ using Xunit.Abstractions;
 
 namespace UpdatR.E2e;
 
-internal sealed class TestOutputHelperTextWriterAdapter : TextWriter
+internal sealed class TestOutputHelperTextWriterAdapter(ITestOutputHelper output) : TextWriter
 {
-    private readonly ITestOutputHelper _output;
+    private readonly ITestOutputHelper _output = output;
 
     private string _currentLine = string.Empty;
-
-    public TestOutputHelperTextWriterAdapter(ITestOutputHelper output)
-    {
-        _output = output;
-    }
 
     public override Encoding Encoding { get; } = Encoding.UTF8;
     public bool Enabled { get; set; } = true;

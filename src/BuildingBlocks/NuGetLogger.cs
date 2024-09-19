@@ -2,14 +2,9 @@
 
 namespace BuildingBlocks;
 
-internal sealed partial class NuGetLogger : NuGet.Common.LoggerBase
+internal sealed partial class NuGetLogger(ILogger logger) : NuGet.Common.LoggerBase
 {
-    private readonly ILogger _logger;
-
-    public NuGetLogger(ILogger logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger _logger = logger;
 
     public override void Log(NuGet.Common.ILogMessage message)
     {

@@ -132,54 +132,33 @@ internal sealed record ProjectWithPackages
         || _vulnerablePackages.Count > 0;
 }
 
-internal sealed class UpdatedPackage
+internal sealed class UpdatedPackage(string packageId, NuGetVersion from, NuGetVersion to)
 {
-    public string PackageId { get; }
-    public NuGetVersion From { get; }
-    public NuGetVersion To { get; }
-
-    public UpdatedPackage(string packageId, NuGetVersion from, NuGetVersion to)
-    {
-        PackageId = packageId;
-        From = from;
-        To = to;
-    }
+    public string PackageId { get; } = packageId;
+    public NuGetVersion From { get; } = from;
+    public NuGetVersion To { get; } = to;
 }
 
-internal sealed class DeprecatedPackage
-{
-    public string PackageId { get; }
-    public NuGetVersion Version { get; }
-    public PackageDeprecationMetadata DeprecationMetadata { get; }
-
-    public DeprecatedPackage(
-        string packageId,
-        NuGetVersion version,
-        PackageDeprecationMetadata deprecationMetadata
+internal sealed class DeprecatedPackage(
+    string packageId,
+    NuGetVersion version,
+    PackageDeprecationMetadata deprecationMetadata
     )
-    {
-        PackageId = packageId;
-        Version = version;
-        DeprecationMetadata = deprecationMetadata;
-    }
+{
+    public string PackageId { get; } = packageId;
+    public NuGetVersion Version { get; } = version;
+    public PackageDeprecationMetadata DeprecationMetadata { get; } = deprecationMetadata;
 }
 
-internal sealed class VulnerablePackage
-{
-    public string PackageId { get; }
-    public NuGetVersion Version { get; }
-    public IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities { get; }
-
-    public VulnerablePackage(
-        string packageId,
-        NuGetVersion version,
-        IEnumerable<PackageVulnerabilityMetadata> vulnerabilities
+internal sealed class VulnerablePackage(
+    string packageId,
+    NuGetVersion version,
+    IEnumerable<PackageVulnerabilityMetadata> vulnerabilities
     )
-    {
-        PackageId = packageId;
-        Version = version;
-        Vulnerabilities = vulnerabilities;
-    }
+{
+    public string PackageId { get; } = packageId;
+    public NuGetVersion Version { get; } = version;
+    public IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities { get; } = vulnerabilities;
 }
 
 internal record PackageMetadata(

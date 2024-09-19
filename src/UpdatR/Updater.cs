@@ -11,14 +11,9 @@ using UpdatR.Internals;
 
 namespace UpdatR;
 
-public sealed partial class Updater
+public sealed partial class Updater(ILogger<Updater>? logger = null)
 {
-    private readonly ILogger _logger;
-
-    public Updater(ILogger<Updater>? logger = null)
-    {
-        _logger = logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Updater>();
-    }
+    private readonly ILogger _logger = logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Updater>();
 
     /// <summary>
     /// Update all packages in solution or project(s).
