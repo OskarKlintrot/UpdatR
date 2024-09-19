@@ -4,7 +4,7 @@ namespace UpdatR.Internals;
 
 internal sealed class Result
 {
-    private readonly List<(string Name, string Source)> _unauthorizedSources = new();
+    private readonly List<(string Name, string Source)> _unauthorizedSources = [];
     private readonly Dictionary<string, HashSet<string>> _unknownPackages =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly string _rootPath;
@@ -82,7 +82,7 @@ internal sealed class Result
         }
         else
         {
-            _unknownPackages[packageId] = new HashSet<string> { project };
+            _unknownPackages[packageId] = [project];
         }
         return true;
     }
@@ -90,10 +90,10 @@ internal sealed class Result
 
 internal sealed record ProjectWithPackages
 {
-    private readonly HashSet<string> _unknownPackages = new();
-    private readonly List<UpdatedPackage> _updatedPackages = new();
-    private readonly List<DeprecatedPackage> _deprecatedPackages = new();
-    private readonly List<VulnerablePackage> _vulnerablePackages = new();
+    private readonly HashSet<string> _unknownPackages = [];
+    private readonly List<UpdatedPackage> _updatedPackages = [];
+    private readonly List<DeprecatedPackage> _deprecatedPackages = [];
+    private readonly List<VulnerablePackage> _vulnerablePackages = [];
 
     public string Path { get; init; }
     public IEnumerable<string> UnknownPackages => _unknownPackages;

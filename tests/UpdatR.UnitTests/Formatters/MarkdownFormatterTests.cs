@@ -18,7 +18,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(new Result(Path.GetTempPath()));
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -42,7 +42,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -68,7 +68,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -96,7 +96,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -122,7 +122,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -149,7 +149,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -177,7 +177,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -210,7 +210,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -238,7 +238,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -270,7 +270,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -303,7 +303,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -327,7 +327,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -363,7 +363,7 @@ public class MarkdownFormatterTests
         var summary = Summary.Create(result);
 
         // Act
-        var md = methodInfo.Invoke(null, new object[] { summary });
+        var md = methodInfo.Invoke(null, [summary]);
 
         // Assert
         return Verify(md).UseParameters(method);
@@ -435,7 +435,7 @@ internal sealed class ProjectBuilder
             new(
                 packageId,
                 NuGetVersion.Parse(version),
-                vulnerabilities ?? Array.Empty<PackageVulnerabilityMetadata>()
+                vulnerabilities ?? []
             )
         );
 

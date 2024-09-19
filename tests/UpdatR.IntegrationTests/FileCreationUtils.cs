@@ -152,14 +152,9 @@ internal static class FileCreationUtils
 
     private static string GetResource(string resourceName)
     {
-        using var stream = typeof(FileCreationUtils).Assembly.GetManifestResourceStream(
-            resourceName
-        );
-
-        if (stream is null)
-        {
-            throw new InvalidOperationException($"'{resourceName} is not an embedded resource.");
-        }
+        using var stream =
+            typeof(FileCreationUtils).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"'{resourceName} is not an embedded resource.");
 
         using var reader = new StreamReader(stream);
 

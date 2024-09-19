@@ -137,9 +137,14 @@ internal sealed partial class Csproj
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
 
-        if (!dryRun && changed)
+        if (changed)
         {
-            doc.Save(Path);
+            if (!dryRun)
+            {
+                doc.Save(Path);
+            }
+
+            UpdateEntityFrameworkVersion();
         }
 
         return project.AnyPackages() ? project : null;
@@ -194,6 +199,22 @@ internal sealed partial class Csproj
         return targetFramework is null
           ? NuGetFramework.AnyFramework
           : NuGetFramework.Parse(targetFramework);
+    }
+
+    private void UpdateEntityFrameworkVersion()
+    {
+        foreach (var (packageId, version) in Packages)
+        {
+            if (
+                packageId.StartsWith(
+                    "Microsoft.EntityFrameworkCore",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                _entityFrameworkVersion = version;
+            }
+        }
     }
 
     private NuGetVersion? GetEntityFrameworkVersion()

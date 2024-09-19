@@ -313,7 +313,7 @@ Target(
     {
         var packages = GetPackagesInSrc();
 
-        List<string> filesToReset = new();
+        List<string> filesToReset = [];
 
         foreach (var (csproj, _) in packages)
         {
@@ -507,7 +507,7 @@ async Task<string> GetLatestTagAsync()
 
 async Task<(NuGetVersion NuGetVersion, string TagRef)> GetVersionAndTagAsync()
 {
-    HashSet<string> tags = new();
+    HashSet<string> tags = [];
 
     var (output, _) = await ReadAsync("git", "ls-remote --tags --refs origin");
 
