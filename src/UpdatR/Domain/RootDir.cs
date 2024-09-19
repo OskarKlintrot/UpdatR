@@ -1,5 +1,5 @@
 ﻿using System.Text.RegularExpressions;
-using NuGet.Versioning;
+using NuGet.Packaging;
 
 namespace UpdatR.Domain;
 
@@ -20,12 +20,12 @@ internal sealed class RootDir
 
     public void AddDotnetTools(DotnetTools dotnetTools)
     {
-        (DotnetTools ??= new HashSet<DotnetTools>()).Add(dotnetTools);
+        (DotnetTools ??= []).Add(dotnetTools);
     }
 
     public void AddCsproj(Csproj csproj)
     {
-        (Csprojs ??= new HashSet<Csproj>()).Add(csproj);
+        (Csprojs ??= []).Add(csproj);
     }
 
     public static RootDir Create(string path)
@@ -88,7 +88,7 @@ internal sealed class RootDir
         {
             var config = Domain.DotnetTools.Create(
                 configFile,
-                GetEfVersionBasedOnCsproj(new FileInfo(configFile).Directory!.Parent!.FullName)
+                dir.Csprojs ?? GetProjectsRecursiveFromParent(path)
             );
 
             dir.AddDotnetTools(config);
@@ -118,6 +118,11 @@ internal sealed class RootDir
 
             AddDotnetToolsFromCsproj(dir);
 
+            foreach (var item in GetDotnetToolsConfigFromSolution(path, dir.Csprojs ?? []))
+            {
+                dir.AddDotnetTools(item);
+            }
+
             return dir;
         }
 
@@ -134,13 +139,14 @@ internal sealed class RootDir
 
         if (path.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
+            var projects = GetProjectsRecursiveFromParent(path.Directory!);
+
             var dir = new RootDir(path.Directory!);
-            ;
 
             dir.AddDotnetTools(
                 Domain.DotnetTools.Create(
                     path.FullName,
-                    GetEfVersionBasedOnCsproj(path.Directory!.Parent!.FullName)
+                    projects
                 )
             );
 
@@ -167,41 +173,35 @@ internal sealed class RootDir
                 dir.AddDotnetTools(
                     Domain.DotnetTools.Create(
                         configPath,
-                        GetEfVersionBasedOnCsproj(
-                            new FileInfo(configPath).Directory!.Parent!.FullName
-                        )
+                        dir.Csprojs ?? []
                     )
                 );
             }
         }
     }
 
-    private static NuGetVersion? GetEfVersionBasedOnCsproj(string path)
+    private static HashSet<Csproj> GetProjectsRecursiveFromParent(DirectoryInfo path)
     {
-        foreach (
-            var projectFile in Directory.EnumerateFiles(
-                path,
-                "*.csproj",
-                new EnumerationOptions
-                {
-                    MatchCasing = MatchCasing.CaseInsensitive,
-                    RecurseSubdirectories = true,
-                    MaxRecursionDepth = 1,
-                }
-            )
-        )
+        var isInConfigFolder = path.Name.Equals(".config", StringComparison.OrdinalIgnoreCase);
+
+        HashSet<Csproj> projects = [];
+
+        if (isInConfigFolder)
         {
-            var csproj = Csproj.Create(projectFile);
-
-            var efVersion = csproj.EntityFrameworkVersion;
-
-            if (efVersion is not null)
-            {
-                return efVersion;
-            }
+            projects.AddRange(
+                Directory.EnumerateFiles(
+                    path.Parent!.FullName,
+                    "*.csproj",
+                    new EnumerationOptions
+                    {
+                        MatchCasing = MatchCasing.CaseInsensitive,
+                        RecurseSubdirectories = true
+                    }
+                )
+                .Select(Csproj.Create));
         }
 
-        return null;
+        return projects;
     }
 
     private static IEnumerable<Csproj> GetProjectsFromSolution(FileInfo solution) =>
@@ -216,4 +216,17 @@ internal sealed class RootDir
             .Select(x => new FileInfo(x))
             .Where(x => x.Exists)
             .Select(x => Csproj.Create(x.FullName));
+
+    private static IEnumerable<DotnetTools> GetDotnetToolsConfigFromSolution(FileInfo solution, IEnumerable<Csproj> csprojs) =>
+        Regex
+            .Matches(
+                File.ReadAllText(solution.FullName),
+                """(?<File>\.config\\dotnet-tools\.json)(?= =)""",
+                RegexOptions.Multiline
+            )
+            .Select(x => System.IO.Path.Combine(x.Groups["File"].Value))
+            .Select(x => System.IO.Path.Combine(solution.DirectoryName!, x))
+            .Select(x => new FileInfo(x))
+            .Where(x => x.Exists)
+            .Select(x => Domain.DotnetTools.Create(x.FullName, csprojs));
 }

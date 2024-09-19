@@ -11,7 +11,7 @@ internal sealed partial class DotnetTools
 {
     private readonly FileInfo _path;
     private static readonly JsonSerializerOptions s_jsonSerializerOptions =
-        new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true, };
+        new(JsonSerializerDefaults.Web) { WriteIndented = true, };
 
     private DotnetTools(FileInfo path)
     {
@@ -24,11 +24,13 @@ internal sealed partial class DotnetTools
 
     public string Parent => _path.DirectoryName!;
 
-    public NuGetVersion? HighestAllowedDotnetEf { get; init; }
+    public NuGetVersion? HighestAllowedDotnetEf => AffectedCsprojs.Min(x => x.EntityFrameworkVersion);
+
+    public IEnumerable<Csproj> AffectedCsprojs { get; init; } = [];
 
     public IEnumerable<string> PackageIds => GetPackageIds();
 
-    public static DotnetTools Create(string path, NuGetVersion? highestAllowedDotnetEf)
+    public static DotnetTools Create(string path, IEnumerable<Csproj> affectedCsprojs)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -55,7 +57,7 @@ internal sealed partial class DotnetTools
 
         return new DotnetTools(new(System.IO.Path.GetFullPath(path)))
         {
-            HighestAllowedDotnetEf = highestAllowedDotnetEf,
+            AffectedCsprojs = affectedCsprojs,
         };
     }
 

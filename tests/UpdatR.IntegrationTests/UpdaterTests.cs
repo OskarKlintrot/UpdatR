@@ -353,7 +353,7 @@ public class UpdaterTests
 
         // Assert
         await Verify(GetVerifyObjects())
-            .UseParameters(string.Join('/', packages ?? Array.Empty<string>()));
+            .UseParameters(string.Join('/', packages ?? []));
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {
@@ -400,7 +400,7 @@ public class UpdaterTests
 
         // Assert
         await Verify(GetVerifyObjects())
-            .UseParameters(string.Join('/', excludedPackages ?? Array.Empty<string>()));
+            .UseParameters(string.Join('/', excludedPackages ?? []));
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {
@@ -443,8 +443,8 @@ public class UpdaterTests
         // Act
         var summary = await update.UpdateAsync(
             temp,
-            excludedPackages is null ? null : new[] { excludedPackages },
-            new[] { packages }
+            excludedPackages is null ? null : [excludedPackages],
+            [packages]
         );
 
         // Assert
@@ -672,6 +672,63 @@ public class UpdaterTests
 
     [Theory]
     [InlineData(".")]
+    [InlineData("Dummy.sln")]
+    public async Task Given_OutdatedDotnetEf_When_UpdatingCsprojToNewer_Then_UpdateToCsprojVersion(
+        params string[] path
+    )
+    {
+        // Arrange
+        var targetPath = Path.Combine(path);
+        var temp = Path.Combine(Paths.Temporary.Root, "kjsdfj");
+        var target = Path.Combine(temp, "src", targetPath);
+        var tempSln = Path.Combine(temp, "src", "Dummy.sln");
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.5")
+        );
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.5",
+            command: "dotnet"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var slnOriginal = await CreateSlnAsync(tempSln, "Dummy.App.csproj", tempCsproj);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(target);
+
+        // Assert
+        Assert.Equal(slnOriginal, await File.ReadAllTextAsync(tempSln));
+        await Verify(GetVerifyObjects()).UseParameters(targetPath);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Theory]
+    [InlineData(".")]
     [InlineData(".config")]
     [InlineData(".config", "dotnet-tools.json")]
     public async Task Given_OutdatedDotnetEf_When_CsprojHasNewer_Then_UpdateToCsprojVersion(
@@ -682,7 +739,6 @@ public class UpdaterTests
         var targetPath = Path.Combine(path);
         var temp = Path.Combine(Paths.Temporary.Root, "kjsdfj");
         var target = Path.Combine(temp, "src", targetPath);
-        var tempSln = Path.Combine(temp, "Dummy.sln");
         var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
         var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
         var tempNuget = Path.Combine(temp, "nuget.config");
