@@ -11,13 +11,15 @@ namespace UpdatR.Domain;
 internal sealed partial class Csproj
 {
     private readonly FileInfo _path;
+    private readonly XmlDocument _doc;
     private NuGetFramework? _targetFramework;
     private NuGetVersion? _entityFrameworkVersion;
     private bool _entityFrameworkVersionLoaded;
 
-    private Csproj(FileInfo path)
+    private Csproj(FileInfo path, XmlDocument doc)
     {
         _path = path;
+        _doc = doc;
     }
 
     public string Name => _path.Name;
@@ -45,7 +47,7 @@ internal sealed partial class Csproj
             );
         }
 
-        var file = new FileInfo(path);
+        var file = new FileInfo(System.IO.Path.GetFullPath(path));
 
         if (!file.Exists)
         {
@@ -60,7 +62,11 @@ internal sealed partial class Csproj
             );
         }
 
-        return new Csproj(new(System.IO.Path.GetFullPath(path)));
+        var doc = new XmlDocument { PreserveWhitespace = true, };
+
+        doc.Load(file.FullName);
+
+        return new Csproj(file, doc);
     }
 
     public ProjectWithPackages? UpdatePackages(
@@ -72,18 +78,14 @@ internal sealed partial class Csproj
     {
         var project = new ProjectWithPackages(Path);
 
-        var doc = new XmlDocument { PreserveWhitespace = true, };
-
-        doc.Load(Path);
-
         var changed = false;
 
         void handler(object sender, XmlNodeChangedEventArgs e) => changed = true;
-        doc.NodeChanged += handler;
-        doc.NodeInserted += handler;
-        doc.NodeRemoved += handler;
+        _doc.NodeChanged += handler;
+        _doc.NodeInserted += handler;
+        _doc.NodeRemoved += handler;
 
-        var packageReferences = doc.SelectNodes("/Project/ItemGroup/PackageReference")!
+        var packageReferences = _doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>();
 
         foreach (var packageReference in packageReferences)
@@ -137,11 +139,15 @@ internal sealed partial class Csproj
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
 
+        _doc.NodeChanged -= handler;
+        _doc.NodeInserted -= handler;
+        _doc.NodeRemoved -= handler;
+
         if (changed)
         {
             if (!dryRun)
             {
-                doc.Save(Path);
+                _doc.Save(Path);
             }
 
             UpdateEntityFrameworkVersion();
@@ -239,13 +245,8 @@ internal sealed partial class Csproj
         return null;
     }
 
-    private Dictionary<string, NuGetVersion> GetPackages()
-    {
-        var doc = new XmlDocument();
-
-        doc.Load(Path);
-
-        return doc.SelectNodes("/Project/ItemGroup/PackageReference")!
+    private Dictionary<string, NuGetVersion> GetPackages() =>
+        _doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>()
             .Select(
                 x => (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
@@ -261,7 +262,6 @@ internal sealed partial class Csproj
                 x => NuGetVersion.Parse(x.Version),
                 StringComparer.OrdinalIgnoreCase
             );
-    }
 
     #region LogMessages
     [LoggerMessage(

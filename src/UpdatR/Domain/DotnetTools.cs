@@ -10,12 +10,14 @@ namespace UpdatR.Domain;
 internal sealed partial class DotnetTools
 {
     private readonly FileInfo _path;
+    private readonly IEnumerable<Csproj> _affectedCsprojs;
     private static readonly JsonSerializerOptions s_jsonSerializerOptions =
         new(JsonSerializerDefaults.Web) { WriteIndented = true, };
 
-    private DotnetTools(FileInfo path)
+    private DotnetTools(FileInfo path, IEnumerable<Csproj> affectedCsprojs)
     {
         _path = path;
+        _affectedCsprojs = affectedCsprojs;
     }
 
     public string Name => _path.Name;
@@ -24,11 +26,10 @@ internal sealed partial class DotnetTools
 
     public string Parent => _path.DirectoryName!;
 
-    public NuGetVersion? HighestAllowedDotnetEf => AffectedCsprojs.Min(x => x.EntityFrameworkVersion);
-
-    public IEnumerable<Csproj> AffectedCsprojs { get; init; } = [];
-
     public IEnumerable<string> PackageIds => GetPackageIds();
+
+    private NuGetVersion? HighestAllowedDotnetEf() =>
+        _affectedCsprojs.Min(x => x.EntityFrameworkVersion);
 
     public static DotnetTools Create(string path, IEnumerable<Csproj> affectedCsprojs)
     {
@@ -55,10 +56,7 @@ internal sealed partial class DotnetTools
             );
         }
 
-        return new DotnetTools(new(System.IO.Path.GetFullPath(path)))
-        {
-            AffectedCsprojs = affectedCsprojs,
-        };
+        return new DotnetTools(new(System.IO.Path.GetFullPath(path)), affectedCsprojs);
     }
 
     public async Task<ProjectWithPackages?> UpdatePackagesAsync(
@@ -127,12 +125,12 @@ internal sealed partial class DotnetTools
                             // EF Bodge
                             if (
                                 packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
-                                && HighestAllowedDotnetEf is not null
-                                && package.TryGet(HighestAllowedDotnetEf, out _)
-                                && HighestAllowedDotnetEf <= updateTo.Version
+                                && HighestAllowedDotnetEf() is { } highestAllowedDotnetEf
+                                && package.TryGet(highestAllowedDotnetEf, out _)
+                                && highestAllowedDotnetEf <= updateTo.Version
                             )
                             {
-                                updateTo = package.Get(HighestAllowedDotnetEf);
+                                updateTo = package.Get(highestAllowedDotnetEf);
                             }
 
                             toolObject.Add(property.Key, updateTo.Version.ToString());
