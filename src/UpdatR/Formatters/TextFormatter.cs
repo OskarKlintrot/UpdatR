@@ -132,7 +132,10 @@ public static class TextFormatter
 
                 sb.AppendLine();
 
-                sb.AppendLine(metadata.Message.Replace("\n", Environment.NewLine));
+                if (metadata.Message is not null)
+                {
+                    sb.AppendLine(metadata.Message.Replace("\n", Environment.NewLine)); 
+                }
 
                 if (metadata.AlternatePackage is not null)
                 {
