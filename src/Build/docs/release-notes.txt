@@ -1,0 +1,1 @@
+- bug: Null reference exception if package was deprecated without a message
