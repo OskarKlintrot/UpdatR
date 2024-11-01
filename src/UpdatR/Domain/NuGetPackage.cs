@@ -16,30 +16,28 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
 
     private PackageMetadata? LatestStable(NuGetFramework targetFramework) =>
         _latestStable ??= PackageMetadatas
-            .Where(
-                x =>
-                    !x.Version.IsPrerelease
-                    && (
-                        !x.TargetFrameworks.Any()
-                        || x.TargetFrameworks.Any(
-                            y => CompatibilityProvider.IsCompatible(targetFramework, y)
-                        )
+            .Where(x =>
+                !x.Version.IsPrerelease
+                && (
+                    !x.TargetFrameworks.Any()
+                    || x.TargetFrameworks.Any(y =>
+                        CompatibilityProvider.IsCompatible(targetFramework, y)
                     )
+                )
             ) // Todo: Bodge for tools
             .OrderByDescending(x => x.Version)
             .FirstOrDefault();
 
     private PackageMetadata? LatestPrerelease(NuGetFramework targetFramework) =>
         _latestPrerelease ??= PackageMetadatas
-            .Where(
-                x =>
-                    x.Version.IsPrerelease
-                    && (
-                        !x.TargetFrameworks.Any()
-                        || x.TargetFrameworks.Any(
-                            y => CompatibilityProvider.IsCompatible(targetFramework, y)
-                        )
+            .Where(x =>
+                x.Version.IsPrerelease
+                && (
+                    !x.TargetFrameworks.Any()
+                    || x.TargetFrameworks.Any(y =>
+                        CompatibilityProvider.IsCompatible(targetFramework, y)
                     )
+                )
             ) // Todo: Bodge for tools
             .OrderByDescending(x => x.Version)
             .FirstOrDefault();

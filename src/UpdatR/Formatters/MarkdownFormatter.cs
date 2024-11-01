@@ -34,8 +34,8 @@ public static class MarkdownFormatter
             sb.Append(summary.UpdatedPackagesCount)
                 .Append(" package(s) were updated in ")
                 .Append(
-                    summary.UpdatedPackages
-                        .SelectMany(x => x.Updates.Select(y => y.Project))
+                    summary
+                        .UpdatedPackages.SelectMany(x => x.Updates.Select(y => y.Project))
                         .Distinct()
                         .Count()
                 )
@@ -263,13 +263,13 @@ public static class MarkdownFormatter
                 continue;
             }
 
-            var padRightProject = packages.Updates
-                .Select(x => x.Project.Length)
+            var padRightProject = packages
+                .Updates.Select(x => x.Project.Length)
                 .OrderByDescending(x => x)
                 .First();
 
-            var padRightFrom = packages.Updates
-                .Select(x => x.From.ToString().Length)
+            var padRightFrom = packages
+                .Updates.Select(x => x.From.ToString().Length)
                 .OrderByDescending(x => x)
                 .First();
 

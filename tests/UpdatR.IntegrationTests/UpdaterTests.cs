@@ -352,8 +352,7 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(temp, null, packages);
 
         // Assert
-        await Verify(GetVerifyObjects())
-            .UseParameters(string.Join('/', packages ?? []));
+        await Verify(GetVerifyObjects()).UseParameters(string.Join('/', packages ?? []));
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {
@@ -399,8 +398,7 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(temp, excludedPackages);
 
         // Assert
-        await Verify(GetVerifyObjects())
-            .UseParameters(string.Join('/', excludedPackages ?? []));
+        await Verify(GetVerifyObjects()).UseParameters(string.Join('/', excludedPackages ?? []));
 
         async IAsyncEnumerable<object> GetVerifyObjects()
         {

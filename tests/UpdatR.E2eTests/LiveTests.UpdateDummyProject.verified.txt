@@ -34,9 +34,7 @@ Package used in:
 | Dummy.App\Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
-> Please note, a newer package is available at https://nuget.org/packages/Azure.Messaging.ServiceBus as of 11/2020.
-> While this package will continue to receive critical bug fixes, we strongly encourage you to upgrade.
-> See the Migration Guide at https://aka.ms/azsdk/net/migrate/sb for more details.
+> Please note, this package is obsolete and will no longer be maintained after 9/30/2026. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
 
 Reason(s): Other
 
@@ -108,9 +106,7 @@ Package used in:
 | Dummy.App\Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
-> Please note, a newer package is available at https://nuget.org/packages/Azure.Messaging.ServiceBus as of 11/2020.
-> While this package will continue to receive critical bug fixes, we strongly encourage you to upgrade.
-> See the Migration Guide at https://aka.ms/azsdk/net/migrate/sb for more details.
+> Please note, this package is obsolete and will no longer be maintained after 9/30/2026. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
 
 Reason(s): Other
 

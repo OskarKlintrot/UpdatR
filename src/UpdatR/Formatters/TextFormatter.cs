@@ -219,13 +219,13 @@ public static class TextFormatter
                 continue;
             }
 
-            var padRightProject = packages.Updates
-                .Select(x => x.Project.Length)
+            var padRightProject = packages
+                .Updates.Select(x => x.Project.Length)
                 .OrderByDescending(x => x)
                 .First();
 
-            var padRightFrom = packages.Updates
-                .Select(x => x.From.ToString().Length)
+            var padRightFrom = packages
+                .Updates.Select(x => x.From.ToString().Length)
                 .OrderByDescending(x => x)
                 .First();
 

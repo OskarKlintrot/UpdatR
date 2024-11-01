@@ -9,7 +9,7 @@ public sealed class Summary(
     IEnumerable<UpdatedPackage> updatedPackages,
     IEnumerable<DeprecatedPackage> deprecatedPackages,
     IEnumerable<VulnerablePackage> vulnerablePackages
-    )
+)
 {
     private int? _updatedPackagesCount;
 
@@ -26,77 +26,69 @@ public sealed class Summary(
     /// <summary>
     /// Sources that failed to use due to 401.
     /// </summary>
-    public IEnumerable<(string Name, string Source)> UnauthorizedSources { get; } = unauthorizedSources;
+    public IEnumerable<(string Name, string Source)> UnauthorizedSources { get; } =
+        unauthorizedSources;
 
     internal static Summary Create(Result result)
     {
-        var updatedPackages = result.Projects
-            .SelectMany(x => x.UpdatedPackages.Select(y => (Package: y, Project: x.Path)))
+        var updatedPackages = result
+            .Projects.SelectMany(x => x.UpdatedPackages.Select(y => (Package: y, Project: x.Path)))
             .GroupBy(x => x.Package.PackageId)
-            .Select(
-                x =>
-                    new UpdatedPackage(
-                        PackageId: x.Key,
-                        Updates: x.Select(y => (y.Package.From, y.Package.To, y.Project))
-                            .OrderBy(x => x.Project)
-                    )
-            );
+            .Select(x => new UpdatedPackage(
+                PackageId: x.Key,
+                Updates: x.Select(y => (y.Package.From, y.Package.To, y.Project))
+                    .OrderBy(x => x.Project)
+            ));
 
-        var deprecatedPackages = result.Projects
-            .SelectMany(x => x.DeprecatedPackages.Select(y => (Package: y, Project: x.Path)))
+        var deprecatedPackages = result
+            .Projects.SelectMany(x =>
+                x.DeprecatedPackages.Select(y => (Package: y, Project: x.Path))
+            )
             .GroupBy(x => x.Package.PackageId)
             .Select(x => (PackageId: x.Key, Versions: x.GroupBy(y => y.Package.Version)))
-            .Select(
-                x =>
-                    (
-                        x.PackageId,
-                        Versions: x.Versions.Select(
-                            y =>
-                                (
-                                    y.Key,
-                                    y.First().Package.DeprecationMetadata,
-                                    Projects: y.Select(z => z.Project)
-                                )
+            .Select(x =>
+                (
+                    x.PackageId,
+                    Versions: x.Versions.Select(y =>
+                        (
+                            y.Key,
+                            y.First().Package.DeprecationMetadata,
+                            Projects: y.Select(z => z.Project)
                         )
                     )
+                )
             )
-            .Select(
-                x =>
-                    new DeprecatedPackage(
-                        x.PackageId,
-                        x.Versions.Select(
-                            y => (new DeprecatedVersion(y.Key, y.DeprecationMetadata), y.Projects)
-                        )
-                    )
-            );
+            .Select(x => new DeprecatedPackage(
+                x.PackageId,
+                x.Versions.Select(y =>
+                    (new DeprecatedVersion(y.Key, y.DeprecationMetadata), y.Projects)
+                )
+            ));
 
-        var vulnerablePackages = result.Projects
-            .SelectMany(x => x.VulnerablePackages.Select(y => (Package: y, Project: x.Path)))
+        var vulnerablePackages = result
+            .Projects.SelectMany(x =>
+                x.VulnerablePackages.Select(y => (Package: y, Project: x.Path))
+            )
             .GroupBy(x => x.Package.PackageId)
             .Select(x => (PackageId: x.Key, Versions: x.GroupBy(y => y.Package.Version)))
-            .Select(
-                x =>
-                    (
-                        x.PackageId,
-                        Versions: x.Versions.Select(
-                            y =>
-                                (
-                                    y.Key,
-                                    y.First().Package.Vulnerabilities,
-                                    Projects: y.Select(z => z.Project)
-                                )
+            .Select(x =>
+                (
+                    x.PackageId,
+                    Versions: x.Versions.Select(y =>
+                        (
+                            y.Key,
+                            y.First().Package.Vulnerabilities,
+                            Projects: y.Select(z => z.Project)
                         )
                     )
+                )
             )
-            .Select(
-                x =>
-                    new VulnerablePackage(
-                        x.PackageId,
-                        x.Versions.Select(
-                            y => (new VulnerableVersion(y.Key, y.Vulnerabilities), y.Projects)
-                        )
-                    )
-            );
+            .Select(x => new VulnerablePackage(
+                x.PackageId,
+                x.Versions.Select(y =>
+                    (new VulnerableVersion(y.Key, y.Vulnerabilities), y.Projects)
+                )
+            ));
 
         return new Summary(
             result.UnknownPackages,

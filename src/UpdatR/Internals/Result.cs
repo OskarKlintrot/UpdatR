@@ -40,7 +40,7 @@ internal sealed class Result
         project = project with
         {
             Path = Path.GetRelativePath(_rootPath, project.Path)
-                .Replace(Path.DirectorySeparatorChar, '\\')
+                .Replace(Path.DirectorySeparatorChar, '\\'),
         };
 
         foreach (var unknown in project.UnknownPackages)
@@ -143,7 +143,7 @@ internal sealed class DeprecatedPackage(
     string packageId,
     NuGetVersion version,
     PackageDeprecationMetadata deprecationMetadata
-    )
+)
 {
     public string PackageId { get; } = packageId;
     public NuGetVersion Version { get; } = version;
@@ -154,7 +154,7 @@ internal sealed class VulnerablePackage(
     string packageId,
     NuGetVersion version,
     IEnumerable<PackageVulnerabilityMetadata> vulnerabilities
-    )
+)
 {
     public string PackageId { get; } = packageId;
     public NuGetVersion Version { get; } = version;

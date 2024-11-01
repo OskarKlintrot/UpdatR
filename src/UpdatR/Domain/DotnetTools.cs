@@ -12,7 +12,7 @@ internal sealed partial class DotnetTools
     private readonly FileInfo _path;
     private readonly IEnumerable<Csproj> _affectedCsprojs;
     private static readonly JsonSerializerOptions s_jsonSerializerOptions =
-        new(JsonSerializerDefaults.Web) { WriteIndented = true, };
+        new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     private DotnetTools(FileInfo path, IEnumerable<Csproj> affectedCsprojs)
     {
@@ -195,7 +195,8 @@ internal sealed partial class DotnetTools
         var json = File.ReadAllText(Path);
         var foo = JsonSerializer.Deserialize<JsonObject>(json);
 
-        var packageIds = foo?["tools"]?.AsObject()
+        var packageIds = foo
+            ?["tools"]?.AsObject()
             .Select(x => (PackageId: x.Key, Version: x.Value?["version"]?.GetValue<string>()))
             .Where(x => NuGetVersion.TryParse(x.Version, out _))
             .Select(x => x.PackageId);

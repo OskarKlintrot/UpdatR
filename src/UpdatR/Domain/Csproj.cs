@@ -62,7 +62,7 @@ internal sealed partial class Csproj
             );
         }
 
-        var doc = new XmlDocument { PreserveWhitespace = true, };
+        var doc = new XmlDocument { PreserveWhitespace = true };
 
         doc.Load(file.FullName);
 
@@ -203,8 +203,8 @@ internal sealed partial class Csproj
             ?? GetTargetFrameworkFromDirectoryBuildProps(new(Parent));
 
         return targetFramework is null
-          ? NuGetFramework.AnyFramework
-          : NuGetFramework.Parse(targetFramework);
+            ? NuGetFramework.AnyFramework
+            : NuGetFramework.Parse(targetFramework);
     }
 
     private void UpdateEntityFrameworkVersion()
@@ -248,13 +248,11 @@ internal sealed partial class Csproj
     private Dictionary<string, NuGetVersion> GetPackages() =>
         _doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>()
-            .Select(
-                x => (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
+            .Select(x =>
+                (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
             )
-            .Where(
-                x =>
-                    !string.IsNullOrWhiteSpace(x.PackageId)
-                    && NuGetVersion.TryParse(x.Version, out _)
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _)
             )
             .DistinctBy(x => x.PackageId)
             .ToDictionary(

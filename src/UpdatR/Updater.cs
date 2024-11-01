@@ -13,7 +13,8 @@ namespace UpdatR;
 
 public sealed partial class Updater(ILogger<Updater>? logger = null)
 {
-    private readonly ILogger _logger = logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Updater>();
+    private readonly ILogger _logger =
+        logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Updater>();
 
     /// <summary>
     /// Update all packages in solution or project(s).
@@ -86,8 +87,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     private static NuGetFramework? ParseTFM(string? targetFrameworkMoniker)
     {
         var tfm = string.IsNullOrWhiteSpace(targetFrameworkMoniker)
-          ? null
-          : NuGetFramework.Parse(targetFrameworkMoniker);
+            ? null
+            : NuGetFramework.Parse(targetFrameworkMoniker);
 
         if (tfm == NuGetFramework.UnsupportedFramework)
         {
@@ -122,10 +123,10 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         }
     }
 
-    private async Task<(IDictionary<string, NuGetPackage?> Packages, IDictionary<
-            string,
-            string
-        > UnauthorizedSources)> GetPackageVersions(
+    private async Task<(
+        IDictionary<string, NuGetPackage?> Packages,
+        IDictionary<string, string> UnauthorizedSources
+    )> GetPackageVersions(
         IEnumerable<Csproj> projects,
         IEnumerable<DotnetTools> dotnetTools,
         Func<string, bool> shouldIncludePackage,
@@ -189,35 +190,26 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                         var metadata = searchMetadata
                             .OfType<IPackageSearchMetadata>()
                             .Where(x => x.Identity.HasVersion)
-                            .Select(
-                                x =>
-                                    new PackageMetadata(
-                                        x.Identity.Version,
-                                        x.DependencySets.Select(x => x.TargetFramework),
-                                        x is PackageSearchMetadata y
-                                            && y.DeprecationMetadata is not null
-                                          ? new(
-                                                y.DeprecationMetadata.Message,
-                                                y.DeprecationMetadata.Reasons,
-                                                y.DeprecationMetadata.AlternatePackage is null
-                                                  ? null
-                                                  : new(
-                                                        y.DeprecationMetadata
-                                                            .AlternatePackage
-                                                            .PackageId,
-                                                        y.DeprecationMetadata.AlternatePackage.Range
-                                                    )
+                            .Select(x => new PackageMetadata(
+                                x.Identity.Version,
+                                x.DependencySets.Select(x => x.TargetFramework),
+                                x is PackageSearchMetadata y && y.DeprecationMetadata is not null
+                                    ? new(
+                                        y.DeprecationMetadata.Message,
+                                        y.DeprecationMetadata.Reasons,
+                                        y.DeprecationMetadata.AlternatePackage is null
+                                            ? null
+                                            : new(
+                                                y.DeprecationMetadata.AlternatePackage.PackageId,
+                                                y.DeprecationMetadata.AlternatePackage.Range
                                             )
-                                          : null,
-                                        x.Vulnerabilities?.Select(
-                                            y =>
-                                                new PackageVulnerabilityMetadata(
-                                                    y.AdvisoryUrl,
-                                                    y.Severity
-                                                )
-                                        )
                                     )
-                            );
+                                    : null,
+                                x.Vulnerabilities?.Select(y => new PackageVulnerabilityMetadata(
+                                    y.AdvisoryUrl,
+                                    y.Severity
+                                ))
+                            ));
 
                         if (!metadata.Any())
                         {
@@ -231,8 +223,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                         {
                             packageSearchMetadata[packageId] = package with
                             {
-                                PackageMetadatas = package.PackageMetadatas
-                                    .Union(metadata)
+                                PackageMetadatas = package
+                                    .PackageMetadatas.Union(metadata)
                                     .DistinctBy(x => x.Version)
                                     .OrderByDescending(x => x.Version),
                             };

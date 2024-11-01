@@ -432,11 +432,7 @@ internal sealed class ProjectBuilder
     )
     {
         _project.AddVulnerablePackage(
-            new(
-                packageId,
-                NuGetVersion.Parse(version),
-                vulnerabilities ?? []
-            )
+            new(packageId, NuGetVersion.Parse(version), vulnerabilities ?? [])
         );
 
         return this;

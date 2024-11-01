@@ -47,13 +47,11 @@ internal static partial class Program
 
         var services = new ServiceCollection()
             .AddTransient<Updater>()
-            .AddLogging(
-                builder =>
-                {
-                    builder.SetMinimumLevel(verbosity);
-                    builder.AddConsole();
-                }
-            )
+            .AddLogging(builder =>
+            {
+                builder.SetMinimumLevel(verbosity);
+                builder.AddConsole();
+            })
             .BuildServiceProvider();
 
         _logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(Program));

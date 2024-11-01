@@ -17,13 +17,11 @@ using static Bullseye.Targets;
 using static SimpleExec.Command;
 
 var services = new ServiceCollection()
-    .AddLogging(
-        builder =>
-        {
-            builder.SetMinimumLevel(LogLevel.Information);
-            builder.AddConsole();
-        }
-    )
+    .AddLogging(builder =>
+    {
+        builder.SetMinimumLevel(LogLevel.Information);
+        builder.AddConsole();
+    })
     .BuildServiceProvider();
 
 var runsOnGitHubActions = !string.IsNullOrWhiteSpace(
@@ -127,7 +125,7 @@ Target(
             {
                 Base = "main",
                 Head = "update",
-                State = ItemStateFilter.Open
+                State = ItemStateFilter.Open,
             }
         );
 
@@ -241,27 +239,25 @@ Target(
                 }
 
                 var newReadmeContent = originalReadmeContent
-                    .Select(
-                        x => x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x
+                    .Select(x =>
+                        x.StartsWith("##", StringComparison.OrdinalIgnoreCase) ? x[1..] : x
                     )
-                    .Select(
-                        line =>
+                    .Select(line =>
+                    {
+                        foreach (var (_, id) in packagesToBe)
                         {
-                            foreach (var (_, id) in packagesToBe)
+                            var relativeLink =
+                                $"(#{id.Replace(".", string.Empty).ToLowerInvariant()})";
+                            var nugetLink = $"(https://www.nuget.org/packages/{id}/)";
+
+                            if (line.Contains(relativeLink))
                             {
-                                var relativeLink =
-                                    $"(#{id.Replace(".", string.Empty).ToLowerInvariant()})";
-                                var nugetLink = $"(https://www.nuget.org/packages/{id}/)";
-
-                                if (line.Contains(relativeLink))
-                                {
-                                    line = line.Replace(relativeLink, nugetLink);
-                                }
+                                line = line.Replace(relativeLink, nugetLink);
                             }
-
-                            return line;
                         }
-                    );
+
+                        return line;
+                    });
 
                 await File.WriteAllLinesAsync(
                     Path.Combine(projectRoot, "docs", "README.md"),
@@ -412,7 +408,7 @@ Target(
 
         await client.Repository.Release.Create(
             repositoryId,
-            new(tagRef) { Name = "UpdatR v" + version.ToString(), Prerelease = prerelease, }
+            new(tagRef) { Name = "UpdatR v" + version.ToString(), Prerelease = prerelease }
         );
     }
 );
@@ -521,14 +517,12 @@ async Task<(NuGetVersion NuGetVersion, string TagRef)> GetVersionAndTagAsync()
         }
     }
 
-    return tags.Select(
-            tagRef =>
-            {
-                _ = NuGetVersion.TryParse(tagRef[1..], out var version);
+    return tags.Select(tagRef =>
+        {
+            _ = NuGetVersion.TryParse(tagRef[1..], out var version);
 
-                return (version: version ?? NuGetVersion.Parse("0.0.0"), tagRef);
-            }
-        )
+            return (version: version ?? NuGetVersion.Parse("0.0.0"), tagRef);
+        })
         .OrderByDescending(x => x.version)
         .First();
 }
@@ -545,8 +539,8 @@ string GetToken()
     var githubToken = runsOnGitHubActions
         ? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
         : ((ConfigurationManager)new ConfigurationManager().AddUserSecrets<Program>())
-          .GetSection("GitHub")
-          .GetValue<string>("PAT");
+            .GetSection("GitHub")
+            .GetValue<string>("PAT");
 
     if (string.IsNullOrWhiteSpace(githubToken))
     {
@@ -564,7 +558,7 @@ IEnumerable<(string Csproj, string PackageId)> GetPackagesInSrc()
         var project in Directory.EnumerateFiles(srcDir, "*.csproj", SearchOption.AllDirectories)
     )
     {
-        var doc = new XmlDocument { PreserveWhitespace = true, };
+        var doc = new XmlDocument { PreserveWhitespace = true };
 
         doc.Load(project);
 

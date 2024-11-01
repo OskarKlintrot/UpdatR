@@ -63,7 +63,7 @@ internal sealed class RootDir
                 new EnumerationOptions
                 {
                     MatchCasing = MatchCasing.CaseInsensitive,
-                    RecurseSubdirectories = true
+                    RecurseSubdirectories = true,
                 }
             )
         )
@@ -81,7 +81,7 @@ internal sealed class RootDir
                 {
                     MatchCasing = MatchCasing.CaseInsensitive,
                     RecurseSubdirectories = true,
-                    AttributesToSkip = FileAttributes.System
+                    AttributesToSkip = FileAttributes.System,
                 }
             )
         )
@@ -143,12 +143,7 @@ internal sealed class RootDir
 
             var dir = new RootDir(path.Directory!);
 
-            dir.AddDotnetTools(
-                Domain.DotnetTools.Create(
-                    path.FullName,
-                    projects
-                )
-            );
+            dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName, projects));
 
             return dir;
         }
@@ -170,12 +165,7 @@ internal sealed class RootDir
                     continue;
                 }
 
-                dir.AddDotnetTools(
-                    Domain.DotnetTools.Create(
-                        configPath,
-                        dir.Csprojs ?? []
-                    )
-                );
+                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath, dir.Csprojs ?? []));
             }
         }
     }
@@ -189,16 +179,18 @@ internal sealed class RootDir
         if (isInConfigFolder)
         {
             projects.AddRange(
-                Directory.EnumerateFiles(
-                    path.Parent!.FullName,
-                    "*.csproj",
-                    new EnumerationOptions
-                    {
-                        MatchCasing = MatchCasing.CaseInsensitive,
-                        RecurseSubdirectories = true
-                    }
-                )
-                .Select(Csproj.Create));
+                Directory
+                    .EnumerateFiles(
+                        path.Parent!.FullName,
+                        "*.csproj",
+                        new EnumerationOptions
+                        {
+                            MatchCasing = MatchCasing.CaseInsensitive,
+                            RecurseSubdirectories = true,
+                        }
+                    )
+                    .Select(Csproj.Create)
+            );
         }
 
         return projects;
@@ -217,7 +209,10 @@ internal sealed class RootDir
             .Where(x => x.Exists)
             .Select(x => Csproj.Create(x.FullName));
 
-    private static IEnumerable<DotnetTools> GetDotnetToolsConfigFromSolution(FileInfo solution, IEnumerable<Csproj> csprojs) =>
+    private static IEnumerable<DotnetTools> GetDotnetToolsConfigFromSolution(
+        FileInfo solution,
+        IEnumerable<Csproj> csprojs
+    ) =>
         Regex
             .Matches(
                 File.ReadAllText(solution.FullName),
