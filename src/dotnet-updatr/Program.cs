@@ -24,6 +24,7 @@ internal static partial class Program
     /// <param name="description">Outputs description to path.</param>
     /// <param name="verbosity">Log level.</param>
     /// <param name="dryRun">Do not save any changes.</param>
+    /// <param name="prerelease">Allow prerelease packages to be installed.</param>
     /// <param name="browser">Open summary in browser.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
     /// <param name="tfm">Lowest TFM to support.</param>
@@ -38,6 +39,7 @@ internal static partial class Program
         string? description = null,
         LogLevel verbosity = LogLevel.Warning,
         bool dryRun = false,
+        bool prerelease = false,
         bool browser = false,
         bool interactive = false,
         string? tfm = null
@@ -59,12 +61,13 @@ internal static partial class Program
         var update = services.GetRequiredService<Updater>();
 
         var summary = await update.UpdateAsync(
-            args,
+            path: args,
             excludePackages: excludePackage,
             packages: package,
-            dryRun,
-            interactive,
-            tfm
+            dryRun: dryRun,
+            prerelease: prerelease,
+            interactive: interactive,
+            targetFrameworkMoniker: tfm
         );
 
         var outputStr = TextFormatter.PlainText(summary);

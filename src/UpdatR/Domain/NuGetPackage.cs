@@ -42,20 +42,39 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
             .OrderByDescending(x => x.Version)
             .FirstOrDefault();
 
+    private PackageMetadata? Latest(NuGetFramework targetFramework) =>
+        _latestPrerelease ??= PackageMetadatas
+            .Where(x =>
+                !x.TargetFrameworks.Any()
+                || x.TargetFrameworks.Any(y =>
+                    CompatibilityProvider.IsCompatible(targetFramework, y)
+                )
+            ) // Todo: Bodge for tools
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefault();
+
     /// <summary>
     /// Get latest stable if <paramref name="version"/> is stable and older than <see cref="LatestStable"/>.
     /// If <paramref name="version"/> is prerelase then take latest prerelease unless there is a newer stable version.
     /// </summary>
     /// <param name="version">Current version to compare to.</param>
     /// <param name="package"></param>
-    /// <returns></returns>
+    /// <param name="usePrerelease">Use prerelase, even if <paramref name="version"/> is stable.</param>
+    /// <returns><see langword="true"/> if a newer version is avalible.</returns>
     public bool TryGetLatestComparedTo(
         NuGetVersion version,
         NuGetFramework targetFramework,
+        bool usePrerelease,
         [NotNullWhen(returnValue: true)] out PackageMetadata? package
     )
     {
-        if ((LatestStable(targetFramework)?.Version ?? NuGetVersion.Parse("0.0.0")) > version)
+        if (usePrerelease)
+        {
+            package = Latest(targetFramework)!;
+
+            return true;
+        }
+        else if ((LatestStable(targetFramework)?.Version ?? NuGetVersion.Parse("0.0.0")) > version)
         {
             package = LatestStable(targetFramework)!;
 

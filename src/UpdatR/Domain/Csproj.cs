@@ -72,6 +72,7 @@ internal sealed partial class Csproj
     public ProjectWithPackages? UpdatePackages(
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
+        bool usePrerelease,
         ILogger logger,
         NuGetFramework? tfm = null
     )
@@ -119,7 +120,14 @@ internal sealed partial class Csproj
                 CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
             }
 
-            if (!package.TryGetLatestComparedTo(version, tfm ?? TargetFramework, out var updateTo))
+            if (
+                !package.TryGetLatestComparedTo(
+                    version,
+                    tfm ?? TargetFramework,
+                    usePrerelease,
+                    out var updateTo
+                )
+            )
             {
                 CheckForDeprecationAndVulnerabilities(
                     project,
