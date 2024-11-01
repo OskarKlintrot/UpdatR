@@ -58,6 +58,12 @@ For larger solutions with multiple packages the console output is not optimal. Y
 > update --browser
 ```
 
+To allow packages to be updated to prerelease versions use the `--prerelease` options:
+
+```
+> update --prerelease
+```
+
 To update only one or more specific packages you can use the `--package` option:
 
 ```
@@ -112,6 +118,7 @@ Options:
   --description <description>                                        Outputs description to path. []
   --verbosity <Critical|Debug|Error|Information|None|Trace|Warning>  Log level. [default: Warning]
   --dry-run                                                          Do not save any changes. [default: False]
+  --prerelease                                                       Allow prerelease packages to be installed. [default: False]
   --browser                                                          Open summary in browser. [default: False]
   --interactive                                                      Interaction with user is possible. [default: False]
   --tfm <tfm>                                                        Lowest TFM to support. []
