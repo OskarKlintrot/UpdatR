@@ -47,6 +47,12 @@ For larger solutions with multiple packages the console output is not optimal. Y
 > update --browser
 ```
 
+To allow packages to be updated to prerelease versions use the `--prerelease` options:
+
+```
+> update --prerelease
+```
+
 To update only one or more specific packages you can use the `--package` option:
 
 ```

@@ -62,6 +62,7 @@ internal sealed partial class DotnetTools
     public async Task<ProjectWithPackages?> UpdatePackagesAsync(
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
+        bool usePrerelease,
         ILogger logger
     )
     {
@@ -118,6 +119,7 @@ internal sealed partial class DotnetTools
                             package.TryGetLatestComparedTo(
                                 version,
                                 NuGetFramework.AnyFramework,
+                                usePrerelease,
                                 out var updateTo
                             )
                         )

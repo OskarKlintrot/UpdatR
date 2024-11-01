@@ -23,6 +23,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// <param name="excludePackages">Packages to exlude. Supports * as wildcard.</param>
     /// <param name="packages">Packages to update. Supports * as wildcard. If <see langword="null"/> or empty then all packages, except <paramref name="excludePackages"/>, will be updated.</param>
     /// <param name="dryRun">Do not save any changes.</param>
+    /// <param name="prerelease">Allow prerelease packages to be installed.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
     /// <param name="targetFrameworkMoniker">Lowest Target Framework Moniker to support.</param>
     /// <returns><see cref="Summary"/></returns>
@@ -32,6 +33,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         string[]? excludePackages = null,
         string[]? packages = null,
         bool dryRun = false,
+        bool prerelease = false,
         bool interactive = false,
         string? targetFrameworkMoniker = null
     )
@@ -63,7 +65,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
         foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
-            var project = csproj.UpdatePackages(nugetPackages, dryRun, _logger, tfm);
+            var project = csproj.UpdatePackages(nugetPackages, dryRun, prerelease, _logger, tfm);
 
             if (project is not null)
             {
@@ -73,7 +75,12 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
         foreach (var config in dir.DotnetTools ?? Array.Empty<DotnetTools>())
         {
-            var project = await config.UpdatePackagesAsync(nugetPackages, dryRun, _logger);
+            var project = await config.UpdatePackagesAsync(
+                nugetPackages,
+                dryRun,
+                prerelease,
+                _logger
+            );
 
             if (project is not null)
             {
