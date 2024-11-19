@@ -37,8 +37,4 @@
     </AssemblyAttribute>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="CSharpier.MSBuild" Version="0.30.1" />
-  </ItemGroup>
-
 </Project>

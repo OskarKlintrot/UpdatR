@@ -146,9 +146,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
         using var cacheContext = new SourceCacheContext();
 
-        Dictionary<string, NuGetPackage?> packageSearchMetadata = new(
-            StringComparer.OrdinalIgnoreCase
-        );
+        Dictionary<string, NuGetPackage?> packageSearchMetadata =
+            new(StringComparer.OrdinalIgnoreCase);
 
         Dictionary<string, string> unauthorizedSources = new(StringComparer.OrdinalIgnoreCase);
 

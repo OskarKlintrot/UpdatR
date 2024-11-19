@@ -11,8 +11,4 @@
     <ProjectReference Include="..\..\src\UpdatR\UpdatR.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="CSharpier.MSBuild" Version="0.30.1" />
-  </ItemGroup>
-
 </Project>

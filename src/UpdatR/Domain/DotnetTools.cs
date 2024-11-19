@@ -11,12 +11,8 @@ internal sealed partial class DotnetTools
 {
     private readonly FileInfo _path;
     private readonly IEnumerable<Csproj> _affectedCsprojs;
-    private static readonly JsonSerializerOptions s_jsonSerializerOptions = new(
-        JsonSerializerDefaults.Web
-    )
-    {
-        WriteIndented = true,
-    };
+    private static readonly JsonSerializerOptions s_jsonSerializerOptions =
+        new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     private DotnetTools(FileInfo path, IEnumerable<Csproj> affectedCsprojs)
     {
