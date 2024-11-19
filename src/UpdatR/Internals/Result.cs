@@ -5,8 +5,9 @@ namespace UpdatR.Internals;
 internal sealed class Result
 {
     private readonly List<(string Name, string Source)> _unauthorizedSources = [];
-    private readonly Dictionary<string, HashSet<string>> _unknownPackages =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<string>> _unknownPackages = new(
+        StringComparer.OrdinalIgnoreCase
+    );
     private readonly string _rootPath;
 
     private Dictionary<string, ProjectWithPackages> _projects { get; } =
