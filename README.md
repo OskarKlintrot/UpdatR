@@ -16,7 +16,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 Dotnet tool for updating package reference and dotnet-tools.json.
 
-The tool will try to stick to package versions that is supported by the projects target framework moniker.
+The tool will try to stick to package versions that is supported by the projects target framework moniker. If a package supports both .NETStandard and .NET, the compatibility with .NETStandard will be ignored if the project is targeting .NET. This is to avoid false positives where a package technically supports a TFM but in reality never have been tested against the TFM.
 
 See [UpdatR](#updatr) for SDK.
 
@@ -135,7 +135,7 @@ Options:
 
 NuGet package to programmatically update package reference and dotnet-tools.json.
 
-The tool will try to stick to package versions that is supported by the projects target framework.
+The tool will try to stick to package versions that is supported by the projects target framework moniker. If a package supports both .NETStandard and .NET, the compatibility with .NETStandard will be ignored if the project is targeting .NET. This is to avoid false positives where a package technically supports a TFM but in reality never have been tested against the TFM.
 
 See [dotnet-updatr](#dotnet-updatr) for a dotnet tool that can be run from the command-line.
 
