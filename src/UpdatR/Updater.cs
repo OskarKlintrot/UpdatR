@@ -185,6 +185,16 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                         }
 
                         var packageMetadataResource = repo.GetResource<PackageMetadataResource>();
+                        var dep = repo.GetResource<DependencyInfoResource>();
+
+                        var foo = await dep.ResolvePackages(
+                            packageId,
+                            cacheContext,
+                            nuGetLogger,
+                            CancellationToken.None
+                        );
+
+                        var bar = foo.LastOrDefault();
 
                         var searchMetadata = await packageMetadataResource.GetMetadataAsync(
                             packageId,
