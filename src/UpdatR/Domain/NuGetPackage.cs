@@ -5,8 +5,10 @@ using UpdatR.Internals;
 
 namespace UpdatR.Domain;
 
+[SuppressMessage("Style", "IDE0022:Use block body for method", Justification = "<Pending>")]
 internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
 {
+    private PackageMetadata? _latest;
     private PackageMetadata? _latestStable;
     private PackageMetadata? _latestPrerelease;
     private CompatibilityProvider? _compatibilityProvider;
@@ -15,43 +17,35 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
         _compatibilityProvider ??= new CompatibilityProvider(DefaultFrameworkNameProvider.Instance);
 
     private PackageMetadata? LatestStable(NuGetFramework targetFramework) =>
-        _latestStable ??= PackageMetadatas
-            .Where(x =>
-                !x.Version.IsPrerelease
-                && (
-                    !x.TargetFrameworks.Any()
-                    || x.TargetFrameworks.Any(y =>
-                        CompatibilityProvider.IsCompatible(targetFramework, y)
-                    )
-                )
-            ) // Todo: Bodge for tools
-            .OrderByDescending(x => x.Version)
-            .FirstOrDefault();
+        _latestStable ??= Latest(targetFramework, x => !x.Version.IsPrerelease);
 
     private PackageMetadata? LatestPrerelease(NuGetFramework targetFramework) =>
-        _latestPrerelease ??= PackageMetadatas
-            .Where(x =>
-                x.Version.IsPrerelease
-                && (
-                    !x.TargetFrameworks.Any()
-                    || x.TargetFrameworks.Any(y =>
-                        CompatibilityProvider.IsCompatible(targetFramework, y)
-                    )
-                )
-            ) // Todo: Bodge for tools
+        _latestPrerelease ??= Latest(targetFramework, x => x.Version.IsPrerelease);
+
+    private PackageMetadata? Latest(NuGetFramework targetFramework) =>
+        _latest ??= Latest(targetFramework, _ => true);
+
+    private PackageMetadata? Latest(
+        NuGetFramework targetFramework,
+        Func<PackageMetadata, bool> predicate
+    ) =>
+        PackageMetadatas
+            .Where(x => predicate(x) && IsCompatibleWithFramework(targetFramework, x)) // Todo: Bodge for tools
             .OrderByDescending(x => x.Version)
             .FirstOrDefault();
 
-    private PackageMetadata? Latest(NuGetFramework targetFramework) =>
-        _latestPrerelease ??= PackageMetadatas
-            .Where(x =>
-                !x.TargetFrameworks.Any()
-                || x.TargetFrameworks.Any(y =>
-                    CompatibilityProvider.IsCompatible(targetFramework, y)
+    private bool IsCompatibleWithFramework(
+        NuGetFramework targetFramework,
+        PackageMetadata package
+    ) =>
+        !package.TargetFrameworks.Any()
+        || (
+            package.TargetFrameworks.All(x => x.Framework == ".NETStandard")
+                ? package.TargetFrameworks
+                : package.TargetFrameworks.Where(x =>
+                    targetFramework.Framework == ".NETStandard" || x.Framework != ".NETStandard"
                 )
-            ) // Todo: Bodge for tools
-            .OrderByDescending(x => x.Version)
-            .FirstOrDefault();
+        ).Any(x => CompatibilityProvider.IsCompatible(targetFramework, x));
 
     /// <summary>
     /// Get latest stable if <paramref name="version"/> is stable and older than <see cref="LatestStable"/>.
