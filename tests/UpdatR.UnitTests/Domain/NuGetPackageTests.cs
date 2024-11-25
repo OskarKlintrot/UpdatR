@@ -121,6 +121,54 @@ public class NuGetPackageTests
     }
 
     [Theory]
+    [InlineData("net9.0", "3.0.0")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetLatestComparedTo_HtmlAgilityPack(string tfm, string? expected = null)
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("3.0.0"),
+                    [
+                        NuGetFramework.Parse("netstandard1.3"),
+                        NuGetFramework.Parse("v4.0"),
+                        NuGetFramework.Parse("v4.5"),
+                        NuGetFramework.Parse("netstandard1.6"),
+                        NuGetFramework.Parse("netstandard2.0"),
+                    ],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var newerVersionIsAvailable = package.TryGetLatestComparedTo(
+            version: NuGetVersion.Parse("1.0.0"),
+            targetFramework: NuGetFramework.Parse(tfm),
+            usePrerelease: false,
+            package: out var packageMetadata
+        );
+
+        // Assert
+        if (expected is null)
+        {
+            Assert.False(newerVersionIsAvailable);
+        }
+        else
+        {
+            Assert.True(newerVersionIsAvailable);
+            Assert.Equal(expected, packageMetadata?.Version.ToString());
+        }
+    }
+
+    [Theory]
     [InlineData("net6.0")]
     [InlineData("net7.0", "2.0.0")]
     [InlineData("net9.0", "3.0.0")]

@@ -40,7 +40,9 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     ) =>
         !package.TargetFrameworks.Any()
         || (
-            package.TargetFrameworks.All(x => x.Framework == ".NETStandard")
+            package.TargetFrameworks.All(x =>
+                x.Framework == ".NETStandard" || targetFramework.Framework != x.Framework
+            )
                 ? package.TargetFrameworks
                 : package.TargetFrameworks.Where(x =>
                     targetFramework.Framework == ".NETStandard" || x.Framework != ".NETStandard"
