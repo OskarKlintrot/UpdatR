@@ -1,1 +1,0 @@
-- bug: Use .NETStandard if no other target framework is compatible with the version.
