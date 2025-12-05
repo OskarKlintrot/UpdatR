@@ -126,7 +126,7 @@ public sealed record VulnerableVersion(
 );
 
 public sealed record PackageDeprecationMetadata(
-    string Message,
+    string? Message,
     IEnumerable<string> Reasons,
     AlternatePackageMetadata? AlternatePackage
 );

@@ -161,12 +161,15 @@ public static class MarkdownFormatter
 
             foreach (var ((version, metadata), projects) in versions)
             {
-                sb.AppendJoin(
-                        Environment.NewLine,
-                        metadata.Message.Split("\n").Select(x => $"> {x}")
-                    )
-                    .AppendLine()
-                    .AppendLine();
+                if (metadata.Message is not null)
+                {
+                    sb.AppendJoin(
+                            Environment.NewLine,
+                            metadata.Message.Split("\n").Select(x => $"> {x}")
+                        )
+                        .AppendLine()
+                        .AppendLine();
+                }
 
                 sb.AppendFormat(
                         new CultureInfo("en-US"),
