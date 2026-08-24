@@ -45,6 +45,25 @@ internal static partial class Program
         string? tfm = null
     )
     {
+        var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            File.AppendAllText(
+                crashLog,
+                $"{DateTime.UtcNow:o}: Unhandled: {e.ExceptionObject}{Environment.NewLine}"
+            );
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            File.AppendAllText(
+                crashLog,
+                $"{DateTime.UtcNow:o}: Unobserved: {e.Exception}{Environment.NewLine}"
+            );
+            e.SetObserved();
+        };
+
         var sw = Stopwatch.StartNew();
 
         var services = new ServiceCollection()

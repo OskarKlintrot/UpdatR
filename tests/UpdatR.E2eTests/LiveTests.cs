@@ -85,8 +85,13 @@ public sealed class LiveTests : IDisposable
 
         if (!File.Exists(log))
         {
+            var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
+            var crashLogContent = File.Exists(crashLog)
+                ? await File.ReadAllTextAsync(crashLog, TestContext.Current.CancellationToken)
+                : "(no crash log found)";
+
             throw new InvalidOperationException(
-                $"CLI did not produce {log}. Stdout: {stdOutput} Stderr: {stdError}"
+                $"CLI did not produce {log}. Stdout: {stdOutput} Stderr: {stdError} Crash log: {crashLogContent}"
             );
         }
 
