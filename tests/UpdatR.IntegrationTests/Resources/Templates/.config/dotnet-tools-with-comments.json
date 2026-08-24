@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+//#if (mode != "proxy")
+    "<PACKAGEID>": {
+      "version": "<VERSION>",
+      "commands": [
+        "<COMMAND>"
+      ]
+    }
+//#endif
+  }
+}

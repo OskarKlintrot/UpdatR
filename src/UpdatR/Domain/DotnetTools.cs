@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using NuGet.Frameworks;
@@ -11,11 +12,28 @@ internal sealed partial class DotnetTools
 {
     private readonly FileInfo _path;
     private readonly IEnumerable<Csproj> _affectedCsprojs;
+
+    // dotnet-tools.json files generated from dotnet new templates may contain
+    // template-engine directives such as "//#if (...)" and "//#endif". These
+    // are not regular throw-away comments; if we lose them when writing the
+    // file back, we break the template. Therefore, comments/trailing commas
+    // are only tolerated when *reading* the file to figure out which
+    // packages to update. The file is never fully re-serialized; instead,
+    // the version strings that changed are patched directly into the
+    // original file text, leaving everything else (comments, formatting,
+    // whitespace) untouched. See ReplaceVersionsInRawJson.
     private static readonly JsonSerializerOptions s_jsonSerializerOptions = new(
         JsonSerializerDefaults.Web
     )
     {
-        WriteIndented = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
+    private static readonly JsonReaderOptions s_jsonReaderOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
     };
 
     private DotnetTools(FileInfo path, IEnumerable<Csproj> affectedCsprojs)
@@ -70,7 +88,9 @@ internal sealed partial class DotnetTools
         ILogger logger
     )
     {
-        var config = JsonSerializer.Deserialize<JsonObject>(await File.ReadAllTextAsync(Path));
+        var rawJson = await File.ReadAllTextAsync(Path);
+
+        var config = JsonSerializer.Deserialize<JsonObject>(rawJson, s_jsonSerializerOptions);
 
         if (config is null)
         {
@@ -85,6 +105,11 @@ internal sealed partial class DotnetTools
         }
 
         var project = new ProjectWithPackages(Path);
+
+        // Version strings that need to be replaced. The file is never fully
+        // re-serialized (that would drop comments/formatting); instead the
+        // exact "version" values are patched into the original text.
+        var replacements = new List<(string PackageId, string OldVersion, string NewVersion)>();
 
         foreach (var element in tools)
         {
@@ -104,94 +129,201 @@ internal sealed partial class DotnetTools
                 continue;
             }
 
-            foreach (var property in toolObject.ToList())
-            {
-                toolObject.Remove(property.Key);
+            var versionProperty = toolObject.FirstOrDefault(property =>
+                property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
+            );
 
+            var rawVersion = versionProperty.Value?.GetValue<string>();
+
+            if (rawVersion is null || !NuGetVersion.TryParse(rawVersion, out var version))
+            {
+                continue;
+            }
+
+            if (!packages.TryGetValue(packageId, out var package))
+            {
+                project.AddUnknownPackage(packageId);
+            }
+            else if (package is not null)
+            {
                 if (
-                    property.Key.Equals("version", StringComparison.OrdinalIgnoreCase)
-                    && NuGetVersion.TryParse(property.Value?.GetValue<string>(), out var version)
+                    package.TryGetLatestComparedTo(
+                        version,
+                        NuGetFramework.AnyFramework,
+                        usePrerelease,
+                        out var updateTo
+                    )
                 )
                 {
-                    if (!packages.TryGetValue(packageId, out var package))
+                    // EF Bodge
+                    if (
+                        packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
+                        && HighestAllowedDotnetEf() is { } highestAllowedDotnetEf
+                        && package.TryGet(highestAllowedDotnetEf, out _)
+                        && highestAllowedDotnetEf <= updateTo.Version
+                    )
                     {
-                        project.AddUnknownPackage(packageId);
+                        updateTo = package.Get(highestAllowedDotnetEf);
                     }
-                    else if (package is not null)
+
+                    // EF Bodge
+                    if (version != updateTo.Version)
                     {
-                        if (
-                            package.TryGetLatestComparedTo(
-                                version,
-                                NuGetFramework.AnyFramework,
-                                usePrerelease,
-                                out var updateTo
-                            )
-                        )
+                        LogUpdateSuccessful(logger, Name, packageId, version, updateTo.Version);
+
+                        project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+
+                        replacements.Add((packageId, rawVersion, updateTo.Version.ToString()));
+                    }
+                }
+                else
+                {
+                    if (package.TryGet(version, out var packageMetadata))
+                    {
+                        if (packageMetadata.DeprecationMetadata is not null)
                         {
-                            // EF Bodge
-                            if (
-                                packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
-                                && HighestAllowedDotnetEf() is { } highestAllowedDotnetEf
-                                && package.TryGet(highestAllowedDotnetEf, out _)
-                                && highestAllowedDotnetEf <= updateTo.Version
-                            )
-                            {
-                                updateTo = package.Get(highestAllowedDotnetEf);
-                            }
-
-                            toolObject.Add(property.Key, updateTo.Version.ToString());
-
-                            // EF Bodge
-                            if (version != updateTo.Version)
-                            {
-                                LogUpdateSuccessful(
-                                    logger,
-                                    Name,
-                                    packageId,
-                                    version,
-                                    updateTo.Version
-                                );
-
-                                project.AddUpdatedPackage(
-                                    new(packageId, version, updateTo.Version)
-                                );
-                            }
+                            project.AddDeprecatedPackage(
+                                new(packageId, version, packageMetadata.DeprecationMetadata)
+                            );
                         }
-                        else
-                        {
-                            if (package.TryGet(version, out var packageMetadata))
-                            {
-                                if (packageMetadata.DeprecationMetadata is not null)
-                                {
-                                    project.AddDeprecatedPackage(
-                                        new(packageId, version, packageMetadata.DeprecationMetadata)
-                                    );
-                                }
 
-                                if (packageMetadata.Vulnerabilities?.Any() == true)
-                                {
-                                    project.AddVulnerablePackage(
-                                        new(packageId, version, packageMetadata.Vulnerabilities)
-                                    );
-                                }
-                            }
+                        if (packageMetadata.Vulnerabilities?.Any() == true)
+                        {
+                            project.AddVulnerablePackage(
+                                new(packageId, version, packageMetadata.Vulnerabilities)
+                            );
                         }
                     }
                 }
-
-                // Add it back if needed
-                toolObject.TryAdd(property.Key, property.Value);
             }
         }
 
-        if (!dryRun && project.UpdatedPackages.Any())
+        if (!dryRun && replacements.Count > 0)
         {
-            var json = JsonSerializer.Serialize(config, s_jsonSerializerOptions);
+            var patchedJson = ReplaceVersionsInRawJson(rawJson, replacements);
 
-            await File.WriteAllTextAsync(Path, json + Environment.NewLine);
+            await File.WriteAllTextAsync(Path, patchedJson);
         }
 
         return project;
+    }
+
+    // Patches only the "version" string values that changed directly into
+    // the original file text, leaving comments (e.g. dotnet template-engine
+    // directives like "//#if"/"//#endif"), formatting and whitespace
+    // untouched. This avoids re-serializing the whole JSON tree, which would
+    // otherwise lose comments since System.Text.Json.Nodes does not preserve
+    // them.
+    private static string ReplaceVersionsInRawJson(
+        string rawJson,
+        List<(string PackageId, string OldVersion, string NewVersion)> replacements
+    )
+    {
+        if (replacements.Count == 0)
+        {
+            return rawJson;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(rawJson);
+        var reader = new Utf8JsonReader(bytes, s_jsonReaderOptions);
+
+        var spans = new List<(long Start, long Length, string NewValue)>();
+
+        // Path of property names for currently open objects/arrays, used to
+        // recognize the "tools" -> "<packageId>" -> "version" shape.
+        var propertyPath = new List<string>();
+        string? pendingPropertyName = null;
+
+        while (reader.Read())
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.PropertyName:
+                    pendingPropertyName = reader.GetString();
+                    break;
+
+                case JsonTokenType.StartObject:
+                case JsonTokenType.StartArray:
+                    propertyPath.Add(pendingPropertyName ?? string.Empty);
+                    pendingPropertyName = null;
+                    break;
+
+                case JsonTokenType.EndObject:
+                case JsonTokenType.EndArray:
+                    if (propertyPath.Count > 0)
+                    {
+                        propertyPath.RemoveAt(propertyPath.Count - 1);
+                    }
+                    break;
+
+                case JsonTokenType.String:
+                    if (
+                        pendingPropertyName is not null
+                        && propertyPath.Count >= 2
+                        && propertyPath[^2].Equals("tools", StringComparison.OrdinalIgnoreCase)
+                        && pendingPropertyName.Equals("version", StringComparison.OrdinalIgnoreCase)
+                    )
+                    {
+                        var packageId = propertyPath[^1];
+                        var value = reader.GetString();
+
+                        foreach (var replacement in replacements)
+                        {
+                            if (
+                                replacement.PackageId.Equals(
+                                    packageId,
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                                && replacement.OldVersion == value
+                            )
+                            {
+                                spans.Add(
+                                    (
+                                        reader.TokenStartIndex,
+                                        Encoding.UTF8.GetByteCount(replacement.OldVersion) + 2,
+                                        replacement.NewVersion
+                                    )
+                                );
+
+                                break;
+                            }
+                        }
+                    }
+
+                    pendingPropertyName = null;
+                    break;
+
+                default:
+                    pendingPropertyName = null;
+                    break;
+            }
+        }
+
+        if (spans.Count == 0)
+        {
+            return rawJson;
+        }
+
+        spans.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+        using var stream = new MemoryStream();
+
+        var cursor = 0L;
+
+        foreach (var (start, length, newValue) in spans)
+        {
+            stream.Write(bytes, (int)cursor, (int)(start - cursor));
+
+            var newValueBytes = Encoding.UTF8.GetBytes($"\"{newValue}\"");
+
+            stream.Write(newValueBytes, 0, newValueBytes.Length);
+
+            cursor = start + length;
+        }
+
+        stream.Write(bytes, (int)cursor, (int)(bytes.Length - cursor));
+
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private List<string> GetPackageIds()
@@ -199,7 +331,7 @@ internal sealed partial class DotnetTools
         var tools = new List<string>();
 
         var json = File.ReadAllText(Path);
-        var foo = JsonSerializer.Deserialize<JsonObject>(json);
+        var foo = JsonSerializer.Deserialize<JsonObject>(json, s_jsonSerializerOptions);
 
         var packageIds = foo
             ?["tools"]?.AsObject()

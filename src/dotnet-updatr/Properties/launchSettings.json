@@ -2,7 +2,7 @@
   "profiles": {
     "WSL": {
       "commandName": "WSL2",
-      "commandLineArgs": "UpdatR.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.sln --verbosity Debug",
+      "commandLineArgs": "UpdatR.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.slnx --verbosity Debug",
       "distributionName": "Ubuntu"
     },
     "UpdatR.Cli --help": {
@@ -12,7 +12,7 @@
     "UpdatR.Cli": {
       "commandName": "Project",
       "commandLineArgs": "--dry-run",
-      "workingDirectory": "C:\\_repos\\OskarKlintrot\\UpdatR\\tools\\Build"
+      "workingDirectory": "C:\\repos\\eparkering-other\\Shared"
     }
   }
 }

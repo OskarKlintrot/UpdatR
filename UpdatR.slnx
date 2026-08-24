@@ -1,0 +1,49 @@
+<Solution>
+  <Folder Name="/.Build/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="src/Build/nuget.props" />
+    <Project Path="tools/Build/Build.csproj" />
+  </Folder>
+  <Folder Name="/.Build/gh-workflows/">
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".github/workflows/post-release.yml" />
+    <File Path=".github/workflows/push.yml" />
+    <File Path=".github/workflows/release.yml" />
+    <File Path=".github/workflows/update-docs.yml" />
+    <File Path=".github/workflows/update.yml" />
+  </Folder>
+  <Folder Name="/.Build/Packages/" />
+  <Folder Name="/.Build/Packages/docs/">
+    <File Path="mdsource/README.source.md" />
+  </Folder>
+  <Folder Name="/.Build/Packages/images/">
+    <File Path="src/Build/icon.png" />
+  </Folder>
+  <Folder Name="/.Docs/">
+    <File Path="mdsnippets.json" />
+    <File Path="src/Build/docs/release-notes.txt" />
+    <Project Path="docs/UpdatR.SampleApp/UpdatR.SampleApp.csproj" />
+  </Folder>
+  <Folder Name="/.Docs/mdsource/">
+    <File Path="mdsource/cli-readme.include.md" />
+    <File Path="mdsource/cli-usage.txt" />
+    <File Path="mdsource/footer.include.md" />
+    <File Path="mdsource/header.include.md" />
+    <File Path="mdsource/README.source.md" />
+    <File Path="mdsource/sdk-readme.include.md" />
+  </Folder>
+  <Folder Name="/.Shared/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.shproj" />
+  </Folder>
+  <Folder Name="/.Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/UpdatR.E2eTests/UpdatR.E2eTests.csproj" />
+    <Project Path="tests/UpdatR.IntegrationTests/UpdatR.IntegrationTests.csproj" />
+    <Project Path="tests/UpdatR.UnitTests/UpdatR.UnitTests.csproj" />
+  </Folder>
+  <Project Path="src/dotnet-updatr/dotnet-updatr.csproj" />
+  <Project Path="src/UpdatR/UpdatR.csproj" />
+</Solution>

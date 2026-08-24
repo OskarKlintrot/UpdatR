@@ -3,13 +3,13 @@
   "isRoot": true,
   "tools": {
     "dotnet-updatr": {
-      "version": "4.0.0",
+      "version": "4.0.2",
       "commands": [
         "update"
       ]
     },
     "markdownsnippets.tool": {
-      "version": "27.0.2",
+      "version": "28.4.2",
       "commands": [
         "mdsnippets"
       ]

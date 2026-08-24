@@ -210,6 +210,50 @@ public class UpdaterTests
     }
 
     [Fact]
+    public async Task Given_DotnetToolsHasTemplateComments_When_Update_Then_PreserveComments()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DotnetToolsHasTemplateComments_When_Update_Then_PreserveComments)
+        );
+        var tempDotnetConfig = Path.Combine(temp, ".config", "dotnet-tools.json");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var original = await CreateToolsConfigWithCommentsAsync(
+            path: tempDotnetConfig,
+            packageId: "Dummy.Tool",
+            version: "0.0.1",
+            command: "dummy"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempDotnetConfig);
+
+        // Assert
+        var updated = await File.ReadAllTextAsync(tempDotnetConfig);
+
+        Assert.Contains("//#if (mode != \"proxy\")", updated, StringComparison.Ordinal);
+        Assert.Contains("//#endif", updated, StringComparison.Ordinal);
+
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return original;
+            yield return updated;
+        }
+    }
+
+    [Fact]
     public async Task Given_Target_When_DryRun_Then_DoNothing()
     {
         // Arrange

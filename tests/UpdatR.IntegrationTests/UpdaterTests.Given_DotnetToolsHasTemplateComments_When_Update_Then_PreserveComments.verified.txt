@@ -1,0 +1,46 @@
+﻿[
+  [
+    {
+      PackageId: Dummy.Tool,
+      Updates: [
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: dotnet-tools.json
+        }
+      ]
+    }
+  ]
+  
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+//#if (mode != "proxy")
+    "Dummy.Tool": {
+      "version": "0.0.1",
+      "commands": [
+        "dummy"
+      ]
+    }
+//#endif
+  }
+}
+
+  
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+//#if (mode != "proxy")
+    "Dummy.Tool": {
+      "version": "0.0.2",
+      "commands": [
+        "dummy"
+      ]
+    }
+//#endif
+  }
+}
+
+]
