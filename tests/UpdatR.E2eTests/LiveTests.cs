@@ -66,12 +66,29 @@ public sealed class LiveTests : IDisposable
 
         var cli = Path.Combine(cliProjectPath, "bin", "Release", "net10.0", "dotnet-updatr.dll");
 
-        await RunAsync(
+        if (!File.Exists(cli))
+        {
+            throw new InvalidOperationException($"Could not find CLI assembly at {cli}.");
+        }
+
+        var (stdOutput, stdError) = await ReadAsync(
             "dotnet",
             $"exec {cli} --output {log} --title {title} --description {description}",
             workingDirectory: dummyProject,
             cancellationToken: TestContext.Current.CancellationToken
         );
+
+        Console.WriteLine("CLI stdout:");
+        Console.WriteLine(stdOutput);
+        Console.WriteLine("CLI stderr:");
+        Console.WriteLine(stdError);
+
+        if (!File.Exists(log))
+        {
+            throw new InvalidOperationException(
+                $"CLI did not produce {log}. Stdout: {stdOutput} Stderr: {stdError}"
+            );
+        }
 
         await Verify(GetVerifyObjects());
 
