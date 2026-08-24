@@ -10,9 +10,8 @@
         }
       ]
     }
-  ]
-  
-{
+  ],
+  {
   "version": 1,
   "isRoot": true,
   "tools": {
@@ -26,9 +25,8 @@
 //#endif
   }
 }
-
-  
-{
+,
+  {
   "version": 1,
   "isRoot": true,
   "tools": {

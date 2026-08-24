@@ -238,7 +238,10 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(tempDotnetConfig);
 
         // Assert
-        var updated = await File.ReadAllTextAsync(tempDotnetConfig);
+        var updated = await File.ReadAllTextAsync(
+            tempDotnetConfig,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Contains("//#if (mode != \"proxy\")", updated, StringComparison.Ordinal);
         Assert.Contains("//#endif", updated, StringComparison.Ordinal);
@@ -289,7 +292,10 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(target, dryRun: true);
 
         // Assert
-        Assert.Equal(slnOriginal, await File.ReadAllTextAsync(tempSln));
+        Assert.Equal(
+            slnOriginal,
+            await File.ReadAllTextAsync(tempSln, TestContext.Current.CancellationToken)
+        );
         await Verify(GetVerifyObjects());
 
         async IAsyncEnumerable<object> GetVerifyObjects()
@@ -346,7 +352,10 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(target);
 
         // Assert
-        Assert.Equal(slnOriginal, await File.ReadAllTextAsync(tempSln));
+        Assert.Equal(
+            slnOriginal,
+            await File.ReadAllTextAsync(tempSln, TestContext.Current.CancellationToken)
+        );
         await Verify(GetVerifyObjects()).UseParameters(string.Join('/', paths));
 
         async IAsyncEnumerable<object> GetVerifyObjects()
@@ -547,7 +556,10 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(Path.Combine(temp, target));
 
         // Assert
-        Assert.Equal(slnOriginal, await File.ReadAllTextAsync(tempSln));
+        Assert.Equal(
+            slnOriginal,
+            await File.ReadAllTextAsync(tempSln, TestContext.Current.CancellationToken)
+        );
         await Verify(GetVerifyObjects()).UseParameters(target);
 
         async IAsyncEnumerable<object> GetVerifyObjects()
@@ -754,7 +766,10 @@ public class UpdaterTests
         var summary = await update.UpdateAsync(target);
 
         // Assert
-        Assert.Equal(slnOriginal, await File.ReadAllTextAsync(tempSln));
+        Assert.Equal(
+            slnOriginal,
+            await File.ReadAllTextAsync(tempSln, TestContext.Current.CancellationToken)
+        );
         await Verify(GetVerifyObjects()).UseParameters(targetPath);
 
         async IAsyncEnumerable<object> GetVerifyObjects()

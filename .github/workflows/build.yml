@@ -23,6 +23,14 @@ jobs:
         dotnet-version: |
           6.x.x
           8.x.x
+          10.x.x
     - name: Run tests
       run: dotnet run -- test --parallel
       working-directory: tools/Build
+    - name: Upload code coverage
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage
+        path: Artifacts/coverage/**/*.cobertura.xml
+        if-no-files-found: warn

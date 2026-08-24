@@ -1,4 +1,4 @@
-﻿## Vulnerable packages
+## Vulnerable packages
 
 ### Vulnerable.Package
 Version 1.2.3 with severity 1: https://google.com/

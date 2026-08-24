@@ -17,7 +17,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.x.x
+        dotnet-version: 10.x.x
     - name: Clean up after release
       run: dotnet run -- post-release --parallel
       working-directory: tools/Build

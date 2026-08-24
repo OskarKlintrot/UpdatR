@@ -1,4 +1,4 @@
-﻿using Xunit.Abstractions;
+﻿using Xunit;
 using static SimpleExec.Command;
 
 namespace UpdatR.E2e;
@@ -59,16 +59,18 @@ public sealed class LiveTests : IDisposable
             await RunAsync(
                 "dotnet",
                 "build --configuration Release",
-                workingDirectory: cliProjectPath
+                workingDirectory: cliProjectPath,
+                cancellationToken: TestContext.Current.CancellationToken
             );
         }
 
-        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net6.0", "dotnet-updatr.dll");
+        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net10.0", "dotnet-updatr.dll");
 
         await RunAsync(
             "dotnet",
             $"exec {cli} --output {log} --title {title} --description {description}",
-            workingDirectory: dummyProject
+            workingDirectory: dummyProject,
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         await Verify(GetVerifyObjects());

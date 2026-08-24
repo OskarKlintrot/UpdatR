@@ -16,7 +16,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.x.x
+        dotnet-version: 10.x.x
     - name: Push NuGet Packages
       run: dotnet run -- push --parallel
       working-directory: tools/Build

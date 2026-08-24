@@ -10,9 +10,8 @@
         }
       ]
     }
-  ]
-  
-<?xml version="1.0" encoding="utf-8"?>
+  ],
+  <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -24,9 +23,8 @@
     <PackageReference Include="Dummy.Tool" Version="0.0.1" />
     <PackageReference Include="Has.Previews" Version="0.0.1" />
   </ItemGroup>
-</Project>
-  
-<?xml version="1.0" encoding="utf-8"?>
+</Project>,
+  <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>

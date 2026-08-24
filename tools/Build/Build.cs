@@ -188,7 +188,7 @@ Target(
 
         await RunAsync("dotnet", $"build \"{solutionFile}\"");
 
-        var cli = Path.Combine(srcDir, "dotnet-updatr", "bin", "Debug", "net6.0");
+        var cli = Path.Combine(srcDir, "dotnet-updatr", "bin", "Debug", "net10.0");
 
         var (helpDescription, _) = await ReadAsync(
             "dotnet",
@@ -344,7 +344,13 @@ Target(
     dependsOn: ["pack", "reset-generated-docs"],
     () =>
     {
-        Run("dotnet", $"test --configuration Release --no-build \"{solutionFile}\"");
+        var coverageDir = Path.Combine(artifactsDir, "coverage");
+
+        Run(
+            "dotnet",
+            $"test --configuration Release --no-build \"{solutionFile}\" "
+                + $"-- --coverage --coverage-output-format cobertura --results-directory \"{coverageDir}\""
+        );
     }
 );
 
