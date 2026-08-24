@@ -15,6 +15,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
@@ -27,10 +32,23 @@ jobs:
     - name: Run tests
       run: dotnet run -- test --parallel
       working-directory: tools/Build
-    - name: Upload code coverage
+    - name: Upload code coverage (artifact)
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: code-coverage
         path: Artifacts/coverage/**/*.cobertura.xml
         if-no-files-found: warn
+    - name: Merge coverage reports
+      if: always()
+      run: |
+        dotnet tool install -g dotnet-reportgenerator-globaltool
+        reportgenerator "-reports:Artifacts/coverage/**/*.cobertura.xml" "-targetdir:Artifacts/coverage/merged" "-reporttypes:Cobertura"
+    - name: Upload code coverage (GitHub)
+      if: always()
+      uses: actions/upload-code-coverage@v1
+      with:
+        file: Artifacts/coverage/merged/Cobertura.xml
+        language: C#
+        label: code-coverage/updatr
+        fail-on-error: false
