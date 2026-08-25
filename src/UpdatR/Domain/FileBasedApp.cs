@@ -11,6 +11,7 @@ namespace UpdatR.Domain;
 /// A file-based app, i.e. a single .cs file without a corresponding .csproj, using
 /// `#:package` directives to reference NuGet packages.
 /// </summary>
+/// <seealso href="https://learn.microsoft.com/en-us/dotnet/core/sdk/file-based-apps">File-based apps</seealso>
 internal sealed partial class FileBasedApp
 {
     [GeneratedRegex(
@@ -82,6 +83,13 @@ internal sealed partial class FileBasedApp
     /// <summary>
     /// Checks if <paramref name="path"/> is a .cs file containing at least one `#:package` directive.
     /// </summary>
+    /// <remarks>
+    /// The whole file is scanned to be certain no `#:package` directive is missed. Directives are
+    /// expected near the top of the file, but nothing prevents a file from having e.g. leading
+    /// comments or blank lines before them.
+    /// See <see href="https://learn.microsoft.com/en-us/dotnet/core/sdk/file-based-apps">
+    /// File-based apps</see> for the directive rules this class relies on.
+    /// </remarks>
     public static bool IsFileBasedApp(string path) =>
         path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
         && File.Exists(path)

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env dotnet
+#!/usr/bin/env dotnet
 #:package Bullseye@6.1.0
 #:package Microsoft.Extensions.Configuration.UserSecrets@10.0.11
 #:package Microsoft.Extensions.Logging.Console@10.0.11

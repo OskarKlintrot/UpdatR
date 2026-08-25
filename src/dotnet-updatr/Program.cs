@@ -39,7 +39,7 @@ internal static partial class Program
         var outputOption = new Option<string?>("--output")
         {
             Description =
-                "Writes the summary to a file. If a directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown or \".txt\" for plain text.",
+                "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown or \".txt\" for plain text.",
         };
 
         var titleOption = new Option<string?>("--title") { Description = "Outputs title to path." };
