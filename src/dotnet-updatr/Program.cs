@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using System.Globalization;
+﻿using System.CommandLine;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BuildingBlocks;
 using Markdig;
@@ -13,24 +13,108 @@ internal static partial class Program
 {
     private static ILogger _logger = null!;
 
-    /// <summary>
-    /// Update all packages in solution or project(s).
-    /// </summary>
-    /// <param name="args">Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dotnet-config.json-files will be processed.</param>
-    /// <param name="package">Package to update. Supports * as wildcard. Will update all unless specified.</param>
-    /// <param name="excludePackage">Package to exclude. Supports * as wildcard.</param>
-    /// <param name="output">Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.</param>
-    /// <param name="title">Outputs title to path.</param>
-    /// <param name="description">Outputs description to path.</param>
-    /// <param name="verbosity">Log level.</param>
-    /// <param name="dryRun">Do not save any changes.</param>
-    /// <param name="prerelease">Allow prerelease packages to be installed.</param>
-    /// <param name="browser">Open summary in browser.</param>
-    /// <param name="interactive">Interaction with user is possible.</param>
-    /// <param name="tfm">Lowest TFM to support.</param>
-    /// <returns></returns>
+    internal static Task<int> Main(string[] args)
+    {
+        var pathArgument = new Argument<string>("args")
+        {
+            Description =
+                "Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dotnet-config.json-files will be processed.",
+            DefaultValueFactory = _ => ".",
+        };
+
+        var packageOption = new Option<string[]>("--package")
+        {
+            Description =
+                "Package to update. Supports * as wildcard. Will update all unless specified.",
+            DefaultValueFactory = _ => [],
+        };
+
+        var excludePackageOption = new Option<string[]>("--exclude-package")
+        {
+            Description = "Package to exclude. Supports * as wildcard.",
+            DefaultValueFactory = _ => [],
+        };
+
+        var outputOption = new Option<string?>("--output")
+        {
+            Description =
+                "Defaults to \"output.md\". Explicitly set to fileName.txt to generate plain text instead of markdown.",
+        };
+
+        var titleOption = new Option<string?>("--title") { Description = "Outputs title to path." };
+
+        var descriptionOption = new Option<string?>("--description")
+        {
+            Description = "Outputs description to path.",
+        };
+
+        var verbosityOption = new Option<LogLevel>("--verbosity")
+        {
+            Description = "Log level.",
+            DefaultValueFactory = _ => LogLevel.Warning,
+        };
+
+        var dryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Do not save any changes.",
+        };
+
+        var prereleaseOption = new Option<bool>("--prerelease")
+        {
+            Description = "Allow prerelease packages to be installed.",
+        };
+
+        var browserOption = new Option<bool>("--browser")
+        {
+            Description = "Open summary in browser.",
+        };
+
+        var interactiveOption = new Option<bool>("--interactive")
+        {
+            Description = "Interaction with user is possible.",
+        };
+
+        var tfmOption = new Option<string?>("--tfm") { Description = "Lowest TFM to support." };
+
+        var rootCommand = new RootCommand("Update all packages in solution or project(s).")
+        {
+            pathArgument,
+            packageOption,
+            excludePackageOption,
+            outputOption,
+            titleOption,
+            descriptionOption,
+            verbosityOption,
+            dryRunOption,
+            prereleaseOption,
+            browserOption,
+            interactiveOption,
+            tfmOption,
+        };
+
+        rootCommand.SetAction(
+            (parseResult, cancellationToken) =>
+                RunAsync(
+                    args: parseResult.GetValue(pathArgument) ?? ".",
+                    package: parseResult.GetValue(packageOption),
+                    excludePackage: parseResult.GetValue(excludePackageOption),
+                    output: parseResult.GetValue(outputOption),
+                    title: parseResult.GetValue(titleOption),
+                    description: parseResult.GetValue(descriptionOption),
+                    verbosity: parseResult.GetValue(verbosityOption),
+                    dryRun: parseResult.GetValue(dryRunOption),
+                    prerelease: parseResult.GetValue(prereleaseOption),
+                    browser: parseResult.GetValue(browserOption),
+                    interactive: parseResult.GetValue(interactiveOption),
+                    tfm: parseResult.GetValue(tfmOption)
+                )
+        );
+
+        return rootCommand.Parse(args).InvokeAsync();
+    }
+
     /// <exception cref="ArgumentException"></exception>
-    internal static async Task Main(
+    private static async Task<int> RunAsync(
         string? args = ".",
         string[]? package = null,
         string[]? excludePackage = null,
@@ -188,6 +272,8 @@ internal static partial class Program
         }
 
         LogFinished(_logger, sw.Elapsed);
+
+        return 0;
     }
 
     private static void WriteSummaryToConsole(string summary)
