@@ -3,7 +3,7 @@
 internal static class Paths
 {
     public static string Packages =>
-        Path.Combine(Directory.GetCurrentDirectory(), "Resources", "Packages");
+        Path.Combine(AppContext.BaseDirectory, "Resources", "Packages");
 
     public static class Temporary
     {

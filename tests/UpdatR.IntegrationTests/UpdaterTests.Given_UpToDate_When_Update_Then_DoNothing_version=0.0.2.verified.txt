@@ -1,7 +1,6 @@
 ﻿[
-  []
-  
-<?xml version="1.0" encoding="utf-8"?>
+  [],
+  <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -12,9 +11,8 @@
   <ItemGroup>
     <PackageReference Include="Dummy" Version="0.0.2" />
   </ItemGroup>
-</Project>
-  
-<?xml version="1.0" encoding="utf-8"?>
+</Project>,
+  <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>

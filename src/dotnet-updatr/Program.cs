@@ -45,6 +45,25 @@ internal static partial class Program
         string? tfm = null
     )
     {
+        var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            File.AppendAllText(
+                crashLog,
+                $"{DateTime.UtcNow:o}: Unhandled: {e.ExceptionObject}{Environment.NewLine}"
+            );
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            File.AppendAllText(
+                crashLog,
+                $"{DateTime.UtcNow:o}: Unobserved: {e.Exception}{Environment.NewLine}"
+            );
+            e.SetObserved();
+        };
+
         var sw = Stopwatch.StartNew();
 
         var services = new ServiceCollection()
@@ -168,7 +187,7 @@ internal static partial class Program
             }
         }
 
-        LogFinished(_logger, sw.Elapsed.ToString("hh\\:mm\\:ss\\.fff", new CultureInfo("en-US")));
+        LogFinished(_logger, sw.Elapsed);
     }
 
     private static void WriteSummaryToConsole(string summary)
@@ -206,6 +225,9 @@ internal static partial class Program
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Finished after {ElapsedTime}.")]
-    static partial void LogFinished(ILogger logger, string elapsedTime);
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Finished after {ElapsedTime:hh:mm:ss.fff}."
+    )]
+    static partial void LogFinished(ILogger logger, TimeSpan elapsedTime);
 }

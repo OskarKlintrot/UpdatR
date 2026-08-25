@@ -1,4 +1,4 @@
-﻿1 package(s) were updated in 2 projects:
+1 package(s) were updated in 2 projects:
 
 | Updated.Package |
 

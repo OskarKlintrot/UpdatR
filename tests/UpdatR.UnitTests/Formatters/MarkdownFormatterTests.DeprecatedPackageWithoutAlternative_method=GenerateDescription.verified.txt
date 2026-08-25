@@ -1,4 +1,4 @@
-﻿## Deprecated packages
+## Deprecated packages
 
 ### Deprecated.Package
 > Old and deprecated package.

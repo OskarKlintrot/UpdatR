@@ -47,7 +47,7 @@ var artifactsDir = Path.GetFullPath("Artifacts");
 var logsDir = Path.Combine(artifactsDir, "logs");
 var buildLogFile = Path.Combine(logsDir, "build.binlog");
 
-var solutionFile = Path.Combine(rootDir.FullName, "UpdatR.sln");
+var solutionFile = Path.Combine(rootDir.FullName, "UpdatR.slnx");
 var srcDir = Path.Combine(rootDir.FullName, "src");
 var releaseNotes = Path.Combine(srcDir, "Build", "docs", "release-notes.txt");
 
@@ -70,7 +70,7 @@ Target(
 
 Target(
     "update-packages",
-    DependsOn("restore-tools"),
+    dependsOn: ["restore-tools"],
     () =>
     {
         Run(
@@ -83,7 +83,7 @@ Target(
 
 Target(
     "create-update-pr",
-    DependsOn("update-packages"),
+    dependsOn: ["update-packages"],
     async () =>
     {
         var title = File.ReadAllText(Path.Combine(Path.GetTempPath(), "title.md"));
@@ -162,7 +162,7 @@ Target(
 
 Target(
     "generate-docs",
-    DependsOn("restore-tools"),
+    dependsOn: ["restore-tools"],
     async () =>
     {
         var (version, _) = await GetVersionAndTagAsync();
@@ -188,7 +188,7 @@ Target(
 
         await RunAsync("dotnet", $"build \"{solutionFile}\"");
 
-        var cli = Path.Combine(srcDir, "dotnet-updatr", "bin", "Debug", "net6.0");
+        var cli = Path.Combine(srcDir, "dotnet-updatr", "bin", "Debug", "net10.0");
 
         var (helpDescription, _) = await ReadAsync(
             "dotnet",
@@ -290,7 +290,7 @@ Target(
 
 Target(
     "pack",
-    DependsOn("artifactDirectories", "generate-docs"),
+    dependsOn: ["artifactDirectories", "generate-docs"],
     async () =>
     {
         var (version, _) = await GetVersionAndTagAsync();
@@ -304,7 +304,7 @@ Target(
 
 Target(
     "reset-generated-docs",
-    DependsOn("pack"),
+    dependsOn: ["pack"],
     () =>
     {
         var packages = GetPackagesInSrc();
@@ -341,16 +341,22 @@ Target(
 
 Target(
     "test",
-    DependsOn("pack", "reset-generated-docs"),
+    dependsOn: ["pack", "reset-generated-docs"],
     () =>
     {
-        Run("dotnet", $"test --configuration Release --no-build \"{solutionFile}\"");
+        var coverageDir = Path.Combine(artifactsDir, "coverage");
+
+        Run(
+            "dotnet",
+            $"test --configuration Release --no-build \"{solutionFile}\" "
+                + $"-- --coverage --coverage-output-format cobertura --results-directory \"{coverageDir}\""
+        );
     }
 );
 
 Target(
     "push",
-    DependsOn("test"),
+    dependsOn: ["test"],
     async () =>
     {
         var accessToken = Environment.GetEnvironmentVariable("API_ACCESS_TOKEN");
@@ -378,7 +384,7 @@ Target(
 
         var packages = Directory.EnumerateFiles(artifactsDir, "*.nupkg").ToList();
 
-        await packageUpdateResource.Push(
+        await packageUpdateResource!.Push(
             packages,
             symbolSource: null,
             timeoutInSecond: 60,
@@ -395,7 +401,7 @@ Target(
 
 Target(
     "create-release",
-    DependsOn("test"),
+    dependsOn: ["test"],
     async () =>
     {
         var githubToken = GetToken();
@@ -424,7 +430,7 @@ Target(
             return;
         }
 
-        await File.WriteAllTextAsync(releaseNotes, null);
+        await File.WriteAllTextAsync(releaseNotes, (string?)null);
 
         var (message, _) = await ReadAsync("git", "status");
 
@@ -454,7 +460,7 @@ Target(
 
 Target(
     "update-README",
-    DependsOn("generate-docs"),
+    dependsOn: ["generate-docs"],
     async () =>
     {
         var (message, _) = await ReadAsync("git", "status README.md");
@@ -482,8 +488,8 @@ Target(
     }
 );
 
-Target("post-release", DependsOn("restore-release-notes-txt"));
-Target("default", DependsOn("test", "restore-tools"));
+Target("post-release", dependsOn: ["restore-release-notes-txt"]);
+Target("default", dependsOn: ["test", "restore-tools"]);
 
 await RunTargetsAndExitAsync(args);
 

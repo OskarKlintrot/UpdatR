@@ -170,6 +170,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             foreach (
                 var repo in sourceRepositoryProvider
                     .GetRepositories()
+                    .Where(x => x.PackageSource.IsEnabled)
                     .Where(x => !unauthorizedSources.ContainsKey(x.PackageSource.Name))
             )
             {
@@ -184,7 +185,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                             continue;
                         }
 
-                        var packageMetadataResource = repo.GetResource<PackageMetadataResource>();
+                        var packageMetadataResource = repo.GetResource<PackageMetadataResource>()!;
 
                         var searchMetadata = await packageMetadataResource.GetMetadataAsync(
                             packageId,
@@ -208,8 +209,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                                         y.DeprecationMetadata.AlternatePackage is null
                                             ? null
                                             : new(
-                                                y.DeprecationMetadata.AlternatePackage.PackageId,
-                                                y.DeprecationMetadata.AlternatePackage.Range
+                                                y.DeprecationMetadata.AlternatePackage.PackageId!,
+                                                y.DeprecationMetadata.AlternatePackage.Range!
                                             )
                                     )
                                     : null,
@@ -264,17 +265,19 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
                     continue;
                 }
+                catch (Exception)
+                {
+                    throw;
+                }
             }
         }
 
         return (packageSearchMetadata, unauthorizedSources);
     }
 
-#pragma warning disable CA1822 // Mark members as static
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to get package metadata from {Name} ({Source})"
     )]
     partial void LogSourceFailure(string name, string source);
-#pragma warning restore CA1822 // Mark members as static
 }

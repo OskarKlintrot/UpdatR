@@ -16,7 +16,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.x.x
+        dotnet-version: 10.x.x
     - name: Update README
       run: dotnet run -- update-README --parallel
       working-directory: tools/Build

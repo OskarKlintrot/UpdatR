@@ -1,4 +1,4 @@
-﻿## Vulnerable packages
+## Vulnerable packages
 
 ### Vulnerable.Package
 

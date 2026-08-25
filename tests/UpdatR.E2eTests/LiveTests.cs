@@ -1,4 +1,4 @@
-﻿using Xunit.Abstractions;
+﻿using Xunit;
 using static SimpleExec.Command;
 
 namespace UpdatR.E2e;
@@ -59,17 +59,41 @@ public sealed class LiveTests : IDisposable
             await RunAsync(
                 "dotnet",
                 "build --configuration Release",
-                workingDirectory: cliProjectPath
+                workingDirectory: cliProjectPath,
+                cancellationToken: TestContext.Current.CancellationToken
             );
         }
 
-        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net6.0", "dotnet-updatr.dll");
+        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net10.0", "dotnet-updatr.dll");
 
-        await RunAsync(
+        if (!File.Exists(cli))
+        {
+            throw new InvalidOperationException($"Could not find CLI assembly at {cli}.");
+        }
+
+        var (stdOutput, stdError) = await ReadAsync(
             "dotnet",
             $"exec {cli} --output {log} --title {title} --description {description}",
-            workingDirectory: dummyProject
+            workingDirectory: dummyProject,
+            cancellationToken: TestContext.Current.CancellationToken
         );
+
+        Console.WriteLine("CLI stdout:");
+        Console.WriteLine(stdOutput);
+        Console.WriteLine("CLI stderr:");
+        Console.WriteLine(stdError);
+
+        if (!File.Exists(log))
+        {
+            var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
+            var crashLogContent = File.Exists(crashLog)
+                ? await File.ReadAllTextAsync(crashLog, TestContext.Current.CancellationToken)
+                : "(no crash log found)";
+
+            throw new InvalidOperationException(
+                $"CLI did not produce {log}. Stdout: {stdOutput} Stderr: {stdError} Crash log: {crashLogContent}"
+            );
+        }
 
         await Verify(GetVerifyObjects());
 

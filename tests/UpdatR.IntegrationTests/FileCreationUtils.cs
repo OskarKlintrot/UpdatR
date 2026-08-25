@@ -45,6 +45,27 @@ internal static class FileCreationUtils
         return await File.ReadAllTextAsync(path)!;
     }
 
+    public static async Task<string> CreateToolsConfigWithCommentsAsync(
+        string path,
+        string packageId,
+        string version,
+        string command
+    )
+    {
+        var content = GetResource(
+            "UpdatR.IntegrationTests.Resources.Templates..config.dotnet-tools-with-comments.json"
+        );
+
+        content = content
+            .Replace("<PACKAGEID>", packageId)
+            .Replace("<VERSION>", version)
+            .Replace("<COMMAND>", command);
+
+        await File.WriteAllTextAsync(path, content);
+
+        return await File.ReadAllTextAsync(path)!;
+    }
+
     // TODO: Generate json on-the-fly instead
     public static async Task<string> CreateToolsConfigAsync(
         string path,

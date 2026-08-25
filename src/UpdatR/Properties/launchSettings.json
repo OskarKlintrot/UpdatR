@@ -6,7 +6,7 @@
     "WSL": {
       "commandName": "WSL2",
       "environmentVariables": {},
-      "commandLineArgs": "UpdatR.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.sln --verbosity Debug",
+      "commandLineArgs": "UpdatR.Cli.dll --path /mnt/c/repos/UpdatR/UpdatR.slnx --verbosity Debug",
       "distributionName": "Ubuntu"
     }
   }
