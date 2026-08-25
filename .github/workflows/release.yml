@@ -18,7 +18,7 @@ jobs:
       with:
         dotnet-version: 10.x.x
     - name: Create GitHub Release
-      run: dotnet run -- create-release --parallel
+      run: dotnet run Build.cs -- create-release --parallel
       working-directory: tools/Build
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -18,5 +18,5 @@ jobs:
       with:
         dotnet-version: 10.x.x
     - name: Update README
-      run: dotnet run -- update-README --parallel
+      run: dotnet run Build.cs -- update-README --parallel
       working-directory: tools/Build

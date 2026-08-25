@@ -1,0 +1,12 @@
+﻿[
+  {
+    PackageId: Dummy,
+    Updates: [
+      {
+        Item1: 0.0.1,
+        Item2: 0.0.2,
+        Item3: Build.cs
+      }
+    ]
+  }
+]

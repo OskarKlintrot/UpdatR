@@ -14,7 +14,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 [![Latest Nuget Version](https://badgen.net/nuget/v/dotnet-updatr/latest)](https://www.nuget.org/packages/dotnet-updatr/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/dotnet-updatr)](https://www.nuget.org/packages/dotnet-updatr/)
 
-Dotnet tool for updating package reference and dotnet-tools.json.
+Dotnet tool for updating package reference, dotnet-tools.json and `#:package` directives in file-based apps.
 
 The tool will try to stick to package versions that is supported by the projects target framework moniker. If a package supports both .NETStandard and .NET, the compatibility with .NETStandard will be ignored if the project is targeting .NET. This is to avoid false positives where a package technically supports a TFM but in reality never have been tested against the TFM.
 
@@ -28,19 +28,19 @@ See [UpdatR](#updatr) for SDK.
 
 ### Basic Usage
 
-To update all `*.csproj` and `dotnet-tools.json` recursively:
+To update all `*.csproj` files, `dotnet-tools.json` files and file-based apps (`.cs` files with `#:package` directives) recursively:
 
 ```
 > update
 ```
 
-If you only want to update the `*.csproj` and `dotnet-tools.json` that is part of a solution you can specify the solution directly:
+If you only want to update the `*.csproj` files, `dotnet-tools.json` files and file-based apps that is part of a solution you can specify the solution directly:
 
 ```
 > update path/to/solution.sln
 ```
 
-You can also update a single `*.csproj` or `dotnet-config.json`:
+You can also update a single `*.csproj`, `dotnet-tools.json` or file-based app:
 
 ```
 > update path/to/example.csproj
@@ -108,12 +108,12 @@ Usage:
   update [<args>] [options]
 
 Arguments:
-  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dotnet-config.json-files will be processed. [default: .]
+  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files, dotnet-tools.json-files and file-based apps will be processed. [default: .]
 
 Options:
   --package <package>                                                Package to update. Supports * as wildcard. Will update all unless specified.
   --exclude-package <exclude-package>                                Package to exclude. Supports * as wildcard.
-  --output <output>                                                  Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.
+  --output <output>                                                  Writes the summary to a file. If an existing directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown or ".txt" for plain text.
   --title <title>                                                    Outputs title to path.
   --description <description>                                        Outputs description to path.
   --verbosity <Critical|Debug|Error|Information|None|Trace|Warning>  Log level. [default: Warning]
@@ -133,7 +133,7 @@ Options:
 [![Latest Nuget Version](https://badgen.net/nuget/v/UpdatR/latest)](https://www.nuget.org/packages/UpdatR/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR)](https://www.nuget.org/packages/UpdatR/)
 
-NuGet package to programmatically update package reference and dotnet-tools.json.
+NuGet package to programmatically update package reference, dotnet-tools.json and `#:package` directives in file-based apps.
 
 The tool will try to stick to package versions that is supported by the projects target framework moniker. If a package supports both .NETStandard and .NET, the compatibility with .NETStandard will be ignored if the project is targeting .NET. This is to avoid false positives where a package technically supports a TFM but in reality never have been tested against the TFM.
 

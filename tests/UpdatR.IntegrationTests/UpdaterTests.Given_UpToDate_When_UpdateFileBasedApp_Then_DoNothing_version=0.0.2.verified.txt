@@ -1,0 +1,15 @@
+﻿[
+  [],
+  #!/usr/bin/env dotnet
+#:package Dummy@0.0.2
+#:property TargetFramework=net10.0
+
+Console.WriteLine("Hello, world!");
+,
+  #!/usr/bin/env dotnet
+#:package Dummy@0.0.2
+#:property TargetFramework=net10.0
+
+Console.WriteLine("Hello, world!");
+
+]

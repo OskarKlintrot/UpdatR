@@ -3,7 +3,8 @@
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
     <File Path="src/Build/nuget.props" />
-    <Project Path="tools/Build/Build.csproj" />
+    <File Path="tools/Build/Build.cs" />
+    <File Path="tools/Build/.config/dotnet-tools.json" />
   </Folder>
   <Folder Name="/.Build/gh-workflows/">
     <File Path=".github/workflows/build.yml" />

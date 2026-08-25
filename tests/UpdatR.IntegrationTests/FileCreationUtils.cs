@@ -171,6 +171,38 @@ internal static class FileCreationUtils
         return await File.ReadAllTextAsync(path)!;
     }
 
+    public static async Task<string> CreateTempFileBasedAppAsync(
+        string path,
+        string tfm = "net10.0",
+        params KeyValuePair<string, string>[] packages
+    )
+    {
+        var content = new System.Text.StringBuilder();
+
+        content.AppendLine("#!/usr/bin/env dotnet");
+
+        foreach (var package in packages)
+        {
+            content.AppendLine(
+                System.Globalization.CultureInfo.InvariantCulture,
+                $"#:package {package.Key}@{package.Value}"
+            );
+        }
+
+        content.AppendLine(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"#:property TargetFramework={tfm}"
+        );
+        content.AppendLine();
+        content.AppendLine("Console.WriteLine(\"Hello, world!\");");
+
+        Directory.CreateDirectory(new FileInfo(path).DirectoryName!);
+
+        await File.WriteAllTextAsync(path, content.ToString());
+
+        return await File.ReadAllTextAsync(path)!;
+    }
+
     private static string GetResource(string resourceName)
     {
         using var stream =

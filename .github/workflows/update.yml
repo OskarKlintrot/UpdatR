@@ -27,13 +27,13 @@ jobs:
         dotnet-version: 10.x.x
     - name: Update packages
       if: github.event_name == 'push'
-      run: dotnet run -- update-packages --parallel
+      run: dotnet run Build.cs -- update-packages --parallel
       working-directory: tools/Build
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Update packages and create PR
       if: github.event_name == 'schedule'
-      run: dotnet run -- create-update-pr --parallel
+      run: dotnet run Build.cs -- create-update-pr --parallel
       working-directory: tools/Build
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

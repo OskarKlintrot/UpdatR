@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using BuildingBlocks;
 using Markdig;
@@ -18,7 +19,7 @@ internal static partial class Program
         var pathArgument = new Argument<string>("args")
         {
             Description =
-                "Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dotnet-config.json-files will be processed.",
+                "Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files, dotnet-tools.json-files and file-based apps will be processed.",
             DefaultValueFactory = _ => ".",
         };
 
@@ -38,7 +39,7 @@ internal static partial class Program
         var outputOption = new Option<string?>("--output")
         {
             Description =
-                "Defaults to \"output.md\". Explicitly set to fileName.txt to generate plain text instead of markdown.",
+                "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown or \".txt\" for plain text.",
         };
 
         var titleOption = new Option<string?>("--title") { Description = "Outputs title to path." };
@@ -95,7 +96,7 @@ internal static partial class Program
         rootCommand.SetAction(
             (parseResult, cancellationToken) =>
                 RunAsync(
-                    args: parseResult.GetValue(pathArgument) ?? ".",
+                    path: parseResult.GetValue(pathArgument) ?? ".",
                     package: parseResult.GetValue(packageOption),
                     excludePackage: parseResult.GetValue(excludePackageOption),
                     output: parseResult.GetValue(outputOption),
@@ -115,7 +116,7 @@ internal static partial class Program
 
     /// <exception cref="ArgumentException"></exception>
     private static async Task<int> RunAsync(
-        string? args = ".",
+        string? path = ".",
         string[]? package = null,
         string[]? excludePackage = null,
         string? output = null,
@@ -164,7 +165,7 @@ internal static partial class Program
         var update = services.GetRequiredService<Updater>();
 
         var summary = await update.UpdateAsync(
-            path: args,
+            path: path,
             excludePackages: excludePackage,
             packages: package,
             dryRun: dryRun,
@@ -271,7 +272,12 @@ internal static partial class Program
             }
         }
 
-        LogFinished(_logger, sw.Elapsed);
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            var elapsedTime = sw.Elapsed.ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+
+            LogFinished(_logger, elapsedTime);
+        }
 
         return 0;
     }
@@ -311,9 +317,6 @@ internal static partial class Program
         }
     }
 
-    [LoggerMessage(
-        Level = LogLevel.Information,
-        Message = "Finished after {ElapsedTime:hh:mm:ss.fff}."
-    )]
-    static partial void LogFinished(ILogger logger, TimeSpan elapsedTime);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Finished after {ElapsedTime}.")]
+    static partial void LogFinished(ILogger logger, string elapsedTime);
 }
