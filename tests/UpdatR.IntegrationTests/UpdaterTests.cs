@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using UpdatR.Domain;
 using static UpdatR.IntegrationTests.FileCreationUtils;
 
 namespace UpdatR.IntegrationTests;
@@ -1035,6 +1036,76 @@ public class UpdaterTests
             await File.ReadAllTextAsync(tempApp, TestContext.Current.CancellationToken)
         );
         await Verify(summary.UpdatedPackages);
+    }
+
+    [Fact]
+    public async Task Given_FileBasedAppWithoutPackageDirective_When_Create_Then_Throw()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_FileBasedAppWithoutPackageDirective_When_Create_Then_Throw)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+
+        Directory.CreateDirectory(temp);
+        await File.WriteAllTextAsync(
+            tempApp,
+            "Console.WriteLine(\"Hello, world!\");",
+            TestContext.Current.CancellationToken
+        );
+
+        // Act
+        var ex = Assert.Throws<ArgumentException>(() => FileBasedApp.Create(tempApp));
+
+        // Assert
+        Assert.Contains(tempApp, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Given_CsFileWithoutPackageDirective_When_CreateRootDir_Then_ThrowWithPath()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_CsFileWithoutPackageDirective_When_CreateRootDir_Then_ThrowWithPath)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+
+        Directory.CreateDirectory(temp);
+        File.WriteAllText(tempApp, "Console.WriteLine(\"Hello, world!\");");
+
+        // Act
+        var ex = Assert.Throws<ArgumentException>(() => RootDir.Create(tempApp));
+
+        // Assert
+        Assert.Contains(tempApp, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Given_FileBasedAppWithUnknownPackage_When_Update_Then_ReportUnknownPackage()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_FileBasedAppWithUnknownPackage_When_Update_Then_ReportUnknownPackage)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempFileBasedAppAsync(tempApp, packages: [new("Unknown.Package", "1.0.0")]);
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempApp);
+
+        // Assert
+        Assert.True(summary.UnknownPackages.TryGetValue("Unknown.Package", out var projects));
+        Assert.Contains("Build.cs", projects.Single(), StringComparison.Ordinal);
     }
 
     [Fact]

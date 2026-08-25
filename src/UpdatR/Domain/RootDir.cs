@@ -217,7 +217,7 @@ internal sealed class RootDir
             if (!FileBasedApp.IsFileBasedApp(path.FullName))
             {
                 throw new ArgumentException(
-                    $"'{nameof(path)}' does not contain any '#:package' directives.",
+                    $"'{path.FullName}' does not contain any '#:package' directives.",
                     nameof(path)
                 );
             }

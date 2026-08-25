@@ -68,6 +68,14 @@ internal sealed partial class FileBasedApp
             );
         }
 
+        if (!IsFileBasedApp(file.FullName))
+        {
+            throw new ArgumentException(
+                $"'{file.FullName}' does not contain any '#:package' directives.",
+                nameof(path)
+            );
+        }
+
         return new FileBasedApp(file);
     }
 
@@ -178,7 +186,7 @@ internal sealed partial class FileBasedApp
             }
         }
 
-        return project.AnyPackages() ? project : null;
+        return project.AnyPackages() || project.UnknownPackages.Any() ? project : null;
 
         void CheckForDeprecationAndVulnerabilities(
             ProjectWithPackages project,
