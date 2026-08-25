@@ -2,12 +2,12 @@ Usage:
   update [<args>] [options]
 
 Arguments:
-  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files and dotnet-config.json-files will be processed. [default: .]
+  <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files, dotnet-tools.json-files and file-based apps (.cs files with #:package directives) will be processed. [default: .]
 
 Options:
   --package <package>                                                Package to update. Supports * as wildcard. Will update all unless specified.
   --exclude-package <exclude-package>                                Package to exclude. Supports * as wildcard.
-  --output <output>                                                  Defaults to "output.md". Explicitly set to fileName.txt to generate plain text instead of markdown.
+  --output <output>                                                  Writes the summary to a file. If a directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown or ".txt" for plain text. No file is written unless this is set.
   --title <title>                                                    Outputs title to path.
   --description <description>                                        Outputs description to path.
   --verbosity <Critical|Debug|Error|Information|None|Trace|Warning>  Log level. [default: Warning]

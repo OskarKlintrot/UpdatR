@@ -3,7 +3,7 @@
 [![Latest Nuget Version](https://badgen.net/nuget/v/dotnet-updatr/latest)](https://www.nuget.org/packages/dotnet-updatr/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/dotnet-updatr)](https://www.nuget.org/packages/dotnet-updatr/)
 
-Dotnet tool for updating package reference and dotnet-tools.json.
+Dotnet tool for updating package reference, dotnet-tools.json and `#:package` directives in file-based apps.
 
 The tool will try to stick to package versions that is supported by the projects target framework moniker. If a package supports both .NETStandard and .NET, the compatibility with .NETStandard will be ignored if the project is targeting .NET. This is to avoid false positives where a package technically supports a TFM but in reality never have been tested against the TFM.
 
@@ -17,19 +17,19 @@ See [UpdatR](#updatr) for SDK.
 
 ### Basic Usage
 
-To update all `*.csproj` and `dotnet-tools.json` recursively:
+To update all `*.csproj` files, `dotnet-tools.json` files and file-based apps (`.cs` files with `#:package` directives) recursively:
 
 ```
 > update
 ```
 
-If you only want to update the `*.csproj` and `dotnet-tools.json` that is part of a solution you can specify the solution directly:
+If you only want to update the `*.csproj` files, `dotnet-tools.json` files and file-based apps that is part of a solution you can specify the solution directly:
 
 ```
 > update path/to/solution.sln
 ```
 
-You can also update a single `*.csproj` or `dotnet-config.json`:
+You can also update a single `*.csproj`, `dotnet-tools.json` or file-based app:
 
 ```
 > update path/to/example.csproj

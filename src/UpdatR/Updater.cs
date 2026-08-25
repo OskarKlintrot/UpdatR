@@ -52,6 +52,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         var (nugetPackages, unauthorizedSources) = await GetPackageVersions(
             dir.Csprojs ?? Array.Empty<Csproj>(),
             dir.DotnetTools ?? Array.Empty<DotnetTools>(),
+            dir.FileBasedApps ?? Array.Empty<FileBasedApp>(),
             shouldIncludePackage,
             shouldExcludePackage,
             interactive,
@@ -80,6 +81,22 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 dryRun,
                 prerelease,
                 _logger
+            );
+
+            if (project is not null)
+            {
+                result.TryAddProject(project);
+            }
+        }
+
+        foreach (var fileBasedApp in dir.FileBasedApps ?? Array.Empty<FileBasedApp>())
+        {
+            var project = await fileBasedApp.UpdatePackagesAsync(
+                nugetPackages,
+                dryRun,
+                prerelease,
+                _logger,
+                tfm
             );
 
             if (project is not null)
@@ -136,6 +153,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     )> GetPackageVersions(
         IEnumerable<Csproj> projects,
         IEnumerable<DotnetTools> dotnetTools,
+        IEnumerable<FileBasedApp> fileBasedApps,
         Func<string, bool> shouldIncludePackage,
         Func<string, bool> shouldExcludePackage,
         bool interactive,
@@ -154,7 +172,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
         var projectsWithPackages = projects
             .Select(x => (x.Path, x.Packages.Keys.AsEnumerable()))
-            .Union(dotnetTools.Select(x => (x.Path, x.PackageIds)));
+            .Union(dotnetTools.Select(x => (x.Path, x.PackageIds)))
+            .Union(fileBasedApps.Select(x => (x.Path, x.Packages.Keys.AsEnumerable())));
 
         foreach (var (path, packageIds) in projectsWithPackages)
         {

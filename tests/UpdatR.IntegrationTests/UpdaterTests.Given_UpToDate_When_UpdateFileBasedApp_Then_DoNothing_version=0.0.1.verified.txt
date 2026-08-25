@@ -1,0 +1,26 @@
+﻿[
+  [
+    {
+      PackageId: Dummy,
+      Updates: [
+        {
+          Item1: 0.0.1,
+          Item2: 0.0.2,
+          Item3: Build.cs
+        }
+      ]
+    }
+  ],
+  #!/usr/bin/env dotnet
+#:package Dummy@0.0.1
+#:property TargetFramework=net10.0
+
+Console.WriteLine("Hello, world!");
+,
+  #!/usr/bin/env dotnet
+#:package Dummy@0.0.2
+#:property TargetFramework=net10.0
+
+Console.WriteLine("Hello, world!");
+
+]

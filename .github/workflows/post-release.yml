@@ -19,7 +19,7 @@ jobs:
       with:
         dotnet-version: 10.x.x
     - name: Clean up after release
-      run: dotnet run -- post-release --parallel
+      run: dotnet run Build.cs -- post-release --parallel
       working-directory: tools/Build
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

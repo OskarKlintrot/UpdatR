@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using NuGet.Packaging;
 
 namespace UpdatR.Domain;
@@ -18,6 +19,8 @@ internal sealed class RootDir
 
     public ICollection<Csproj>? Csprojs { get; private set; }
 
+    public ICollection<FileBasedApp>? FileBasedApps { get; private set; }
+
     public void AddDotnetTools(DotnetTools dotnetTools)
     {
         (DotnetTools ??= []).Add(dotnetTools);
@@ -26,6 +29,11 @@ internal sealed class RootDir
     public void AddCsproj(Csproj csproj)
     {
         (Csprojs ??= []).Add(csproj);
+    }
+
+    public void AddFileBasedApp(FileBasedApp fileBasedApp)
+    {
+        (FileBasedApps ??= []).Add(fileBasedApp);
     }
 
     public static RootDir Create(string path)
@@ -94,15 +102,47 @@ internal sealed class RootDir
             dir.AddDotnetTools(config);
         }
 
-        if (dir.Csprojs is null && dir.DotnetTools is null)
+        foreach (
+            var csFile in Directory.EnumerateFiles(
+                path.FullName,
+                "*.cs",
+                new EnumerationOptions
+                {
+                    MatchCasing = MatchCasing.CaseInsensitive,
+                    RecurseSubdirectories = true,
+                    AttributesToSkip = FileAttributes.System,
+                }
+            )
+        )
+        {
+            if (IsInBinOrObjFolder(csFile) || !FileBasedApp.IsFileBasedApp(csFile))
+            {
+                continue;
+            }
+
+            dir.AddFileBasedApp(FileBasedApp.Create(csFile));
+        }
+
+        if (dir.Csprojs is null && dir.DotnetTools is null && dir.FileBasedApps is null)
         {
             throw new ArgumentException(
-                "Path contains no .csproj files or dotnet-tools.json files.",
+                "Path contains no .csproj files, dotnet-tools.json files or file-based apps.",
                 nameof(path)
             );
         }
 
         return dir;
+
+        static bool IsInBinOrObjFolder(string filePath) =>
+            filePath
+                .Split(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.IO.Path.AltDirectorySeparatorChar
+                )
+                .Any(x =>
+                    x.Equals("bin", StringComparison.OrdinalIgnoreCase)
+                    || x.Equals("obj", StringComparison.OrdinalIgnoreCase)
+                );
     }
 
     private static RootDir CreateFromFile(FileInfo path)
@@ -126,6 +166,30 @@ internal sealed class RootDir
             return dir;
         }
 
+        if (path.Extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase))
+        {
+            var dir = new RootDir(path.Directory!);
+
+            foreach (var csproj in GetProjectsFromSolutionX(path))
+            {
+                dir.AddCsproj(csproj);
+            }
+
+            AddDotnetToolsFromCsproj(dir);
+
+            foreach (var item in GetDotnetToolsConfigFromSolutionX(path, dir.Csprojs ?? []))
+            {
+                dir.AddDotnetTools(item);
+            }
+
+            foreach (var fileBasedApp in GetFileBasedAppsFromSolutionX(path))
+            {
+                dir.AddFileBasedApp(fileBasedApp);
+            }
+
+            return dir;
+        }
+
         if (path.Extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase))
         {
             var dir = new RootDir(path.Directory!);
@@ -144,6 +208,15 @@ internal sealed class RootDir
             var dir = new RootDir(path.Directory!);
 
             dir.AddDotnetTools(Domain.DotnetTools.Create(path.FullName, projects));
+
+            return dir;
+        }
+
+        if (path.Extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
+        {
+            var dir = new RootDir(path.Directory!);
+
+            dir.AddFileBasedApp(FileBasedApp.Create(path.FullName));
 
             return dir;
         }
@@ -224,4 +297,43 @@ internal sealed class RootDir
             .Select(x => new FileInfo(x))
             .Where(x => x.Exists)
             .Select(x => Domain.DotnetTools.Create(x.FullName, csprojs));
+
+    private static IEnumerable<Csproj> GetProjectsFromSolutionX(FileInfo solution) =>
+        GetPathsFromSolutionX(solution, "Project")
+            .Where(x => x.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new FileInfo(x))
+            .Where(x => x.Exists)
+            .Select(x => Csproj.Create(x.FullName));
+
+    private static IEnumerable<DotnetTools> GetDotnetToolsConfigFromSolutionX(
+        FileInfo solution,
+        IEnumerable<Csproj> csprojs
+    ) =>
+        GetPathsFromSolutionX(solution, "File")
+            .Where(x => x.EndsWith("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new FileInfo(x))
+            .Where(x => x.Exists)
+            .Select(x => Domain.DotnetTools.Create(x.FullName, csprojs));
+
+    private static IEnumerable<FileBasedApp> GetFileBasedAppsFromSolutionX(FileInfo solution) =>
+        GetPathsFromSolutionX(solution, "File")
+            .Where(x => x.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new FileInfo(x))
+            .Where(x => x.Exists)
+            .Select(x => FileBasedApp.Create(x.FullName));
+
+    private static IEnumerable<string> GetPathsFromSolutionX(FileInfo solution, string elementName)
+    {
+        var doc = XDocument.Load(solution.FullName);
+
+        return doc.Descendants(elementName)
+            .Select(x => x.Attribute("Path")?.Value)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x =>
+                System.IO.Path.Combine(
+                    solution.DirectoryName!,
+                    x!.Replace('/', System.IO.Path.DirectorySeparatorChar)
+                )
+            );
+    }
 }

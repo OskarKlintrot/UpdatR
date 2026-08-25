@@ -893,4 +893,221 @@ public class UpdaterTests
             yield return await File.ReadAllTextAsync(tempCsproj);
         }
     }
+
+    [Theory]
+    [InlineData("0.0.1")]
+    [InlineData("0.0.2")]
+    public async Task Given_UpToDate_When_UpdateFileBasedApp_Then_DoNothing(string version)
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpToDate_When_UpdateFileBasedApp_Then_DoNothing)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var appOriginal = await CreateTempFileBasedAppAsync(
+            tempApp,
+            packages: [new("Dummy", version)]
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempApp);
+
+        // Assert
+        await Verify(GetVerifyObjects()).UseParameters(version);
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return appOriginal;
+            yield return await File.ReadAllTextAsync(tempApp);
+        }
+    }
+
+    [Fact]
+    public async Task Given_FileBasedAppAsTarget_When_PackageOutdated_Then_Update()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_FileBasedAppAsTarget_When_PackageOutdated_Then_Update)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var appOriginal = await CreateTempFileBasedAppAsync(
+            tempApp,
+            packages: [new("Dummy", "0.0.1")]
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempApp);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return appOriginal;
+            yield return await File.ReadAllTextAsync(tempApp);
+        }
+    }
+
+    [Fact]
+    public async Task Given_DirectoryAsTarget_When_SingleFileBasedApp_Then_Update()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DirectoryAsTarget_When_SingleFileBasedApp_Then_Update)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var appOriginal = await CreateTempFileBasedAppAsync(
+            tempApp,
+            packages: [new("Dummy", "0.0.1")]
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+            yield return appOriginal;
+            yield return await File.ReadAllTextAsync(tempApp);
+        }
+    }
+
+    [Fact]
+    public async Task Given_FileBasedApp_When_DryRun_Then_DoNothing()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_FileBasedApp_When_DryRun_Then_DoNothing)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var appOriginal = await CreateTempFileBasedAppAsync(
+            tempApp,
+            packages: [new("Dummy", "0.0.1")]
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempApp, dryRun: true);
+
+        // Assert
+        Assert.Equal(
+            appOriginal,
+            await File.ReadAllTextAsync(tempApp, TestContext.Current.CancellationToken)
+        );
+        await Verify(summary.UpdatedPackages);
+    }
+
+    [Fact]
+    public async Task Given_SlnxAsTarget_When_HasCsprojDotnetToolsAndFileBasedApp_Then_UpdateAll()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_SlnxAsTarget_When_HasCsprojDotnetToolsAndFileBasedApp_Then_UpdateAll)
+        );
+        var tempSlnx = Path.Combine(temp, "Dummy.slnx");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempDotnetConfig = Path.Combine(temp, "tools", ".config", "dotnet-tools.json");
+        var tempApp = Path.Combine(temp, "tools", "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempCsproj).DirectoryName!);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1")
+        );
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Dummy.Tool",
+            version: "0.0.1",
+            command: "dummy"
+        );
+
+        var appOriginal = await CreateTempFileBasedAppAsync(
+            tempApp,
+            packages: [new("Dummy", "0.0.1")]
+        );
+
+        await File.WriteAllTextAsync(
+            tempSlnx,
+            $"""
+            <Solution>
+              <Folder Name="/.Build/">
+                <File Path="tools/Build.cs" />
+                <File Path="tools/.config/dotnet-tools.json" />
+              </Folder>
+              <Project Path="src/Dummy.App.csproj" />
+            </Solution>
+            """,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(tempSlnx);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return appOriginal;
+            yield return await File.ReadAllTextAsync(tempApp);
+        }
+    }
 }
