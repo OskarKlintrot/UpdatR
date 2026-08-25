@@ -2,12 +2,6 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "dotnet-updatr": {
-      "version": "4.0.2",
-      "commands": [
-        "update"
-      ]
-    },
     "markdownsnippets.tool": {
       "version": "28.4.2",
       "commands": [
