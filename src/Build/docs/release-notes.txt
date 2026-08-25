@@ -1,0 +1,3 @@
+- Upgrade TFM to .NET 10
+- Add support for file-based apps
+- Support comments in dotnet-tools.json
