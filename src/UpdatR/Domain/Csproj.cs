@@ -92,11 +92,20 @@ internal sealed partial class Csproj
         foreach (var packageReference in packageReferences)
         {
             var packageId = packageReference.GetAttribute("Include");
+
+            if (!packageReference.HasAttribute("Version"))
+            {
+                // No Version attribute means there's nothing to update, e.g. a
+                // PackageReference using Update to only override metadata (such as
+                // PrivateAssets) for a package already referenced via Directory.Build.props.
+                continue;
+            }
+
             var versionStr = packageReference.GetAttribute("Version");
 
             if (!NuGetVersion.TryParse(versionStr, out var version))
             {
-                LogParseError(logger, versionStr, packageReference.ToString() ?? string.Empty);
+                LogParseError(logger, versionStr, packageReference.OuterXml);
 
                 continue;
             }
