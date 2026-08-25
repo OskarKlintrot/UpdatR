@@ -77,7 +77,7 @@ internal sealed partial class FileBasedApp
     public static bool IsFileBasedApp(string path) =>
         path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
         && File.Exists(path)
-        && PackageDirectiveRegex().IsMatch(File.ReadAllText(path));
+        && File.ReadLines(path).Any(line => PackageDirectiveRegex().IsMatch(line));
 
     public async Task<ProjectWithPackages?> UpdatePackagesAsync(
         IDictionary<string, NuGetPackage?> packages,

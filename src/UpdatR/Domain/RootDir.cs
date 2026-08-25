@@ -214,6 +214,14 @@ internal sealed class RootDir
 
         if (path.Extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
         {
+            if (!FileBasedApp.IsFileBasedApp(path.FullName))
+            {
+                throw new ArgumentException(
+                    $"'{nameof(path)}' does not contain any '#:package' directives.",
+                    nameof(path)
+                );
+            }
+
             var dir = new RootDir(path.Directory!);
 
             dir.AddFileBasedApp(FileBasedApp.Create(path.FullName));
@@ -320,6 +328,7 @@ internal sealed class RootDir
             .Where(x => x.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
             .Select(x => new FileInfo(x))
             .Where(x => x.Exists)
+            .Where(x => FileBasedApp.IsFileBasedApp(x.FullName))
             .Select(x => FileBasedApp.Create(x.FullName));
 
     private static IEnumerable<string> GetPathsFromSolutionX(FileInfo solution, string elementName)
@@ -332,7 +341,9 @@ internal sealed class RootDir
             .Select(x =>
                 System.IO.Path.Combine(
                     solution.DirectoryName!,
-                    x!.Replace('/', System.IO.Path.DirectorySeparatorChar)
+                    x!
+                        .Replace('/', System.IO.Path.DirectorySeparatorChar)
+                        .Replace('\\', System.IO.Path.DirectorySeparatorChar)
                 )
             );
     }
