@@ -83,7 +83,7 @@ Target(
     {
         Run(
             "dotnet",
-            $"update {solutionFile} --verbosity {nameof(LogLevel.Debug)} --title {Path.Combine(Path.GetTempPath(), "title.md")} --description {Path.Combine(Path.GetTempPath(), "description.md")}",
+            $"run --project {Path.Combine(srcDir, "dotnet-updatr")} -- {solutionFile} --verbosity {nameof(LogLevel.Debug)} --title {Path.Combine(Path.GetTempPath(), "title.md")} --description {Path.Combine(Path.GetTempPath(), "description.md")}",
             workingDirectory: buildToolDir
         );
     }
