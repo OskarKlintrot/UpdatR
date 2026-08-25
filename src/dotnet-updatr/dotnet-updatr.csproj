@@ -23,7 +23,12 @@
     <PackageReference Include="NuGet.Credentials" Version="7.9.0" />
     <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
-    <PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.25306.1" />
+    <!--
+      Pinned: 0.4.0-alpha.25277.114 and 0.4.0-alpha.25306.1 have a regression where the
+      generated entry point does not properly await the async Main method, causing the
+      process to exit before async work (e.g. NuGet metadata lookups) completes.
+    -->
+    <PackageReference Include="System.CommandLine.DragonFruit" Version="0.4.0-alpha.22272.1" />
   </ItemGroup>
 
   <ItemGroup>
