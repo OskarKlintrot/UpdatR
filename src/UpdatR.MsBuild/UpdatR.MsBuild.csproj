@@ -1,17 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!--
-      Prototype: isolated on purpose. Microsoft.Build ships its own copies of several NuGet
-      client libraries (NuGet.Frameworks, NuGet.Versioning, etc.). UpdatR itself references those
-      same packages directly, so if this project referenced UpdatR (or vice versa) both copies
-      could end up loaded in the same process and conflict. Keeping this project free of any
-      NuGet.* package references avoids that entirely.
+      Microsoft.Build ships its own copies of several NuGet client libraries (NuGet.Frameworks,
+      NuGet.Versioning, etc.) and, once MSBuildLocator is registered, redirects any request for
+      those assemblies (process-wide) to whatever .NET SDK/Visual Studio installation it finds.
+      UpdatR itself references the same NuGet client packages directly to talk to NuGet feeds, so
+      this project must not let Microsoft.Build/NuGet.Frameworks get copied to its own output -
+      see the matching PrivateAssets/ExcludeAssets settings in UpdatR.csproj, which references
+      this project, for the other half of this.
     -->
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build" Version="18.9.6" ExcludeAssets="runtime" />
+    <PackageReference
+      Include="Microsoft.Build"
+      Version="18.9.6"
+      ExcludeAssets="runtime"
+      PrivateAssets="all"
+    />
     <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
   </ItemGroup>
 </Project>

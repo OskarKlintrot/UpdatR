@@ -9,6 +9,19 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+    <!--
+      Needed directly: UpdatR.csproj no longer flows this transitively (see the comment on the
+      same PackageReference there). Must be excluded here too, since Microsoft.Build.Locator
+      reaches this project transitively via the ProjectReference to UpdatR below. Because this
+      project (unlike UpdatR.dll) has no guaranteed entry point, ModuleInitializer.cs in this
+      project registers MSBuildLocator before any test can run.
+    -->
+    <PackageReference
+      Include="NuGet.Frameworks"
+      Version="7.9.0"
+      ExcludeAssets="runtime"
+      PrivateAssets="all"
+    />
     <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
     <PackageReference Include="xunit.v3" Version="4.0.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">

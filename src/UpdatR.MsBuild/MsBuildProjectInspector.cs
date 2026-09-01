@@ -121,7 +121,17 @@ public static class MsBuildProjectInspector
         return string.IsNullOrEmpty(version) ? null : version;
     }
 
-    private static void EnsureMsBuildLocatorIsRegistered()
+    /// <summary>
+    /// Registers MSBuildLocator's assembly resolver, if it hasn't already been registered. Safe
+    /// to call multiple times and from multiple threads.
+    /// </summary>
+    /// <remarks>
+    /// This method must never be called from the same method as code that directly references a
+    /// <c>Microsoft.Build.*</c> type: the JIT resolves all types referenced by a method before
+    /// running any of its statements, so by the time execution reached the registration call it
+    /// would already be too late.
+    /// </remarks>
+    public static void EnsureMsBuildLocatorIsRegistered()
     {
         if (_registered)
         {

@@ -53,6 +53,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             dir.Csprojs ?? Array.Empty<Csproj>(),
             dir.DotnetTools ?? Array.Empty<DotnetTools>(),
             dir.FileBasedApps ?? Array.Empty<FileBasedApp>(),
+            dir.PropsFiles ?? Array.Empty<PropsFile>(),
             shouldIncludePackage,
             shouldExcludePackage,
             interactive,
@@ -67,6 +68,16 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
             var project = csproj.UpdatePackages(nugetPackages, dryRun, prerelease, _logger, tfm);
+
+            if (project is not null)
+            {
+                result.TryAddProject(project);
+            }
+        }
+
+        foreach (var propsFile in dir.PropsFiles ?? Array.Empty<PropsFile>())
+        {
+            var project = propsFile.UpdatePackages(nugetPackages, dryRun, prerelease, _logger, tfm);
 
             if (project is not null)
             {
@@ -154,6 +165,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         IEnumerable<Csproj> projects,
         IEnumerable<DotnetTools> dotnetTools,
         IEnumerable<FileBasedApp> fileBasedApps,
+        IEnumerable<PropsFile> propsFiles,
         Func<string, bool> shouldIncludePackage,
         Func<string, bool> shouldExcludePackage,
         bool interactive,
@@ -173,7 +185,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         var projectsWithPackages = projects
             .Select(x => (x.Path, x.Packages.Keys.AsEnumerable()))
             .Union(dotnetTools.Select(x => (x.Path, x.PackageIds)))
-            .Union(fileBasedApps.Select(x => (x.Path, x.Packages.Keys.AsEnumerable())));
+            .Union(fileBasedApps.Select(x => (x.Path, x.Packages.Keys.AsEnumerable())))
+            .Union(propsFiles.Select(x => (x.Path, x.Packages.Keys.AsEnumerable())));
 
         foreach (var (path, packageIds) in projectsWithPackages)
         {

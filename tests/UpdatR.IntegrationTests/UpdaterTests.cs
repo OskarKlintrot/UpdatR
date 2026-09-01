@@ -1181,4 +1181,185 @@ public class UpdaterTests
             yield return await File.ReadAllTextAsync(tempApp);
         }
     }
+
+    [Fact]
+    public async Task Given_DirectoryBuildProps_When_Update_Then_UpdatePropsFile()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DirectoryBuildProps_When_Update_Then_UpdatePropsFile)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempProps = Path.Combine(temp, "Directory.Build.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(tempCsproj);
+
+        var propsOriginal = """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Dummy" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        await File.WriteAllTextAsync(
+            tempProps,
+            propsOriginal,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+
+            yield return propsOriginal;
+            yield return await File.ReadAllTextAsync(tempProps);
+        }
+    }
+
+    [Fact]
+    public async Task Given_DirectoryPackagesProps_When_Update_Then_UpdatePackageVersion()
+    {
+        // Arrange - central package management: versions live in Directory.Packages.props as
+        // PackageVersion items, while the csproj itself only has version-less PackageReference
+        // items.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DirectoryPackagesProps_When_Update_Then_UpdatePackageVersion)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempProps = Path.Combine(temp, "Directory.Packages.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(tempCsproj);
+
+        await File.WriteAllTextAsync(
+            tempCsproj,
+            (
+                await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken)
+            ).Replace(
+                "<ItemGroup></ItemGroup>",
+                """<ItemGroup><PackageReference Include="Dummy" /></ItemGroup>"""
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        csprojOriginal = await File.ReadAllTextAsync(
+            tempCsproj,
+            TestContext.Current.CancellationToken
+        );
+
+        var propsOriginal = """
+            <Project>
+              <PropertyGroup>
+                <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageVersion Include="Dummy" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        await File.WriteAllTextAsync(
+            tempProps,
+            propsOriginal,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+
+            yield return propsOriginal;
+            yield return await File.ReadAllTextAsync(tempProps);
+        }
+    }
+
+    [Fact]
+    public async Task Given_DirectoryBuildPropsSharedByMultipleCsproj_When_Update_Then_UpdateOnce()
+    {
+        // Arrange - a single Directory.Build.props imported by two csproj must only be discovered
+        // and updated once, not once per importing csproj.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DirectoryBuildPropsSharedByMultipleCsproj_When_Update_Then_UpdateOnce)
+        );
+        var tempCsprojOne = Path.Combine(temp, "src", "One", "Dummy.App.csproj");
+        var tempCsprojTwo = Path.Combine(temp, "src", "Two", "Dummy.App.csproj");
+        var tempProps = Path.Combine(temp, "Directory.Build.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsprojOne)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsprojTwo)!);
+
+        await CreateTempCsprojAsync(tempCsprojOne);
+        await CreateTempCsprojAsync(tempCsprojTwo);
+
+        var propsOriginal = """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Dummy" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        await File.WriteAllTextAsync(
+            tempProps,
+            propsOriginal,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var update1 = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("Dummy", updatedPackage.PackageId);
+        Assert.Contains("Directory.Build.props", update1.Project, StringComparison.Ordinal);
+
+        var content = await File.ReadAllTextAsync(tempProps, TestContext.Current.CancellationToken);
+
+        Assert.Contains("0.0.2", content, StringComparison.Ordinal);
+    }
 }
