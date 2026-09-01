@@ -26,6 +26,14 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// <param name="prerelease">Allow prerelease packages to be installed.</param>
     /// <param name="interactive">Interaction with user is possible.</param>
     /// <param name="targetFrameworkMoniker">Lowest Target Framework Moniker to support.</param>
+    /// <param name="allowedLicenses">
+    /// If specified, a package is only updated to a version whose license expression contains one
+    /// of these values (case-insensitive substring match). A warning is logged - and included in
+    /// the <see cref="Summary"/> - both when the currently installed version's license isn't
+    /// allowed, and when a newer version exists but was skipped because its license isn't
+    /// allowed. Packages without any license metadata are always allowed. Leave out or empty to
+    /// disable license checking.
+    /// </param>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
     public async Task<Summary> UpdateAsync(
@@ -35,7 +43,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         bool dryRun = false,
         bool prerelease = false,
         bool interactive = false,
-        string? targetFrameworkMoniker = null
+        string? targetFrameworkMoniker = null,
+        string[]? allowedLicenses = null
     )
     {
         var tfm = ParseTFM(targetFrameworkMoniker);
@@ -67,7 +76,14 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
         foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
         {
-            var project = csproj.UpdatePackages(nugetPackages, dryRun, prerelease, _logger, tfm);
+            var project = csproj.UpdatePackages(
+                nugetPackages,
+                dryRun,
+                prerelease,
+                _logger,
+                tfm,
+                allowedLicenses
+            );
 
             if (project is not null)
             {
@@ -77,7 +93,14 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
         foreach (var propsFile in dir.PropsFiles ?? Array.Empty<PropsFile>())
         {
-            var project = propsFile.UpdatePackages(nugetPackages, dryRun, prerelease, _logger, tfm);
+            var project = propsFile.UpdatePackages(
+                nugetPackages,
+                dryRun,
+                prerelease,
+                _logger,
+                tfm,
+                allowedLicenses
+            );
 
             if (project is not null)
             {
@@ -107,7 +130,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 dryRun,
                 prerelease,
                 _logger,
-                tfm
+                tfm,
+                allowedLicenses
             );
 
             if (project is not null)
@@ -249,7 +273,10 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                                 x.Vulnerabilities?.Select(y => new PackageVulnerabilityMetadata(
                                     y.AdvisoryUrl,
                                     y.Severity
-                                ))
+                                )),
+                                x.LicenseMetadata?.Type == NuGet.Packaging.LicenseType.Expression
+                                    ? x.LicenseMetadata.License
+                                    : null
                             ));
 
                         if (!metadata.Any())

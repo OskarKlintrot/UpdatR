@@ -76,7 +76,8 @@ internal sealed partial class PropsFile
         bool dryRun,
         bool usePrerelease,
         ILogger logger,
-        NuGetFramework? tfm = null
+        NuGetFramework? tfm = null,
+        IReadOnlyCollection<string>? allowedLicenses = null
     )
     {
         var tfms = tfm is null ? TargetFrameworks : [tfm];
@@ -132,6 +133,7 @@ internal sealed partial class PropsFile
             else if (package.TryGet(version, out var metadata))
             {
                 CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
+                CheckForLicenseMismatch(project, packageId, version, metadata);
             }
 
             if (
@@ -140,6 +142,7 @@ internal sealed partial class PropsFile
                     version,
                     tfms,
                     usePrerelease,
+                    allowedLicenses,
                     out var updateTo
                 )
             )
@@ -148,6 +151,15 @@ internal sealed partial class PropsFile
                     project,
                     packageId,
                     package.PackageMetadatas.SingleOrDefault(x => x.Version == version)
+                );
+
+                CheckForSkippedLicenseMismatch(
+                    project,
+                    package,
+                    packageId,
+                    version,
+                    tfms,
+                    usePrerelease
                 );
 
                 continue;
@@ -212,6 +224,75 @@ internal sealed partial class PropsFile
                 );
             }
         }
+
+        void CheckForLicenseMismatch(
+            ProjectWithPackages project,
+            string packageId,
+            NuGetVersion version,
+            PackageMetadata packageMetadata
+        )
+        {
+            if (
+                allowedLicenses is not { Count: > 0 }
+                || NuGetPackage.IsLicenseAllowed(packageMetadata, allowedLicenses)
+            )
+            {
+                return;
+            }
+
+            project.AddLicenseMismatchPackage(
+                new(
+                    packageId,
+                    version,
+                    packageMetadata.LicenseExpression!,
+                    isInstalledVersion: true
+                )
+            );
+
+            LogLicenseMismatch(logger, packageId, version, packageMetadata.LicenseExpression!);
+        }
+
+        void CheckForSkippedLicenseMismatch(
+            ProjectWithPackages project,
+            NuGetPackage package,
+            string packageId,
+            NuGetVersion version,
+            IReadOnlyCollection<NuGetFramework> tfms,
+            bool usePrerelease
+        )
+        {
+            if (
+                allowedLicenses is not { Count: > 0 }
+                || !TryGetLatestCompatibleWithAllTfms(
+                    package,
+                    version,
+                    tfms,
+                    usePrerelease,
+                    allowedLicenses: null,
+                    out var candidate
+                )
+                || NuGetPackage.IsLicenseAllowed(candidate, allowedLicenses)
+            )
+            {
+                return;
+            }
+
+            project.AddLicenseMismatchPackage(
+                new(
+                    packageId,
+                    candidate.Version,
+                    candidate.LicenseExpression!,
+                    isInstalledVersion: false
+                )
+            );
+
+            LogSkippedLicenseMismatch(
+                logger,
+                packageId,
+                candidate.Version,
+                candidate.LicenseExpression!
+            );
+        }
     }
 
     /// <summary>
@@ -227,6 +308,7 @@ internal sealed partial class PropsFile
         NuGetVersion from,
         IReadOnlyCollection<NuGetFramework> tfms,
         bool usePrerelease,
+        IReadOnlyCollection<string>? allowedLicenses,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(returnValue: true)]
             out PackageMetadata? updateTo
     )
@@ -240,7 +322,8 @@ internal sealed partial class PropsFile
                     from,
                     candidateTfm,
                     usePrerelease,
-                    out var updateToForTfm
+                    out var updateToForTfm,
+                    allowedLicenses
                 )
             )
             {
@@ -322,6 +405,30 @@ internal sealed partial class PropsFile
         string packageId,
         NuGetVersion version,
         int vulnerabilities
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 6,
+        Message = "Package {PackageId} version {Version} has a license that isn't allowed: {License}"
+    )]
+    static partial void LogLicenseMismatch(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        string license
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 7,
+        Message = "Package {PackageId} has a newer version {Version} available, but it was skipped because its license isn't allowed: {License}"
+    )]
+    static partial void LogSkippedLicenseMismatch(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        string license
     );
     #endregion
 }

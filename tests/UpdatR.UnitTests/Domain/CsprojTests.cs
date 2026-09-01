@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using NuGet.Frameworks;
+using NuGet.Versioning;
 using UpdatR.Domain;
 
 namespace UpdatR.UnitTests.Domain;
@@ -95,6 +97,135 @@ public class CsprojTests : IDisposable
             """Could not parse not-a-version to NuGetVersion for package reference <PackageReference Include="Some.Package" Version="not-a-version" />.""",
             message
         );
+    }
+
+    [Fact]
+    public void UpdatePackagesLogsLicenseMismatchForInstalledVersion()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new UpdatR.Internals.PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net10.0")],
+                    null,
+                    null,
+                    "GPL-3.0"
+                ),
+            ]
+        );
+
+        // Act
+        var result = csproj.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger,
+            allowedLicenses: ["MIT"]
+        );
+
+        // Assert
+        Assert.NotNull(result);
+
+        var licenseMismatch = Assert.Single(result.LicenseMismatchPackages);
+
+        Assert.Equal("Some.Package", licenseMismatch.PackageId);
+        Assert.Equal(NuGetVersion.Parse("1.0.0"), licenseMismatch.Version);
+        Assert.Equal("GPL-3.0", licenseMismatch.License);
+        Assert.True(licenseMismatch.IsInstalledVersion);
+
+        var (level, message) = Assert.Single(logger.Logs);
+
+        Assert.Equal(LogLevel.Warning, level);
+        Assert.Contains("Some.Package", message, StringComparison.Ordinal);
+        Assert.Contains("GPL-3.0", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UpdatePackagesLogsLicenseMismatchForSkippedUpdate()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new UpdatR.Internals.PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net10.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+                new UpdatR.Internals.PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net10.0")],
+                    null,
+                    null,
+                    "GPL-3.0"
+                ),
+            ]
+        );
+
+        // Act
+        var result = csproj.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger,
+            allowedLicenses: ["MIT"]
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result.UpdatedPackages);
+
+        var licenseMismatch = Assert.Single(result.LicenseMismatchPackages);
+
+        Assert.Equal("Some.Package", licenseMismatch.PackageId);
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), licenseMismatch.Version);
+        Assert.Equal("GPL-3.0", licenseMismatch.License);
+        Assert.False(licenseMismatch.IsInstalledVersion);
+
+        var (level, message) = Assert.Single(logger.Logs);
+
+        Assert.Equal(LogLevel.Warning, level);
+        Assert.Contains("Some.Package", message, StringComparison.Ordinal);
+        Assert.Contains("2.0.0", message, StringComparison.Ordinal);
+        Assert.Contains("GPL-3.0", message, StringComparison.Ordinal);
     }
 
     private sealed class FakeLogger : ILogger

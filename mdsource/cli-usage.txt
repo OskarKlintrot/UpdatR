@@ -16,6 +16,7 @@ Options:
   --browser                                                          Open summary in browser.
   --interactive                                                      Interaction with user is possible.
   --tfm <tfm>                                                        Lowest TFM to support.
+  --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
 

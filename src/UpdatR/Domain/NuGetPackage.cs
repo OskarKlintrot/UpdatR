@@ -16,14 +16,50 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     private CompatibilityProvider CompatibilityProvider =>
         _compatibilityProvider ??= new CompatibilityProvider(DefaultFrameworkNameProvider.Instance);
 
-    private PackageMetadata? LatestStable(NuGetFramework targetFramework) =>
-        _latestStable ??= Latest(targetFramework, x => !x.Version.IsPrerelease);
+    private PackageMetadata? LatestStable(
+        NuGetFramework targetFramework,
+        IReadOnlyCollection<string>? allowedLicenses = null
+    )
+    {
+        if (allowedLicenses is null || allowedLicenses.Count == 0)
+        {
+            return _latestStable ??= Latest(targetFramework, x => !x.Version.IsPrerelease);
+        }
 
-    private PackageMetadata? LatestPrerelease(NuGetFramework targetFramework) =>
-        _latestPrerelease ??= Latest(targetFramework, x => x.Version.IsPrerelease);
+        return Latest(
+            targetFramework,
+            x => !x.Version.IsPrerelease && IsLicenseAllowed(x, allowedLicenses)
+        );
+    }
 
-    private PackageMetadata? Latest(NuGetFramework targetFramework) =>
-        _latest ??= Latest(targetFramework, _ => true);
+    private PackageMetadata? LatestPrerelease(
+        NuGetFramework targetFramework,
+        IReadOnlyCollection<string>? allowedLicenses = null
+    )
+    {
+        if (allowedLicenses is null || allowedLicenses.Count == 0)
+        {
+            return _latestPrerelease ??= Latest(targetFramework, x => x.Version.IsPrerelease);
+        }
+
+        return Latest(
+            targetFramework,
+            x => x.Version.IsPrerelease && IsLicenseAllowed(x, allowedLicenses)
+        );
+    }
+
+    private PackageMetadata? Latest(
+        NuGetFramework targetFramework,
+        IReadOnlyCollection<string>? allowedLicenses = null
+    )
+    {
+        if (allowedLicenses is null || allowedLicenses.Count == 0)
+        {
+            return _latest ??= Latest(targetFramework, _ => true);
+        }
+
+        return Latest(targetFramework, x => IsLicenseAllowed(x, allowedLicenses));
+    }
 
     private PackageMetadata? Latest(
         NuGetFramework targetFramework,
@@ -56,32 +92,44 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     /// <param name="version">Current version to compare to.</param>
     /// <param name="package"></param>
     /// <param name="usePrerelease">Use prerelase, even if <paramref name="version"/> is stable.</param>
+    /// <param name="allowedLicenses">
+    /// If specified, only versions whose license expression contains one of these values
+    /// (case-insensitive substring match) are considered. Versions without any license
+    /// information are always allowed.
+    /// </param>
     /// <returns><see langword="true"/> if a newer version is avalible.</returns>
     public bool TryGetLatestComparedTo(
         NuGetVersion version,
         NuGetFramework targetFramework,
         bool usePrerelease,
-        [NotNullWhen(returnValue: true)] out PackageMetadata? package
+        [NotNullWhen(returnValue: true)] out PackageMetadata? package,
+        IReadOnlyCollection<string>? allowedLicenses = null
     )
     {
         if (usePrerelease)
         {
-            package = Latest(targetFramework)!;
+            package = Latest(targetFramework, allowedLicenses)!;
 
-            return true;
+            return package is not null;
         }
-        else if ((LatestStable(targetFramework)?.Version ?? NuGetVersion.Parse("0.0.0")) > version)
+        else if (
+            (LatestStable(targetFramework, allowedLicenses)?.Version ?? NuGetVersion.Parse("0.0.0"))
+            > version
+        )
         {
-            package = LatestStable(targetFramework)!;
+            package = LatestStable(targetFramework, allowedLicenses)!;
 
             return true;
         }
         else if (
             version.IsPrerelease
-            && (LatestPrerelease(targetFramework)?.Version ?? NuGetVersion.Parse("0.0.0")) > version
+            && (
+                LatestPrerelease(targetFramework, allowedLicenses)?.Version
+                ?? NuGetVersion.Parse("0.0.0")
+            ) > version
         )
         {
-            package = LatestPrerelease(targetFramework)!;
+            package = LatestPrerelease(targetFramework, allowedLicenses)!;
 
             return true;
         }
@@ -90,6 +138,71 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
 
         return false;
     }
+
+    /// <summary>
+    /// Finds the version that <see cref="TryGetLatestComparedTo"/> would have returned if
+    /// <paramref name="allowedLicenses"/> was ignored, but only if that version's license isn't
+    /// allowed - i.e. this reports an update that exists but was skipped due to
+    /// <paramref name="allowedLicenses"/>.
+    /// </summary>
+    public bool TryGetNewerVersionWithDisallowedLicense(
+        NuGetVersion version,
+        NuGetFramework targetFramework,
+        bool usePrerelease,
+        IReadOnlyCollection<string>? allowedLicenses,
+        [NotNullWhen(returnValue: true)] out PackageMetadata? package
+    )
+    {
+        if (
+            allowedLicenses is { Count: > 0 }
+            && TryGetLatestComparedTo(
+                version,
+                targetFramework,
+                usePrerelease,
+                out var candidate,
+                allowedLicenses: null
+            )
+            && !IsLicenseAllowed(candidate, allowedLicenses)
+        )
+        {
+            package = candidate;
+
+            return true;
+        }
+
+        package = null;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if the license of the currently installed <paramref name="version"/> is allowed.
+    /// Always <see langword="true"/> if <paramref name="allowedLicenses"/> is <see langword="null"/>
+    /// or empty, or if <paramref name="version"/>'s license is unknown.
+    /// </summary>
+    public bool IsLicenseAllowed(
+        NuGetVersion version,
+        IReadOnlyCollection<string>? allowedLicenses
+    ) =>
+        allowedLicenses is not { Count: > 0 }
+        || !TryGet(version, out var metadata)
+        || IsLicenseAllowed(metadata, allowedLicenses);
+
+    /// <summary>
+    /// Checks if <paramref name="package"/>'s license expression contains one of
+    /// <paramref name="allowedLicenses"/> (case-insensitive substring match). Always
+    /// <see langword="true"/> if <paramref name="allowedLicenses"/> is <see langword="null"/> or
+    /// empty, or if <paramref name="package"/> has no license expression.
+    /// </summary>
+    public static bool IsLicenseAllowed(
+        PackageMetadata package,
+        IReadOnlyCollection<string>? allowedLicenses
+    ) =>
+        allowedLicenses is not { Count: > 0 }
+        || string.IsNullOrWhiteSpace(package.LicenseExpression)
+        || allowedLicenses.Any(allowed =>
+            package.LicenseExpression.Contains(allowed, StringComparison.OrdinalIgnoreCase)
+        );
 
     public bool TryGet(
         NuGetVersion version,

@@ -32,6 +32,15 @@ public static class TextFormatter
             sb.AppendLine("------------------------------");
         }
 
+        if (summary.LicenseMismatchPackages.Any())
+        {
+            sb.AppendLine("License mismatches");
+            sb.AppendLine("--");
+            LicenseMismatchPackages(sb, summary.LicenseMismatchPackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
+
         if (summary.UpdatedPackages.Any())
         {
             sb.AppendLine("Updated packages");
@@ -193,6 +202,38 @@ public static class TextFormatter
                         vulnerability.AdvisoryUrl
                     );
                 }
+
+                sb.AppendLine();
+                sb.AppendLine("Used in:");
+
+                foreach (var project in projects)
+                {
+                    sb.AppendLine(project);
+                }
+            }
+
+            sb.AppendLine("--");
+        }
+    }
+
+    private static void LicenseMismatchPackages(
+        StringBuilder sb,
+        IEnumerable<LicenseMismatchPackage> licenseMismatchPackages
+    )
+    {
+        foreach (var package in licenseMismatchPackages)
+        {
+            sb.AppendLine(package.PackageId);
+
+            foreach (var (version, projects) in package.Versions)
+            {
+                sb.AppendFormat(
+                    new CultureInfo("en-US"),
+                    "{0} {1}: {2}",
+                    version.IsInstalledVersion ? "Installed version" : "Newer version available",
+                    version.NuGetVersion,
+                    version.License
+                );
 
                 sb.AppendLine();
                 sb.AppendLine("Used in:");
