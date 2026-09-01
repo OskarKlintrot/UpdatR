@@ -34,6 +34,12 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// allowed. Packages without any license metadata are always allowed. Leave out or empty to
     /// disable license checking.
     /// </param>
+    /// <remarks>
+    /// If a <c>.updatrrc</c> JSON file is found - first next to <paramref name="path"/>, then in
+    /// the current working directory - its <c>excludePackages</c> and <c>allowedLicenses</c>
+    /// values are merged (union) with <paramref name="excludePackages"/> and
+    /// <paramref name="allowedLicenses"/> respectively.
+    /// </remarks>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
     public async Task<Summary> UpdateAsync(
@@ -50,6 +56,11 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         var tfm = ParseTFM(targetFrameworkMoniker);
 
         path ??= Directory.GetCurrentDirectory();
+
+        var updatRConfig = UpdatRConfig.Load(path);
+
+        excludePackages = UpdatRConfig.Merge(excludePackages, updatRConfig?.ExcludePackages);
+        allowedLicenses = UpdatRConfig.Merge(allowedLicenses, updatRConfig?.AllowedLicenses);
 
         var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
         var shouldExcludePackage = CreateSearch(excludePackages, treatNullOrEmptyAs: false);
