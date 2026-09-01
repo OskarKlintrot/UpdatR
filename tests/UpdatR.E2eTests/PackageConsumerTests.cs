@@ -4,6 +4,17 @@ using static SimpleExec.Command;
 namespace UpdatR.E2e;
 
 /// <summary>
+/// Both LiveTests and PackageConsumerTests spawn heavy "dotnet" subprocesses and temporarily
+/// redirect the process-wide Console.Out to capture output for xunit. xunit runs different test
+/// classes in parallel by default, and Console.Out is global mutable state, so without this
+/// collection the two classes' captured output can get interleaved/corrupted when they run at the
+/// same time (observed in CI: PackageConsumerTests' failure output contained LiveTests' Dummy.App
+/// output). Putting both in the same collection forces them to run sequentially instead.
+/// </summary>
+[CollectionDefinition("E2E sequential", DisableParallelization = true)]
+public sealed class E2eSequentialFixture;
+
+/// <summary>
 /// Packs UpdatR as a real NuGet package and consumes it from a brand new console project via a
 /// plain PackageReference - the same way an actual user would. This is the only test in the repo
 /// that goes through NuGet's real restore/pack graph resolution instead of a ProjectReference, so
@@ -12,6 +23,7 @@ namespace UpdatR.E2e;
 /// that shipped in 6.0.0-beta.0: every other test in the solution references UpdatR.csproj via
 /// ProjectReference, which never exercises NuGet's transitive-dependency/asset-exclusion logic.
 /// </summary>
+[Collection("E2E sequential")]
 public sealed class PackageConsumerTests : IDisposable
 {
     private readonly TextWriter _originalConsoleOut;
@@ -89,6 +101,20 @@ public sealed class PackageConsumerTests : IDisposable
             ct: TestContext.Current.CancellationToken
         );
 
+        // Write Program.cs before building, so a single build produces a binary that both
+        // proves there's no MSBL001 build error AND can immediately be executed afterwards -
+        // avoids relying on `dotnet run`'s own incremental up-to-date checks re-triggering (or
+        // not) a full rebuild.
+        await File.WriteAllTextAsync(
+            Path.Combine(consumerDir, "Program.cs"),
+            $"""
+            var updater = new UpdatR.Updater();
+            var summary = await updater.UpdateAsync(@"{consumerDir}", dryRun: true);
+            Console.WriteLine("UpdatR ran successfully. Updated packages: " + summary.UpdatedPackagesCount);
+            """,
+            TestContext.Current.CancellationToken
+        );
+
         var (buildStdOutput, buildStdError) = await ReadAsync(
             "dotnet",
             "build --configuration Release",
@@ -108,20 +134,19 @@ public sealed class PackageConsumerTests : IDisposable
 
         // Exercise the actual runtime behavior too (ModuleInitializer registering
         // MSBuildLocator, and UpdatR.MsBuild actually resolving a real MSBuild), not just the
-        // build - the DLL needs to both be present (build-time check above) and loadable.
-        await File.WriteAllTextAsync(
-            Path.Combine(consumerDir, "Program.cs"),
-            $"""
-            var updater = new UpdatR.Updater();
-            var summary = await updater.UpdateAsync(@"{consumerDir}", dryRun: true);
-            Console.WriteLine("UpdatR ran successfully. Updated packages: " + summary.UpdatedPackagesCount);
-            """,
-            TestContext.Current.CancellationToken
-        );
+        // build - the DLL needs to both be present (build-time check above) and loadable. Uses
+        // `dotnet exec` against the binary just built, the same proven pattern LiveTests uses for
+        // the CLI, instead of `dotnet run` (which would re-evaluate/rebuild the project again).
+        var consumerDll = Path.Combine(consumerDir, "bin", "Release", "net10.0", "Consumer.dll");
+
+        if (!File.Exists(consumerDll))
+        {
+            throw new InvalidOperationException($"Could not find built assembly at {consumerDll}.");
+        }
 
         var (runStdOutput, runStdError) = await ReadAsync(
             "dotnet",
-            "run --configuration Release",
+            $"exec \"{consumerDll}\"",
             workingDirectory: consumerDir,
             ct: TestContext.Current.CancellationToken
         );
