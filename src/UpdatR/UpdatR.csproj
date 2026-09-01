@@ -14,9 +14,70 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
     <PackageReference Include="NuGet.Credentials" Version="7.9.0" />
+    <!--
+      NuGet.Frameworks is one of the packages Microsoft.Build.Locator (brought in transitively via
+      the ProjectReference below) warns about (MSBL001): MSBuild ships its own copy internally, so
+      this one must not be copied to the output directory. ExcludeAssets="runtime" achieves that,
+      and PrivateAssets="all" stops the reference from flowing to downstream consumers (so their
+      own builds don't trip the same MSBL001 check for a package they never asked for). UpdatR's
+      own use of NuGet.Frameworks (internal only, never part of the public API) is safe because
+      ModuleInitializer.cs registers MSBuildLocator's assembly-resolve handler before any code in
+      this assembly can run, guaranteeing the "excluded" NuGet.Frameworks gets resolved from
+      whatever .NET SDK/Visual Studio installation MSBuildLocator finds instead.
+    -->
+    <PackageReference
+      Include="NuGet.Frameworks"
+      Version="7.9.0"
+      ExcludeAssets="runtime"
+      PrivateAssets="all"
+    />
     <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      UpdatR.MsBuild is IsPackable="false" - it's never published as its own NuGet package - so
+      without PrivateAssets="all" here, `dotnet pack` would still emit a
+      <dependency id="UpdatR.MsBuild" .../> in UpdatR's nuspec (NuGet's default behavior for any
+      ProjectReference). That dependency could never be resolved by consumers since no such package
+      exists, breaking every restore of the UpdatR package. PrivateAssets="all" also suppresses
+      Microsoft.Build.Locator (a real, published dependency of UpdatR.MsBuild) from flowing to
+      UpdatR's nuspec, so the CopyProjectReferencesToPackage target below both bundles
+      UpdatR.MsBuild.dll's compiled output directly into UpdatR's own package and re-adds
+      Microsoft.Build.Locator as a proper dependency so consumers still restore it.
+    -->
+    <ProjectReference Include="..\UpdatR.MsBuild\UpdatR.MsBuild.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Microsoft.Build.Locator.dll must physically ship next to UpdatR.dll (ModuleInitializer.cs
+      calls into it unconditionally), but PrivateAssets="all" above stops it flowing as a nuspec
+      dependency. Declaring it directly here restores that dependency declaration.
+    -->
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+  </ItemGroup>
+
+  <!--
+    NuGet does not automatically bundle a non-packable ProjectReference's compiled output into the
+    referencing project's package (see
+    https://learn.microsoft.com/nuget/create-packages/set-package-type#including-referenced-projects-in-the-nuget-package).
+    This target copies UpdatR.MsBuild.dll (and its own copy-local outputs) into UpdatR's package
+    alongside UpdatR.dll, so consumers actually get the assembly UpdatR.dll's ModuleInitializer and
+    PropsFile support depend on at runtime.
+  -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>
+      $(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage
+    </TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')->WithMetadataValue('NuGetPackageId', ''))" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">

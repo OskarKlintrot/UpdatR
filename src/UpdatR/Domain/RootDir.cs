@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using NuGet.Frameworks;
 using NuGet.Packaging;
+using UpdatR.MsBuild;
 
 namespace UpdatR.Domain;
 
@@ -21,6 +23,8 @@ internal sealed class RootDir
 
     public ICollection<FileBasedApp>? FileBasedApps { get; private set; }
 
+    public ICollection<PropsFile>? PropsFiles { get; private set; }
+
     public void AddDotnetTools(DotnetTools dotnetTools)
     {
         (DotnetTools ??= []).Add(dotnetTools);
@@ -34,6 +38,11 @@ internal sealed class RootDir
     public void AddFileBasedApp(FileBasedApp fileBasedApp)
     {
         (FileBasedApps ??= []).Add(fileBasedApp);
+    }
+
+    public void AddPropsFile(PropsFile propsFile)
+    {
+        (PropsFiles ??= []).Add(propsFile);
     }
 
     public static RootDir Create(string path)
@@ -131,6 +140,8 @@ internal sealed class RootDir
             );
         }
 
+        DiscoverPropsFiles(dir);
+
         return dir;
 
         static bool IsInBinOrObjFolder(string filePath) =>
@@ -163,6 +174,8 @@ internal sealed class RootDir
                 dir.AddDotnetTools(item);
             }
 
+            DiscoverPropsFiles(dir);
+
             return dir;
         }
 
@@ -187,6 +200,8 @@ internal sealed class RootDir
                 dir.AddFileBasedApp(fileBasedApp);
             }
 
+            DiscoverPropsFiles(dir);
+
             return dir;
         }
 
@@ -197,6 +212,8 @@ internal sealed class RootDir
             dir.AddCsproj(Csproj.Create(path.FullName));
 
             AddDotnetToolsFromCsproj(dir);
+
+            DiscoverPropsFiles(dir);
 
             return dir;
         }
@@ -330,6 +347,61 @@ internal sealed class RootDir
             .Where(x => x.Exists)
             .Where(x => FileBasedApp.IsFileBasedApp(x.FullName))
             .Select(x => FileBasedApp.Create(x.FullName));
+
+    /// <summary>
+    /// Finds every <c>.props</c>/<c>.targets</c> file (typically <c>Directory.Build.props</c> or,
+    /// with Central Package Management, <c>Directory.Packages.props</c>) imported by any csproj
+    /// in <paramref name="dir"/> that declares a <c>PackageReference</c> or <c>PackageVersion</c>
+    /// item, using real MSBuild evaluation. A file imported by several csproj is only added once,
+    /// tracking every contributing csproj's target framework so it can later be updated
+    /// conservatively (i.e. only to a version compatible with all of them).
+    /// </summary>
+    private static void DiscoverPropsFiles(RootDir dir)
+    {
+        if (dir.Csprojs is null)
+        {
+            return;
+        }
+
+        Dictionary<string, List<NuGetFramework>> tfmsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var csproj in dir.Csprojs)
+        {
+            IReadOnlyList<PackageItemSource> sources;
+
+            try
+            {
+                sources = MsBuildProjectInspector.GetPackageItemSources(csproj.Path);
+            }
+            catch (Exception)
+            {
+                // MSBuild evaluation can fail for a malformed project, a missing SDK, etc. The
+                // csproj itself is still updated normally by Updater - we just won't be able to
+                // discover any props/targets files it might import.
+                continue;
+            }
+
+            foreach (
+                var sourceFile in sources
+                    .Select(x => x.SourceFile)
+                    .Where(x => !string.Equals(x, csproj.Path, StringComparison.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+            )
+            {
+                if (!tfmsByPath.TryGetValue(sourceFile, out var tfms))
+                {
+                    tfmsByPath[sourceFile] = tfms = [];
+                }
+
+                tfms.Add(csproj.TargetFramework);
+            }
+        }
+
+        foreach (var (path, tfms) in tfmsByPath)
+        {
+            dir.AddPropsFile(PropsFile.Create(path, tfms));
+        }
+    }
 
     private static IEnumerable<string> GetPathsFromSolutionX(FileInfo solution, string elementName)
     {
