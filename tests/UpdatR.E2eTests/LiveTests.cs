@@ -60,7 +60,7 @@ public sealed class LiveTests : IDisposable
                 "dotnet",
                 "build --configuration Release",
                 workingDirectory: cliProjectPath,
-                cancellationToken: TestContext.Current.CancellationToken
+                ct: TestContext.Current.CancellationToken
             );
         }
 
@@ -75,7 +75,7 @@ public sealed class LiveTests : IDisposable
             "dotnet",
             $"exec {cli} --output {log} --title {title} --description {description}",
             workingDirectory: dummyProject,
-            cancellationToken: TestContext.Current.CancellationToken
+            ct: TestContext.Current.CancellationToken
         );
 
         Console.WriteLine("CLI stdout:");
