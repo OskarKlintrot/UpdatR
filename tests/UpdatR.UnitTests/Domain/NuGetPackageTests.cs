@@ -232,4 +232,312 @@ public class NuGetPackageTests
             Assert.Equal(expected, packageMetadata?.Version.ToString());
         }
     }
+
+    [Theory]
+    [InlineData(null, "1.0.0", "2.0.0")]
+    [InlineData(new string[0], "1.0.0", "2.0.0")]
+    [InlineData(new[] { "MIT" }, "1.0.0", null)]
+    [InlineData(new[] { "mit" }, "1.0.0", null)]
+    [InlineData(new[] { "Apache-2.0" }, "1.0.0", "2.0.0")]
+    [InlineData(new[] { "Apache-2.0" }, "2.0.0", null)]
+    [InlineData(new[] { "GPL-3.0" }, "1.0.0", null)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetLatestComparedTo_With_AllowedLicenses(
+        string[]? allowedLicenses,
+        string comparedTo,
+        string? expected
+    )
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "Apache-2.0"
+                ),
+            ]
+        );
+
+        // Act
+        var newerVersionIsAvailable = package.TryGetLatestComparedTo(
+            version: NuGetVersion.Parse(comparedTo),
+            targetFramework: NuGetFramework.Parse("net9.0"),
+            usePrerelease: false,
+            package: out var packageMetadata,
+            allowedLicenses: allowedLicenses
+        );
+
+        // Assert
+        if (expected is null)
+        {
+            Assert.False(newerVersionIsAvailable);
+        }
+        else
+        {
+            Assert.True(newerVersionIsAvailable);
+            Assert.Equal(expected, packageMetadata?.Version.ToString());
+        }
+    }
+
+    [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetLatestComparedTo_With_AllowedLicenses_NoLicenseInfo_IsAlwaysAllowed()
+    {
+        // Arrange - fail-open: a version without any license information should be updatable to,
+        // even though it doesn't match any of the allowed licenses.
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "Apache-2.0"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var newerVersionIsAvailable = package.TryGetLatestComparedTo(
+            version: NuGetVersion.Parse("1.0.0"),
+            targetFramework: NuGetFramework.Parse("net9.0"),
+            usePrerelease: false,
+            package: out var packageMetadata,
+            allowedLicenses: ["MIT"]
+        );
+
+        // Assert
+        Assert.True(newerVersionIsAvailable);
+        Assert.Equal("2.0.0", packageMetadata?.Version.ToString());
+    }
+
+    [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetNewerVersionWithDisallowedLicense_Reports_SkippedUpdate()
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "Apache-2.0"
+                ),
+            ]
+        );
+
+        // Act
+        var skipped = package.TryGetNewerVersionWithDisallowedLicense(
+            version: NuGetVersion.Parse("1.0.0"),
+            targetFramework: NuGetFramework.Parse("net9.0"),
+            usePrerelease: false,
+            allowedLicenses: ["MIT"],
+            package: out var packageMetadata
+        );
+
+        // Assert
+        Assert.True(skipped);
+        Assert.Equal("2.0.0", packageMetadata?.Version.ToString());
+    }
+
+    [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetNewerVersionWithDisallowedLicense_NoUpdateAvailable_ReturnsFalse()
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+            ]
+        );
+
+        // Act
+        var skipped = package.TryGetNewerVersionWithDisallowedLicense(
+            version: NuGetVersion.Parse("1.0.0"),
+            targetFramework: NuGetFramework.Parse("net9.0"),
+            usePrerelease: false,
+            allowedLicenses: ["MIT"],
+            package: out var packageMetadata
+        );
+
+        // Assert
+        Assert.False(skipped);
+        Assert.Null(packageMetadata);
+    }
+
+    [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetNewerVersionWithDisallowedLicense_NewerVersionIsAllowed_ReturnsFalse()
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+            ]
+        );
+
+        // Act
+        var skipped = package.TryGetNewerVersionWithDisallowedLicense(
+            version: NuGetVersion.Parse("1.0.0"),
+            targetFramework: NuGetFramework.Parse("net9.0"),
+            usePrerelease: false,
+            allowedLicenses: ["MIT"],
+            package: out var packageMetadata
+        );
+
+        // Assert
+        Assert.False(skipped);
+        Assert.Null(packageMetadata);
+    }
+
+    [Theory]
+    [InlineData(null, "MIT", true)]
+    [InlineData(new string[0], "MIT", true)]
+    [InlineData(new[] { "MIT" }, "MIT", true)]
+    [InlineData(new[] { "MIT" }, "mit or apache-2.0", true)]
+    [InlineData(new[] { "MIT" }, "Apache-2.0", false)]
+    [InlineData(new[] { "MIT" }, null, true)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void IsLicenseAllowed_Static(
+        string[]? allowedLicenses,
+        string? licenseExpression,
+        bool expected
+    )
+    {
+        // Arrange
+        var metadata = new PackageMetadata(
+            NuGetVersion.Parse("1.0.0"),
+            [NuGetFramework.Parse("net9.0")],
+            null,
+            null,
+            licenseExpression
+        );
+
+        // Act
+        var result = NuGetPackage.IsLicenseAllowed(metadata, allowedLicenses);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData(null, "1.0.0", true)]
+    [InlineData(new[] { "MIT" }, "1.0.0", true)]
+    [InlineData(new[] { "MIT" }, "2.0.0", false)]
+    [InlineData(new[] { "MIT" }, "3.0.0", true)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void IsLicenseAllowed_Instance(string[]? allowedLicenses, string version, bool expected)
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    "Apache-2.0"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("3.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var result = package.IsLicenseAllowed(NuGetVersion.Parse(version), allowedLicenses);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
 }

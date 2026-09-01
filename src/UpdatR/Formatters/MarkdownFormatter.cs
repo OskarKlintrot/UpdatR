@@ -65,6 +65,14 @@ public static class MarkdownFormatter
             sb.AppendLine();
         }
 
+        if (summary.LicenseMismatchPackages.Any())
+        {
+            sb.AppendLine("## License mismatches");
+            sb.AppendLine();
+            LicenseMismatchPackages(sb, summary.LicenseMismatchPackages);
+            sb.AppendLine();
+        }
+
         if (summary.UpdatedPackages.Any())
         {
             sb.AppendLine("## Updated packages");
@@ -240,6 +248,41 @@ public static class MarkdownFormatter
                         )
                         .AppendLine();
                 }
+
+                sb.AppendLine();
+                sb.AppendLine("#### Used in:");
+
+                foreach (var project in projects)
+                {
+                    sb.Append("- ").AppendLine(project);
+                }
+            }
+
+            sb.AppendLine();
+        }
+    }
+
+    private static void LicenseMismatchPackages(
+        StringBuilder sb,
+        IEnumerable<LicenseMismatchPackage> licenseMismatchPackages
+    )
+    {
+        foreach (var package in licenseMismatchPackages)
+        {
+            sb.Append("### ").AppendLine(package.PackageId);
+
+            foreach (var (version, projects) in package.Versions)
+            {
+                sb.AppendFormat(
+                        new CultureInfo("en-US"),
+                        "{0} {1}: {2}",
+                        version.IsInstalledVersion
+                            ? "Installed version"
+                            : "Newer version available",
+                        version.NuGetVersion,
+                        version.License
+                    )
+                    .AppendLine();
 
                 sb.AppendLine();
                 sb.AppendLine("#### Used in:");

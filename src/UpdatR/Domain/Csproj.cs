@@ -74,7 +74,8 @@ internal sealed partial class Csproj
         bool dryRun,
         bool usePrerelease,
         ILogger logger,
-        NuGetFramework? tfm = null
+        NuGetFramework? tfm = null,
+        IReadOnlyCollection<string>? allowedLicenses = null
     )
     {
         var project = new ProjectWithPackages(Path);
@@ -127,6 +128,7 @@ internal sealed partial class Csproj
             else if (package.TryGet(version, out var metadata))
             {
                 CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
+                CheckForLicenseMismatch(project, package, packageId, version, metadata);
             }
 
             if (
@@ -134,7 +136,8 @@ internal sealed partial class Csproj
                     version,
                     tfm ?? TargetFramework,
                     usePrerelease,
-                    out var updateTo
+                    out var updateTo,
+                    allowedLicenses
                 )
             )
             {
@@ -142,6 +145,16 @@ internal sealed partial class Csproj
                     project,
                     packageId,
                     package.PackageMetadatas.SingleOrDefault(x => x.Version == version)
+                );
+
+                CheckForSkippedLicenseMismatch(
+                    project,
+                    package,
+                    packageId,
+                    version,
+                    tfm ?? TargetFramework,
+                    usePrerelease,
+                    allowedLicenses
                 );
 
                 continue;
@@ -210,6 +223,74 @@ internal sealed partial class Csproj
                     packageMetadata.Vulnerabilities.Count()
                 );
             }
+        }
+
+        void CheckForLicenseMismatch(
+            ProjectWithPackages project,
+            NuGetPackage package,
+            string packageId,
+            NuGetVersion version,
+            PackageMetadata packageMetadata
+        )
+        {
+            if (
+                allowedLicenses is not { Count: > 0 }
+                || NuGetPackage.IsLicenseAllowed(packageMetadata, allowedLicenses)
+            )
+            {
+                return;
+            }
+
+            project.AddLicenseMismatchPackage(
+                new(
+                    packageId,
+                    version,
+                    packageMetadata.LicenseExpression!,
+                    isInstalledVersion: true
+                )
+            );
+
+            LogLicenseMismatch(logger, packageId, version, packageMetadata.LicenseExpression!);
+        }
+
+        void CheckForSkippedLicenseMismatch(
+            ProjectWithPackages project,
+            NuGetPackage package,
+            string packageId,
+            NuGetVersion version,
+            NuGetFramework targetFramework,
+            bool usePrerelease,
+            IReadOnlyCollection<string>? allowedLicenses
+        )
+        {
+            if (
+                !package.TryGetNewerVersionWithDisallowedLicense(
+                    version,
+                    targetFramework,
+                    usePrerelease,
+                    allowedLicenses,
+                    out var skipped
+                )
+            )
+            {
+                return;
+            }
+
+            project.AddLicenseMismatchPackage(
+                new(
+                    packageId,
+                    skipped.Version,
+                    skipped.LicenseExpression!,
+                    isInstalledVersion: false
+                )
+            );
+
+            LogSkippedLicenseMismatch(
+                logger,
+                packageId,
+                skipped.Version,
+                skipped.LicenseExpression!
+            );
         }
     }
 
@@ -324,6 +405,30 @@ internal sealed partial class Csproj
         string packageId,
         NuGetVersion version,
         int vulnerabilities
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 6,
+        Message = "Package {PackageId} version {Version} has a license that isn't allowed: {License}"
+    )]
+    static partial void LogLicenseMismatch(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        string license
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 7,
+        Message = "Package {PackageId} has a newer version {Version} available, but it was skipped because its license isn't allowed: {License}"
+    )]
+    static partial void LogSkippedLicenseMismatch(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        string license
     );
     #endregion
 }

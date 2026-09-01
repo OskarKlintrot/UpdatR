@@ -77,6 +77,13 @@ internal static partial class Program
 
         var tfmOption = new Option<string?>("--tfm") { Description = "Lowest TFM to support." };
 
+        var allowedLicensesOption = new Option<string[]>("--allowed-licenses")
+        {
+            Description =
+                "Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking.",
+            DefaultValueFactory = _ => [],
+        };
+
         var rootCommand = new RootCommand("Update all packages in solution or project(s).")
         {
             pathArgument,
@@ -91,6 +98,7 @@ internal static partial class Program
             browserOption,
             interactiveOption,
             tfmOption,
+            allowedLicensesOption,
         };
 
         rootCommand.SetAction(
@@ -107,7 +115,8 @@ internal static partial class Program
                     prerelease: parseResult.GetValue(prereleaseOption),
                     browser: parseResult.GetValue(browserOption),
                     interactive: parseResult.GetValue(interactiveOption),
-                    tfm: parseResult.GetValue(tfmOption)
+                    tfm: parseResult.GetValue(tfmOption),
+                    allowedLicenses: parseResult.GetValue(allowedLicensesOption)
                 )
         );
 
@@ -127,7 +136,8 @@ internal static partial class Program
         bool prerelease = false,
         bool browser = false,
         bool interactive = false,
-        string? tfm = null
+        string? tfm = null,
+        string[]? allowedLicenses = null
     )
     {
         var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
@@ -171,7 +181,8 @@ internal static partial class Program
             dryRun: dryRun,
             prerelease: prerelease,
             interactive: interactive,
-            targetFrameworkMoniker: tfm
+            targetFrameworkMoniker: tfm,
+            allowedLicenses: allowedLicenses
         );
 
         var outputStr = TextFormatter.PlainText(summary);

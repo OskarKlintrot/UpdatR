@@ -350,6 +350,120 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesLogsLicenseMismatchForInstalledVersion()
+    {
+        // Arrange
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net10.0")],
+                    null,
+                    null,
+                    "GPL-3.0"
+                ),
+            ]
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var logger = new FakeLogger();
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger,
+            allowedLicenses: ["MIT"]
+        );
+
+        // Assert
+        Assert.NotNull(result);
+
+        var licenseMismatch = Assert.Single(result.LicenseMismatchPackages);
+
+        Assert.Equal("Some.Package", licenseMismatch.PackageId);
+        Assert.Equal(NuGetVersion.Parse("1.0.0"), licenseMismatch.Version);
+        Assert.Equal("GPL-3.0", licenseMismatch.License);
+        Assert.True(licenseMismatch.IsInstalledVersion);
+    }
+
+    [Fact]
+    public void UpdatePackagesLogsLicenseMismatchForSkippedUpdateSharedAcrossTfms()
+    {
+        // Arrange - shared by both net6.0 and net8.0. Version 2.0.0 is compatible with both
+        // frameworks, but its license isn't allowed, so the update is skipped and reported.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net6.0"), NuGetFramework.Parse("net8.0")],
+                    null,
+                    null,
+                    "MIT"
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net6.0"), NuGetFramework.Parse("net8.0")],
+                    null,
+                    null,
+                    "GPL-3.0"
+                ),
+            ]
+        );
+
+        var propsFile = PropsFile.Create(
+            _propsPath,
+            [NuGetFramework.Parse("net6.0"), NuGetFramework.Parse("net8.0")]
+        );
+        var logger = new FakeLogger();
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger,
+            allowedLicenses: ["MIT"]
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result.UpdatedPackages);
+
+        var licenseMismatch = Assert.Single(result.LicenseMismatchPackages);
+
+        Assert.Equal("Some.Package", licenseMismatch.PackageId);
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), licenseMismatch.Version);
+        Assert.Equal("GPL-3.0", licenseMismatch.License);
+        Assert.False(licenseMismatch.IsInstalledVersion);
+    }
+
+    [Fact]
     public void PackagesReturnsBothPackageReferenceAndPackageVersionItems()
     {
         // Arrange

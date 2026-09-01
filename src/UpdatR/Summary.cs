@@ -8,7 +8,8 @@ public sealed class Summary(
     IEnumerable<(string Name, string Source)> unauthorizedSources,
     IEnumerable<UpdatedPackage> updatedPackages,
     IEnumerable<DeprecatedPackage> deprecatedPackages,
-    IEnumerable<VulnerablePackage> vulnerablePackages
+    IEnumerable<VulnerablePackage> vulnerablePackages,
+    IEnumerable<LicenseMismatchPackage> licenseMismatchPackages
 )
 {
     private int? _updatedPackagesCount;
@@ -17,6 +18,8 @@ public sealed class Summary(
     public IEnumerable<UpdatedPackage> UpdatedPackages { get; } = updatedPackages;
     public IEnumerable<DeprecatedPackage> DeprecatedPackages { get; } = deprecatedPackages;
     public IEnumerable<VulnerablePackage> VulnerablePackages { get; } = vulnerablePackages;
+    public IEnumerable<LicenseMismatchPackage> LicenseMismatchPackages { get; } =
+        licenseMismatchPackages;
 
     /// <summary>
     /// PackageId as key and projects and value.
@@ -90,12 +93,47 @@ public sealed class Summary(
                 )
             ));
 
+        var licenseMismatchPackages = result
+            .Projects.SelectMany(x =>
+                x.LicenseMismatchPackages.Select(y => (Package: y, Project: x.Path))
+            )
+            .GroupBy(x => x.Package.PackageId)
+            .Select(x =>
+                (
+                    PackageId: x.Key,
+                    Versions: x.GroupBy(y => (y.Package.Version, y.Package.IsInstalledVersion))
+                )
+            )
+            .Select(x =>
+                (
+                    x.PackageId,
+                    Versions: x.Versions.Select(y =>
+                        (
+                            y.Key.Version,
+                            y.First().Package.License,
+                            y.Key.IsInstalledVersion,
+                            Projects: y.Select(z => z.Project)
+                        )
+                    )
+                )
+            )
+            .Select(x => new LicenseMismatchPackage(
+                x.PackageId,
+                x.Versions.Select(y =>
+                    (
+                        new LicenseMismatchVersion(y.Version, y.License, y.IsInstalledVersion),
+                        y.Projects
+                    )
+                )
+            ));
+
         return new Summary(
             result.UnknownPackages,
             result.UnauthorizedSources,
             updatedPackages,
             deprecatedPackages,
-            vulnerablePackages
+            vulnerablePackages,
+            licenseMismatchPackages
         );
     }
 }
@@ -123,6 +161,17 @@ public sealed record VulnerablePackage(
 public sealed record VulnerableVersion(
     NuGetVersion Version,
     IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities
+);
+
+public sealed record LicenseMismatchPackage(
+    string PackageId,
+    IEnumerable<(LicenseMismatchVersion Version, IEnumerable<string> Projects)> Versions
+);
+
+public sealed record LicenseMismatchVersion(
+    NuGetVersion NuGetVersion,
+    string License,
+    bool IsInstalledVersion
 );
 
 public sealed record PackageDeprecationMetadata(

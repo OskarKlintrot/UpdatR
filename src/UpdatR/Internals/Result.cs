@@ -95,12 +95,14 @@ internal sealed record ProjectWithPackages
     private readonly List<UpdatedPackage> _updatedPackages = [];
     private readonly List<DeprecatedPackage> _deprecatedPackages = [];
     private readonly List<VulnerablePackage> _vulnerablePackages = [];
+    private readonly List<LicenseMismatchPackage> _licenseMismatchPackages = [];
 
     public string Path { get; init; }
     public IEnumerable<string> UnknownPackages => _unknownPackages;
     public IEnumerable<UpdatedPackage> UpdatedPackages => _updatedPackages;
     public IEnumerable<DeprecatedPackage> DeprecatedPackages => _deprecatedPackages;
     public IEnumerable<VulnerablePackage> VulnerablePackages => _vulnerablePackages;
+    public IEnumerable<LicenseMismatchPackage> LicenseMismatchPackages => _licenseMismatchPackages;
 
     public ProjectWithPackages(string path)
     {
@@ -127,10 +129,16 @@ internal sealed record ProjectWithPackages
         _vulnerablePackages.Add(package);
     }
 
+    public void AddLicenseMismatchPackage(LicenseMismatchPackage package)
+    {
+        _licenseMismatchPackages.Add(package);
+    }
+
     public bool AnyPackages() =>
         _updatedPackages.Count > 0
         || _deprecatedPackages.Count > 0
-        || _vulnerablePackages.Count > 0;
+        || _vulnerablePackages.Count > 0
+        || _licenseMismatchPackages.Count > 0;
 }
 
 internal sealed class UpdatedPackage(string packageId, NuGetVersion from, NuGetVersion to)
@@ -162,9 +170,29 @@ internal sealed class VulnerablePackage(
     public IEnumerable<PackageVulnerabilityMetadata> Vulnerabilities { get; } = vulnerabilities;
 }
 
+internal sealed class LicenseMismatchPackage(
+    string packageId,
+    NuGetVersion version,
+    string license,
+    bool isInstalledVersion
+)
+{
+    public string PackageId { get; } = packageId;
+    public NuGetVersion Version { get; } = version;
+    public string License { get; } = license;
+
+    /// <summary>
+    /// <see langword="true"/> if <see cref="Version"/> is the version currently installed in the
+    /// project; <see langword="false"/> if it's a newer version that was skipped because its
+    /// license isn't allowed.
+    /// </summary>
+    public bool IsInstalledVersion { get; } = isInstalledVersion;
+}
+
 internal record PackageMetadata(
     NuGetVersion Version,
     IEnumerable<NuGet.Frameworks.NuGetFramework> TargetFrameworks,
     PackageDeprecationMetadata? DeprecationMetadata,
-    IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities
+    IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities,
+    string? LicenseExpression = null
 );
