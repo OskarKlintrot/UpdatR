@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Xunit;
 using static SimpleExec.Command;
 
@@ -74,6 +75,38 @@ public sealed class PackageConsumerTests : IDisposable
             ct: TestContext.Current.CancellationToken
         );
 
+        // Diagnostic, defense-in-depth check: assert the produced .nupkg actually contains both
+        // UpdatR.dll's runtime dependencies (UpdatR.MsBuild.dll, Microsoft.Build.Locator.dll)
+        // alongside UpdatR.dll itself. These are bundled by the CopyProjectReferencesToPackage
+        // target in UpdatR.csproj instead of being normal NuGet dependencies (see the comments
+        // there) - if that target's item-filtering ever silently stops matching (e.g. an MSBuild
+        // version/OS difference in how ReferenceCopyLocalPaths/RuntimeCopyLocalItems metadata gets
+        // populated), this fails right here at pack-time instead of showing up as a confusing
+        // runtime FileNotFoundException in the consumer app further down.
+        var nupkgPath = Path.Combine(localFeed, $"UpdatR.{testVersion}.nupkg");
+
+        Assert.True(File.Exists(nupkgPath), $"Expected package not found at {nupkgPath}.");
+
+        using (var archive = ZipFile.OpenRead(nupkgPath))
+        {
+            var libEntries = archive
+                .Entries.Where(e => e.FullName.StartsWith("lib/", StringComparison.Ordinal))
+                .Select(e => e.FullName)
+                .ToArray();
+
+            Console.WriteLine("Package lib/ entries: " + string.Join(", ", libEntries));
+
+            Assert.Contains(libEntries, e => e.EndsWith("UpdatR.dll", StringComparison.Ordinal));
+            Assert.Contains(
+                libEntries,
+                e => e.EndsWith("UpdatR.MsBuild.dll", StringComparison.Ordinal)
+            );
+            Assert.Contains(
+                libEntries,
+                e => e.EndsWith("Microsoft.Build.Locator.dll", StringComparison.Ordinal)
+            );
+        }
+
         await RunAsync(
             "dotnet",
             $"new console -o \"{consumerDir}\" --force",
@@ -131,6 +164,23 @@ public sealed class PackageConsumerTests : IDisposable
         // MSBuildLocator's MSBL001 hard error) already fails this test on its own. The extra
         // assertion is defense-in-depth in case the check is ever downgraded to a warning.
         Assert.DoesNotContain("MSBL001", buildStdOutput, StringComparison.OrdinalIgnoreCase);
+
+        // Diagnostic, defense-in-depth check: assert UpdatR's bundled runtime dependencies
+        // actually got copied into the consumer app's own output directory by NuGet/MSBuild
+        // during the build above - not just present in the .nupkg (checked earlier). If this ever
+        // fails, the break is in restore/copy-local resolution rather than in packing.
+        var consumerOutputDir = Path.Combine(consumerDir, "bin", "Release", "net10.0");
+
+        var consumerOutputFiles = Directory.Exists(consumerOutputDir)
+            ? Directory.GetFiles(consumerOutputDir).Select(Path.GetFileName).ToArray()
+            : [];
+
+        Console.WriteLine(
+            "Consumer output directory contents: " + string.Join(", ", consumerOutputFiles)
+        );
+
+        Assert.Contains("UpdatR.MsBuild.dll", consumerOutputFiles);
+        Assert.Contains("Microsoft.Build.Locator.dll", consumerOutputFiles);
 
         // Exercise the actual runtime behavior too (ModuleInitializer registering
         // MSBuildLocator, and UpdatR.MsBuild actually resolving a real MSBuild), not just the
