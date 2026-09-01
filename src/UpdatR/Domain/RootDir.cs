@@ -393,7 +393,7 @@ internal sealed class RootDir
                     tfmsByPath[sourceFile] = tfms = [];
                 }
 
-                tfms.Add(csproj.TargetFramework);
+                tfms.AddRange(csproj.TargetFrameworks);
             }
         }
 

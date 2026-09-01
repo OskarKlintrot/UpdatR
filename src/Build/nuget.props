@@ -7,9 +7,18 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/docs/release-notes.txt"))</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/OskarKlintrot/UpdatR</RepositoryUrl>
     <PackageOutputPath>$(SolutionDir)/Artifacts</PackageOutputPath>
     <!--<GenerateDocumentationFile>true</GenerateDocumentationFile>-->
+    <!--
+      Source Link. RepositoryUrl/RepositoryType/RepositoryCommit are intentionally left unset here
+      so Microsoft.SourceLink.GitHub can populate them from the local git repository (origin remote
+      and current commit) - hardcoding RepositoryUrl would prevent RepositoryCommit from being set,
+      since SourceLink only stamps the commit when RepositoryUrl still matches what it detected.
+    -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>embedded</DebugType>
+    <EnableSourceControlManagerQueries>true</EnableSourceControlManagerQueries>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +32,21 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <!--
+      Microsoft.SourceLink.Common and Microsoft.Build.Tasks.Git only apply their real build logic
+      when directly referenced - when pulled in only transitively (e.g. via Microsoft.SourceLink.GitHub
+      above) NuGet resolves their "build" assets to an empty buildTransitive/_._ placeholder, so the
+      git commit/branch detection they provide never actually runs. Referencing them directly here
+      activates that detection so RepositoryCommit/SourceLink URLs get populated correctly.
+    -->
+    <PackageReference Include="Microsoft.SourceLink.Common" Version="10.0.400">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Build.Tasks.Git" Version="10.0.400">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>

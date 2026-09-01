@@ -60,6 +60,45 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesUpdatesPackageReferenceUsingUpdateAttribute()
+    {
+        // Arrange - PackageReference using Update (instead of Include) only overrides the
+        // version of a package already referenced elsewhere, e.g. via Directory.Build.props.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Update="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var packages = CreatePackages("Some.Package", "1.0.0", "2.0.0");
+        var logger = new FakeLogger();
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            packages,
+            dryRun: false,
+            usePrerelease: false,
+            logger: logger
+        );
+
+        // Assert
+        var updated = Assert.Single(result!.UpdatedPackages);
+
+        Assert.Equal("Some.Package", updated.PackageId);
+        Assert.Equal(NuGetVersion.Parse("1.0.0"), updated.From);
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), updated.To);
+
+        Assert.Contains("""Version="2.0.0" """.Trim(), File.ReadAllText(_propsPath));
+        Assert.DoesNotContain(logger.Logs, x => x.Level == LogLevel.Warning);
+    }
+
+    [Fact]
     public void UpdatePackagesUpdatesPackageVersionForCentralPackageManagement()
     {
         // Arrange
@@ -487,6 +526,31 @@ public class PropsFileTests : IDisposable
         // Assert
         Assert.Equal(NuGetVersion.Parse("1.0.0"), packages["Package.One"]);
         Assert.Equal(NuGetVersion.Parse("2.0.0"), packages["Package.Two"]);
+    }
+
+    [Fact]
+    public void PackagesReturnsPackageReferenceUsingUpdateAttribute()
+    {
+        // Arrange - PackageReference using Update (instead of Include) only overrides the
+        // version of a package already referenced elsewhere, e.g. via Directory.Build.props.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Update="Package.One" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath);
+
+        // Act
+        var packages = propsFile.Packages;
+
+        // Assert
+        Assert.Equal(NuGetVersion.Parse("1.0.0"), packages["Package.One"]);
     }
 
     private static Dictionary<string, NuGetPackage?> CreatePackages(

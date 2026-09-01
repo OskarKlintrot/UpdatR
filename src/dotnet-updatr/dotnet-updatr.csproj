@@ -38,6 +38,16 @@
     <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.11" />
+    <!--
+      Needed directly: UpdatR.csproj marks its own Microsoft.Build.Locator PackageReference
+      PrivateAssets="all" (see the comment there), which also stops it flowing transitively via
+      the ProjectReference below. That's fine for real consumers of the published UpdatR NuGet
+      package (its DLL is bundled directly into UpdatR's package instead), but dotnet-updatr
+      consumes UpdatR via ProjectReference, not the packed .nupkg, so it must reference the same
+      version itself to get Microsoft.Build.Locator.dll copied to its own output - UpdatR.dll's
+      ModuleInitializer requires it to be physically present at runtime.
+    -->
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
   </ItemGroup>
 
   <ItemGroup>

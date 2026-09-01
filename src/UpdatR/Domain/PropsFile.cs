@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NuGet.Frameworks;
 using NuGet.Versioning;
+using UpdatR.Domain.Utils;
 using UpdatR.Internals;
 
 namespace UpdatR.Domain;
@@ -98,7 +99,9 @@ internal sealed partial class PropsFile
 
         foreach (var item in items)
         {
-            var packageId = item.GetAttribute("Include");
+            var packageId = item.HasAttribute("Include")
+                ? item.GetAttribute("Include")
+                : item.GetAttribute("Update");
 
             if (!item.HasAttribute("Version"))
             {
@@ -137,7 +140,7 @@ internal sealed partial class PropsFile
             }
 
             if (
-                !TryGetLatestCompatibleWithAllTfms(
+                !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
                     package,
                     version,
                     tfms,
@@ -263,7 +266,7 @@ internal sealed partial class PropsFile
         {
             if (
                 allowedLicenses is not { Count: > 0 }
-                || !TryGetLatestCompatibleWithAllTfms(
+                || !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
                     package,
                     version,
                     tfms,
@@ -295,59 +298,16 @@ internal sealed partial class PropsFile
         }
     }
 
-    /// <summary>
-    /// Finds the latest version of <paramref name="package"/>, newer than <paramref name="from"/>,
-    /// that every framework in <paramref name="tfms"/> can use. If any framework has no valid
-    /// update (i.e. is already on the newest version it supports), no update is returned at all -
-    /// this file may be imported by that framework's project too, so updating further could break
-    /// it. Otherwise, the lowest of the per-framework results is returned, since that's guaranteed
-    /// to be compatible with every framework that imports this file.
-    /// </summary>
-    private static bool TryGetLatestCompatibleWithAllTfms(
-        NuGetPackage package,
-        NuGetVersion from,
-        IReadOnlyCollection<NuGetFramework> tfms,
-        bool usePrerelease,
-        IReadOnlyCollection<string>? allowedLicenses,
-        [System.Diagnostics.CodeAnalysis.NotNullWhen(returnValue: true)]
-            out PackageMetadata? updateTo
-    )
-    {
-        PackageMetadata? lowestCommonUpdate = null;
-
-        foreach (var candidateTfm in tfms)
-        {
-            if (
-                !package.TryGetLatestComparedTo(
-                    from,
-                    candidateTfm,
-                    usePrerelease,
-                    out var updateToForTfm,
-                    allowedLicenses
-                )
-            )
-            {
-                updateTo = null;
-
-                return false;
-            }
-
-            if (lowestCommonUpdate is null || updateToForTfm.Version < lowestCommonUpdate.Version)
-            {
-                lowestCommonUpdate = updateToForTfm;
-            }
-        }
-
-        updateTo = lowestCommonUpdate;
-
-        return updateTo is not null;
-    }
-
     private Dictionary<string, NuGetVersion> GetPackages() =>
         _doc.SelectNodes("/Project/ItemGroup/PackageReference|/Project/ItemGroup/PackageVersion")!
             .OfType<XmlElement>()
             .Select(x =>
-                (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
+                (
+                    PackageId: x!.HasAttribute("Include")
+                        ? x!.GetAttribute("Include")
+                        : x!.GetAttribute("Update"),
+                    Version: x!.GetAttribute("Version")
+                )
             )
             .Where(x =>
                 !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _)

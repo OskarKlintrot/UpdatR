@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 
 namespace UpdatR;
 
@@ -40,6 +42,37 @@ internal static class ModuleInitializer
     [ModuleInitializer]
     internal static void Initialize()
     {
+        // UpdatR.MsBuild.dll and Microsoft.Build.Locator.dll are bundled directly into UpdatR's own
+        // package output instead of being declared as regular NuGet dependencies (see the
+        // PrivateAssets="all" comments in UpdatR.csproj - a real dependency would break every
+        // consumer's build via Microsoft.Build.Locator's MSBL001 buildTransitive check). That means
+        // neither assembly is guaranteed to be listed in a consuming app's .deps.json, which the
+        // default AssemblyLoadContext uses to build its trusted-assembly list for
+        // framework-dependent apps. Relying on that default, implicit probing to still find the
+        // files is fragile: they ARE physically copied next to UpdatR.dll (NuGet copies every file
+        // under a referenced package's lib/<tfm> folder to the consumer's output directory
+        // regardless of .deps.json), but resolving a simple assembly name still failed with a
+        // FileNotFoundException on Linux even though the exact same package/output layout worked
+        // fine on Windows. Resolving both assemblies explicitly from UpdatR.dll's own directory
+        // removes any dependency on .deps.json - or on any OS-specific probing behavior - entirely.
+        //
+        // This registration MUST happen in a method that itself contains no reference to any
+        // UpdatR.MsBuild type: the JIT resolves every type referenced by a method's IL - including
+        // simple call targets - while compiling THAT method, before any of its instructions
+        // actually run. If the Resolving registration and the call into UpdatR.MsBuild lived in the
+        // same method, compiling this method would try to resolve UpdatR.MsBuild before the
+        // registration line ever executed, so the handler would never get a chance to run (this
+        // was tried and confirmed not to fix the issue). Splitting the actual usage into a separate
+        // NoInlining method defers resolving UpdatR.MsBuild until that method is actually invoked,
+        // by which point the handler below is already registered.
+        AssemblyLoadContext.Default.Resolving += ResolveBundledDependency;
+
+        RegisterMsBuildLocator();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterMsBuildLocator()
+    {
         try
         {
             UpdatR.MsBuild.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
@@ -62,5 +95,27 @@ internal static class ModuleInitializer
                 ex
             );
         }
+    }
+
+    private static Assembly? ResolveBundledDependency(
+        AssemblyLoadContext context,
+        AssemblyName assemblyName
+    )
+    {
+        if (assemblyName.Name is not ("UpdatR.MsBuild" or "Microsoft.Build.Locator"))
+        {
+            return null;
+        }
+
+        var updatrDirectory = Path.GetDirectoryName(typeof(ModuleInitializer).Assembly.Location);
+
+        if (string.IsNullOrEmpty(updatrDirectory))
+        {
+            return null;
+        }
+
+        var candidatePath = Path.Combine(updatrDirectory, assemblyName.Name + ".dll");
+
+        return File.Exists(candidatePath) ? context.LoadFromAssemblyPath(candidatePath) : null;
     }
 }

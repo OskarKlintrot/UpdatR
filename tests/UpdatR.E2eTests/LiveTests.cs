@@ -3,6 +3,7 @@ using static SimpleExec.Command;
 
 namespace UpdatR.E2e;
 
+[Collection("E2E sequential")]
 public sealed class LiveTests : IDisposable
 {
     private readonly TextWriter _originalConsoleOut;
