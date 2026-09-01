@@ -96,6 +96,11 @@ internal static class FileCreationUtils
         return await File.ReadAllTextAsync(path)!;
     }
 
+    public static async Task CreateUpdatRConfigAsync(string path, string json)
+    {
+        await File.WriteAllTextAsync(path, json);
+    }
+
     public static void CreateNuGetConfig(string path, bool addNuGetOrg = false)
     {
         var nugetContent = GetResource("UpdatR.IntegrationTests.Resources.Templates.nuget.config");

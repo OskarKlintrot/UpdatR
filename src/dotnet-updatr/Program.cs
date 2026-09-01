@@ -32,7 +32,8 @@ internal static partial class Program
 
         var excludePackageOption = new Option<string[]>("--exclude-package")
         {
-            Description = "Package to exclude. Supports * as wildcard.",
+            Description =
+                "Package to exclude. Supports * as wildcard. Merged with \"excludePackages\" from a .updatrrc file, if present.",
             DefaultValueFactory = _ => [],
         };
 
@@ -80,7 +81,7 @@ internal static partial class Program
         var allowedLicensesOption = new Option<string[]>("--allowed-licenses")
         {
             Description =
-                "Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking.",
+                "Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking. Merged with \"allowedLicenses\" from a .updatrrc file, if present.",
             DefaultValueFactory = _ => [],
         };
 

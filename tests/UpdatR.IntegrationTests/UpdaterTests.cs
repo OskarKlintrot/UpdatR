@@ -463,6 +463,95 @@ public class UpdaterTests
         }
     }
 
+    [Fact]
+    public async Task Given_UpdatRRcFile_When_ExcludesPackage_Then_DoNotUpdate()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatRRcFile_When_ExcludesPackage_Then_DoNotUpdate)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1"),
+            new KeyValuePair<string, string>("Has.Previews", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        await CreateUpdatRConfigAsync(
+            Path.Combine(temp, ".updatrrc"),
+            """{ "excludePackages": ["Dummy.*"] }"""
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Fact]
+    public async Task Given_UpdatRRcFileAndCliExcludePackage_When_Update_Then_ExcludesAreMerged()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatRRcFileAndCliExcludePackage_When_Update_Then_ExcludesAreMerged)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1"),
+            new KeyValuePair<string, string>("Has.Previews", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        // Config excludes Dummy.*, CLI excludes Has.*: both should end up excluded (union).
+        await CreateUpdatRConfigAsync(
+            Path.Combine(temp, ".updatrrc"),
+            """{ "excludePackages": ["Dummy.*"] }"""
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp, ["Has.*"]);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
     [Theory]
     [InlineData("Dummy.*", "Microsoft.*")]
     [InlineData("Dummy.*", "Dummy.Tool")]

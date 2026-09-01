@@ -76,6 +76,25 @@ If you don't want to update a package or packages you can exclude them:
 > update --exclude-package Microsoft.* --exclude-package Newtonsoft.*
 ```
 
+If you don't want to allow packages with certain licenses to be installed you can specify which licenses are allowed:
+
+```
+> update --allowed-licenses MIT --allowed-licenses Apache-2.0
+```
+
+Packages without any license metadata are always allowed, and this only affects installing new versions - it will neither touch nor warn about already installed packages that don't match, unless a newer version is available.
+
+Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you can add a `.updatrrc` JSON file, either next to the target path or in the current working directory:
+
+```json
+{
+  "excludePackages": ["Microsoft.*", "Newtonsoft.*"],
+  "allowedLicenses": ["MIT", "Apache-2.0"]
+}
+```
+
+Both properties are optional, and any value in `.updatrrc` is merged with the corresponding command line option, if given.
+
 If UpdatR fails to find the correct lowest TFM to support, for example for projects that supports multiple TFM's, then it's possible to set the TFM manually:
 
 ```
@@ -112,7 +131,7 @@ Arguments:
 
 Options:
   --package <package>                                                Package to update. Supports * as wildcard. Will update all unless specified.
-  --exclude-package <exclude-package>                                Package to exclude. Supports * as wildcard.
+  --exclude-package <exclude-package>                                Package to exclude. Supports * as wildcard. Merged with "excludePackages" from a .updatrrc file, if present.
   --output <output>                                                  Writes the summary to a file. If an existing directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown or ".txt" for plain text.
   --title <title>                                                    Outputs title to path.
   --description <description>                                        Outputs description to path.
@@ -122,7 +141,7 @@ Options:
   --browser                                                          Open summary in browser.
   --interactive                                                      Interaction with user is possible.
   --tfm <tfm>                                                        Lowest TFM to support.
-  --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking.
+  --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking. Merged with "allowedLicenses" from a .updatrrc file, if present.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
 ```
