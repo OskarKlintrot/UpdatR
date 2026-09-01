@@ -55,8 +55,24 @@ internal static class ModuleInitializer
         // FileNotFoundException on Linux even though the exact same package/output layout worked
         // fine on Windows. Resolving both assemblies explicitly from UpdatR.dll's own directory
         // removes any dependency on .deps.json - or on any OS-specific probing behavior - entirely.
+        //
+        // This registration MUST happen in a method that itself contains no reference to any
+        // UpdatR.MsBuild type: the JIT resolves every type referenced by a method's IL - including
+        // simple call targets - while compiling THAT method, before any of its instructions
+        // actually run. If the Resolving registration and the call into UpdatR.MsBuild lived in the
+        // same method, compiling this method would try to resolve UpdatR.MsBuild before the
+        // registration line ever executed, so the handler would never get a chance to run (this
+        // was tried and confirmed not to fix the issue). Splitting the actual usage into a separate
+        // NoInlining method defers resolving UpdatR.MsBuild until that method is actually invoked,
+        // by which point the handler below is already registered.
         AssemblyLoadContext.Default.Resolving += ResolveBundledDependency;
 
+        RegisterMsBuildLocator();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterMsBuildLocator()
+    {
         try
         {
             UpdatR.MsBuild.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
