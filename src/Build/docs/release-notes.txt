@@ -2,3 +2,4 @@
 - breaking: To support .props and .targets files, UpdatR now requires the .NET SDK to be installed on the machine.
 - Add `--allowed-licenses` option to filter package updates by license expression (case-insensitive substring match). Packages without license information are always allowed. The currently installed version is also checked and reported as a mismatch if applicable.
 - breaking: `Updater.UpdateAsync` has a new optional `allowedLicenses` parameter and `Summary` has a new `LicenseMismatchPackages` property.
+- Add SourceLink support to the `UpdatR` and `dotnet-updatr` packages, enabling source debugging and repository metadata (commit, branch, URL) in the published NuGet packages.
