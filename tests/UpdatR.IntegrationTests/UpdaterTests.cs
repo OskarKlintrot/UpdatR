@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using UpdatR.Domain;
 using static UpdatR.IntegrationTests.FileCreationUtils;
@@ -1361,5 +1361,216 @@ public class UpdaterTests
         var content = await File.ReadAllTextAsync(tempProps, TestContext.Current.CancellationToken);
 
         Assert.Contains("0.0.2", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Given_DirectoryBuildPropsInheritanceChain_When_Update_Then_UpdateBothLevels()
+    {
+        // Arrange - src/Directory.Build.props explicitly imports the root Directory.Build.props
+        // (the .NET SDK only auto-imports the *nearest* Directory.Build.props for a project; a
+        // multi-level chain requires each level to explicitly import the next one up). Both
+        // files declare a different package, so we can confirm both are discovered and updated
+        // through the inheritance chain, no matter how many levels deep.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DirectoryBuildPropsInheritanceChain_When_Update_Then_UpdateBothLevels)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempRootProps = Path.Combine(temp, "Directory.Build.props");
+        var tempSrcProps = Path.Combine(temp, "src", "Directory.Build.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        await CreateTempCsprojAsync(tempCsproj);
+
+        var rootPropsOriginal = """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Dummy" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        var srcPropsOriginal = """
+            <Project>
+              <Import Project="$(MSBuildThisFileDirectory)..\Directory.Build.props" />
+              <ItemGroup>
+                <PackageReference Include="Dummy.Tool" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        await File.WriteAllTextAsync(
+            tempRootProps,
+            rootPropsOriginal,
+            TestContext.Current.CancellationToken
+        );
+        await File.WriteAllTextAsync(
+            tempSrcProps,
+            srcPropsOriginal,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        Assert.Equal(2, summary.UpdatedPackages.Count());
+        Assert.Contains(summary.UpdatedPackages, x => x.PackageId == "Dummy");
+        Assert.Contains(summary.UpdatedPackages, x => x.PackageId == "Dummy.Tool");
+
+        var rootContent = await File.ReadAllTextAsync(
+            tempRootProps,
+            TestContext.Current.CancellationToken
+        );
+        var srcContent = await File.ReadAllTextAsync(
+            tempSrcProps,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Contains("Version=\"0.0.2\"", rootContent, StringComparison.Ordinal);
+        Assert.Contains("Version=\"0.0.2\"", srcContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Given_NestedDirectoryBuildPropsWithoutExplicitImport_When_Update_Then_OuterPropsFileIsIgnored()
+    {
+        // Arrange - the .NET SDK stops at the *nearest* Directory.Build.props for a project; it
+        // does not automatically keep walking further up unless that file explicitly imports the
+        // next one. src/Directory.Build.props here does NOT import the root one, so the root
+        // file's package reference must not be discovered/updated for this project - otherwise
+        // the wrong (possibly TFM-incompatible) file could be picked up.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_NestedDirectoryBuildPropsWithoutExplicitImport_When_Update_Then_OuterPropsFileIsIgnored
+            )
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempRootProps = Path.Combine(temp, "Directory.Build.props");
+        var tempSrcProps = Path.Combine(temp, "src", "Directory.Build.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        await CreateTempCsprojAsync(tempCsproj);
+
+        var rootPropsOriginal = """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Dummy" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        var srcPropsOriginal = """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Dummy.Tool" Version="0.0.1" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        await File.WriteAllTextAsync(
+            tempRootProps,
+            rootPropsOriginal,
+            TestContext.Current.CancellationToken
+        );
+        await File.WriteAllTextAsync(
+            tempSrcProps,
+            srcPropsOriginal,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert - only Dummy.Tool (from src/Directory.Build.props) is updated, the root
+        // Directory.Build.props (never imported by this project) is left untouched.
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+
+        Assert.Equal("Dummy.Tool", updatedPackage.PackageId);
+
+        var rootContent = await File.ReadAllTextAsync(
+            tempRootProps,
+            TestContext.Current.CancellationToken
+        );
+        var srcContent = await File.ReadAllTextAsync(
+            tempSrcProps,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Contains("Version=\"0.0.1\"", rootContent, StringComparison.Ordinal);
+        Assert.Contains("Version=\"0.0.2\"", srcContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Given_DirectoryBuildPropsSharedByProjectsWithDifferentTfm_When_Update_Then_UpdateToVersionSupportedByLowerTfm()
+    {
+        // Arrange - Has.Newer.Tfm 3.1.0 targets netcoreapp3.1, 5.0.0 targets net5.0 and 6.0.0
+        // targets net6.0 only (not usable from a net5.0 project). A root Directory.Build.props
+        // shared by a net5.0 and a net6.0 project must only be updated to 5.0.0 - the newest
+        // version still usable by both - not 6.0.0, which would break the net5.0 project.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_DirectoryBuildPropsSharedByProjectsWithDifferentTfm_When_Update_Then_UpdateToVersionSupportedByLowerTfm
+            )
+        );
+        var tempCsprojNet5 = Path.Combine(temp, "src", "Net5", "Dummy.App.csproj");
+        var tempCsprojNet6 = Path.Combine(temp, "src", "Net6", "Dummy.App.csproj");
+        var tempProps = Path.Combine(temp, "Directory.Build.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsprojNet5)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsprojNet6)!);
+
+        await CreateTempCsprojAsync(tempCsprojNet5, "net5.0");
+        await CreateTempCsprojAsync(tempCsprojNet6, "net6.0");
+
+        var propsOriginal = """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Has.Newer.Tfm" Version="3.1.0" />
+              </ItemGroup>
+            </Project>
+            """;
+
+        await File.WriteAllTextAsync(
+            tempProps,
+            propsOriginal,
+            TestContext.Current.CancellationToken
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var updated = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("Has.Newer.Tfm", updatedPackage.PackageId);
+        Assert.Equal("3.1.0", updated.From.ToString());
+        Assert.Equal("5.0.0", updated.To.ToString());
+
+        var content = await File.ReadAllTextAsync(tempProps, TestContext.Current.CancellationToken);
+
+        Assert.Contains("Version=\"5.0.0\"", content, StringComparison.Ordinal);
     }
 }
