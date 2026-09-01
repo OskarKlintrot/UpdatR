@@ -1,1 +1,2 @@
 - Support .props and .targets files
+- breaking: To support .props and .targets files, UpdatR now requires the .NET SDK to be installed on the machine.
