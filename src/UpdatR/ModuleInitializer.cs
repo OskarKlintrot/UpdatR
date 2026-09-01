@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 
 namespace UpdatR;
 
@@ -40,6 +42,21 @@ internal static class ModuleInitializer
     [ModuleInitializer]
     internal static void Initialize()
     {
+        // UpdatR.MsBuild.dll and Microsoft.Build.Locator.dll are bundled directly into UpdatR's own
+        // package output instead of being declared as regular NuGet dependencies (see the
+        // PrivateAssets="all" comments in UpdatR.csproj - a real dependency would break every
+        // consumer's build via Microsoft.Build.Locator's MSBL001 buildTransitive check). That means
+        // neither assembly is guaranteed to be listed in a consuming app's .deps.json, which the
+        // default AssemblyLoadContext uses to build its trusted-assembly list for
+        // framework-dependent apps. Relying on that default, implicit probing to still find the
+        // files is fragile: they ARE physically copied next to UpdatR.dll (NuGet copies every file
+        // under a referenced package's lib/<tfm> folder to the consumer's output directory
+        // regardless of .deps.json), but resolving a simple assembly name still failed with a
+        // FileNotFoundException on Linux even though the exact same package/output layout worked
+        // fine on Windows. Resolving both assemblies explicitly from UpdatR.dll's own directory
+        // removes any dependency on .deps.json - or on any OS-specific probing behavior - entirely.
+        AssemblyLoadContext.Default.Resolving += ResolveBundledDependency;
+
         try
         {
             UpdatR.MsBuild.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
@@ -62,5 +79,27 @@ internal static class ModuleInitializer
                 ex
             );
         }
+    }
+
+    private static Assembly? ResolveBundledDependency(
+        AssemblyLoadContext context,
+        AssemblyName assemblyName
+    )
+    {
+        if (assemblyName.Name is not ("UpdatR.MsBuild" or "Microsoft.Build.Locator"))
+        {
+            return null;
+        }
+
+        var updatrDirectory = Path.GetDirectoryName(typeof(ModuleInitializer).Assembly.Location);
+
+        if (string.IsNullOrEmpty(updatrDirectory))
+        {
+            return null;
+        }
+
+        var candidatePath = Path.Combine(updatrDirectory, assemblyName.Name + ".dll");
+
+        return File.Exists(candidatePath) ? context.LoadFromAssemblyPath(candidatePath) : null;
     }
 }
