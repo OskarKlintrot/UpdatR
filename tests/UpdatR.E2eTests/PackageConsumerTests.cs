@@ -1,0 +1,165 @@
+using Xunit;
+using static SimpleExec.Command;
+
+namespace UpdatR.E2e;
+
+/// <summary>
+/// Packs UpdatR as a real NuGet package and consumes it from a brand new console project via a
+/// plain PackageReference - the same way an actual user would. This is the only test in the repo
+/// that goes through NuGet's real restore/pack graph resolution instead of a ProjectReference, so
+/// it's the only place that would have caught the MSBL001 regression ("A PackageReference to the
+/// package 'NuGet.Frameworks' ... without ExcludeAssets='runtime' and PrivateAssets='all' set")
+/// that shipped in 6.0.0-beta.0: every other test in the solution references UpdatR.csproj via
+/// ProjectReference, which never exercises NuGet's transitive-dependency/asset-exclusion logic.
+/// </summary>
+public sealed class PackageConsumerTests : IDisposable
+{
+    private readonly TextWriter _originalConsoleOut;
+    private readonly TestOutputHelperTextWriterAdapter _outAdapter;
+    private bool disposedValue;
+
+    public PackageConsumerTests(ITestOutputHelper output)
+    {
+        _originalConsoleOut = Console.Out;
+        _outAdapter = new TestOutputHelperTextWriterAdapter(output);
+
+        Console.SetOut(_outAdapter);
+    }
+
+    [Fact]
+    public async Task ConsumeUpdatRPackageBuildAndRunSucceedWithoutMsbl001()
+    {
+        var root = await GetRepoRootDirectoryAsync();
+
+        Console.WriteLine("Root: " + root);
+
+        var testTemp = Path.Combine(
+            Path.GetTempPath(),
+            "dotnet-updatr",
+            "e2etests-packageconsumer"
+        );
+
+        if (Directory.Exists(testTemp))
+        {
+            Directory.Delete(testTemp, true);
+        }
+
+        Directory.CreateDirectory(testTemp);
+
+        var localFeed = Path.Combine(testTemp, "feed");
+        var consumerDir = Path.Combine(testTemp, "Consumer");
+
+        Directory.CreateDirectory(localFeed);
+
+        // Unique per test run so nothing can be served from a NuGet cache from a previous run.
+        var testVersion = $"0.0.1-e2etest.{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+
+        var updatrProjectPath = Path.Combine(root.FullName, "src", "UpdatR", "UpdatR.csproj");
+
+        await RunAsync(
+            "dotnet",
+            $"pack \"{updatrProjectPath}\" --configuration Release -p:PackageVersion={testVersion} -o \"{localFeed}\"",
+            ct: TestContext.Current.CancellationToken
+        );
+
+        await RunAsync(
+            "dotnet",
+            $"new console -o \"{consumerDir}\" --force",
+            ct: TestContext.Current.CancellationToken
+        );
+
+        await File.WriteAllTextAsync(
+            Path.Combine(consumerDir, "nuget.config"),
+            $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+                <add key="local-updatr-feed" value="{localFeed}" />
+              </packageSources>
+            </configuration>
+            """,
+            TestContext.Current.CancellationToken
+        );
+
+        await RunAsync(
+            "dotnet",
+            $"add \"{consumerDir}\" package UpdatR --version {testVersion} --source \"{localFeed}\"",
+            ct: TestContext.Current.CancellationToken
+        );
+
+        var (buildStdOutput, buildStdError) = await ReadAsync(
+            "dotnet",
+            "build --configuration Release",
+            workingDirectory: consumerDir,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Console.WriteLine("Build stdout:");
+        Console.WriteLine(buildStdOutput);
+        Console.WriteLine("Build stderr:");
+        Console.WriteLine(buildStdError);
+
+        // ReadAsync (SimpleExec) throws on a non-zero exit code, so a build failure (including
+        // MSBuildLocator's MSBL001 hard error) already fails this test on its own. The extra
+        // assertion is defense-in-depth in case the check is ever downgraded to a warning.
+        Assert.DoesNotContain("MSBL001", buildStdOutput, StringComparison.OrdinalIgnoreCase);
+
+        // Exercise the actual runtime behavior too (ModuleInitializer registering
+        // MSBuildLocator, and UpdatR.MsBuild actually resolving a real MSBuild), not just the
+        // build - the DLL needs to both be present (build-time check above) and loadable.
+        await File.WriteAllTextAsync(
+            Path.Combine(consumerDir, "Program.cs"),
+            $"""
+            var updater = new UpdatR.Updater();
+            var summary = await updater.UpdateAsync(@"{consumerDir}", dryRun: true);
+            Console.WriteLine("UpdatR ran successfully. Updated packages: " + summary.UpdatedPackagesCount);
+            """,
+            TestContext.Current.CancellationToken
+        );
+
+        var (runStdOutput, runStdError) = await ReadAsync(
+            "dotnet",
+            "run --configuration Release",
+            workingDirectory: consumerDir,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Console.WriteLine("Run stdout:");
+        Console.WriteLine(runStdOutput);
+        Console.WriteLine("Run stderr:");
+        Console.WriteLine(runStdError);
+
+        Assert.Contains("UpdatR ran successfully.", runStdOutput, StringComparison.Ordinal);
+    }
+
+    private static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
+    {
+        var (stdOutput, stdError) = await ReadAsync("git", "rev-parse --show-toplevel");
+
+        return new DirectoryInfo(stdOutput.Trim());
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+                Console.SetOut(_originalConsoleOut);
+
+                _outAdapter.Dispose();
+            }
+
+            disposedValue = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+}
