@@ -73,6 +73,14 @@ If you don't want to allow packages with certain licenses to be installed you ca
 
 Packages without any license metadata are always allowed, and this only affects installing new versions - it will neither touch nor warn about already installed packages that don't match, unless a newer version is available.
 
+If UpdatR fails to find the correct lowest TFM to support, for example for projects that supports multiple TFM's, then it's possible to set the TFM manually:
+
+```
+> update --tfm net6.0
+```
+
+### `.updatrrc` config file
+
 Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you can add a `.updatrrc` JSON file, either next to the target path or in the current working directory:
 
 ```json
@@ -83,12 +91,6 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
 ```
 
 Both properties are optional, and any value in `.updatrrc` is merged with the corresponding command line option, if given.
-
-If UpdatR fails to find the correct lowest TFM to support, for example for projects that supports multiple TFM's, then it's possible to set the TFM manually:
-
-```
-> update --tfm net6.0
-```
 
 ### As part of CI/CD
 
