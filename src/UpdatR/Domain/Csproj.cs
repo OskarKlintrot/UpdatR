@@ -92,7 +92,9 @@ internal sealed partial class Csproj
 
         foreach (var packageReference in packageReferences)
         {
-            var packageId = packageReference.GetAttribute("Include");
+            var packageId = packageReference.HasAttribute("Include")
+                ? packageReference.GetAttribute("Include")
+                : packageReference.GetAttribute("Update");
 
             if (!packageReference.HasAttribute("Version"))
             {
@@ -347,7 +349,12 @@ internal sealed partial class Csproj
         _doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>()
             .Select(x =>
-                (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
+                (
+                    PackageId: x!.HasAttribute("Include")
+                        ? x!.GetAttribute("Include")
+                        : x!.GetAttribute("Update"),
+                    Version: x!.GetAttribute("Version")
+                )
             )
             .Where(x =>
                 !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _)

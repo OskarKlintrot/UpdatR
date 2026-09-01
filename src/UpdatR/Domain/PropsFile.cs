@@ -98,7 +98,9 @@ internal sealed partial class PropsFile
 
         foreach (var item in items)
         {
-            var packageId = item.GetAttribute("Include");
+            var packageId = item.HasAttribute("Include")
+                ? item.GetAttribute("Include")
+                : item.GetAttribute("Update");
 
             if (!item.HasAttribute("Version"))
             {
@@ -347,7 +349,12 @@ internal sealed partial class PropsFile
         _doc.SelectNodes("/Project/ItemGroup/PackageReference|/Project/ItemGroup/PackageVersion")!
             .OfType<XmlElement>()
             .Select(x =>
-                (PackageId: x!.GetAttribute("Include"), Version: x!.GetAttribute("Version"))
+                (
+                    PackageId: x!.HasAttribute("Include")
+                        ? x!.GetAttribute("Include")
+                        : x!.GetAttribute("Update"),
+                    Version: x!.GetAttribute("Version")
+                )
             )
             .Where(x =>
                 !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _)

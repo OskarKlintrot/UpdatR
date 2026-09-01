@@ -100,6 +100,67 @@ public class CsprojTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesUpdatesPackageReferenceUsingUpdateAttribute()
+    {
+        // Arrange - PackageReference using Update (instead of Include) only overrides the
+        // version of a package already referenced elsewhere, e.g. via Directory.Build.props.
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Update="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new UpdatR.Internals.PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net10.0")],
+                    null,
+                    null
+                ),
+                new UpdatR.Internals.PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net10.0")],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var result = csproj.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: logger
+        );
+
+        // Assert
+        Assert.NotNull(result);
+
+        var updated = Assert.Single(result.UpdatedPackages);
+
+        Assert.Equal("Some.Package", updated.PackageId);
+        Assert.Equal(NuGetVersion.Parse("1.0.0"), updated.From);
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), updated.To);
+
+        Assert.Contains("""Version="2.0.0" """.Trim(), File.ReadAllText(_csprojPath));
+        Assert.DoesNotContain(logger.Logs, x => x.Level == LogLevel.Warning);
+    }
+
+    [Fact]
     public void UpdatePackagesLogsLicenseMismatchForInstalledVersion()
     {
         // Arrange
