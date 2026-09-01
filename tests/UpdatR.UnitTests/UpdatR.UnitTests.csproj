@@ -32,5 +32,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\UpdatR\UpdatR.csproj" />
+    <!--
+      Needed directly: UpdatR.csproj marks this ProjectReference PrivateAssets="all" (so it isn't
+      exposed as a phantom NuGet dependency of the published UpdatR package - see the comment
+      there), which also stops it flowing transitively to this project. ModuleInitializer.cs in
+      this project uses the UpdatR.MsBuild.MsBuildProjectInspector type directly.
+    -->
+    <ProjectReference Include="..\..\src\UpdatR.MsBuild\UpdatR.MsBuild.csproj" />
   </ItemGroup>
 </Project>

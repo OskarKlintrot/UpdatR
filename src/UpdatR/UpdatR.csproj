@@ -36,8 +36,48 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UpdatR.MsBuild\UpdatR.MsBuild.csproj" />
+    <!--
+      UpdatR.MsBuild is IsPackable="false" - it's never published as its own NuGet package - so
+      without PrivateAssets="all" here, `dotnet pack` would still emit a
+      <dependency id="UpdatR.MsBuild" .../> in UpdatR's nuspec (NuGet's default behavior for any
+      ProjectReference). That dependency could never be resolved by consumers since no such package
+      exists, breaking every restore of the UpdatR package. PrivateAssets="all" also suppresses
+      Microsoft.Build.Locator (a real, published dependency of UpdatR.MsBuild) from flowing to
+      UpdatR's nuspec, so the CopyProjectReferencesToPackage target below both bundles
+      UpdatR.MsBuild.dll's compiled output directly into UpdatR's own package and re-adds
+      Microsoft.Build.Locator as a proper dependency so consumers still restore it.
+    -->
+    <ProjectReference Include="..\UpdatR.MsBuild\UpdatR.MsBuild.csproj" PrivateAssets="all" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Microsoft.Build.Locator.dll must physically ship next to UpdatR.dll (ModuleInitializer.cs
+      calls into it unconditionally), but PrivateAssets="all" above stops it flowing as a nuspec
+      dependency. Declaring it directly here restores that dependency declaration.
+    -->
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+  </ItemGroup>
+
+  <!--
+    NuGet does not automatically bundle a non-packable ProjectReference's compiled output into the
+    referencing project's package (see
+    https://learn.microsoft.com/nuget/create-packages/set-package-type#including-referenced-projects-in-the-nuget-package).
+    This target copies UpdatR.MsBuild.dll (and its own copy-local outputs) into UpdatR's package
+    alongside UpdatR.dll, so consumers actually get the assembly UpdatR.dll's ModuleInitializer and
+    PropsFile support depend on at runtime.
+  -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>
+      $(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage
+    </TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')->WithMetadataValue('NuGetPackageId', ''))" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
