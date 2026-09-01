@@ -12,7 +12,7 @@ internal sealed partial class Csproj
 {
     private readonly FileInfo _path;
     private readonly XmlDocument _doc;
-    private NuGetFramework? _targetFramework;
+    private IReadOnlyList<NuGetFramework>? _targetFrameworks;
     private NuGetVersion? _entityFrameworkVersion;
     private bool _entityFrameworkVersionLoaded;
 
@@ -28,7 +28,15 @@ internal sealed partial class Csproj
 
     public string Parent => _path.DirectoryName!;
 
-    public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework();
+    /// <summary>
+    /// Every target framework declared by this project - either via a single
+    /// <c>TargetFramework</c>, or a <c>;</c>-separated <c>TargetFrameworks</c> for a
+    /// multi-targeted project. Falls back to whatever is declared in an imported
+    /// <c>Directory.Build.props</c>, or <see cref="NuGetFramework.AnyFramework"/> if none is
+    /// found.
+    /// </summary>
+    public IReadOnlyList<NuGetFramework> TargetFrameworks =>
+        _targetFrameworks ??= GetTargetFrameworks();
 
     public NuGetVersion? EntityFrameworkVersion =>
         _entityFrameworkVersionLoaded
@@ -78,6 +86,8 @@ internal sealed partial class Csproj
         IReadOnlyCollection<string>? allowedLicenses = null
     )
     {
+        var tfms = tfm is null ? TargetFrameworks : [tfm];
+
         var project = new ProjectWithPackages(Path);
 
         var changed = false;
@@ -132,12 +142,13 @@ internal sealed partial class Csproj
             }
 
             if (
-                !package.TryGetLatestComparedTo(
+                !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
+                    package,
                     version,
-                    tfm ?? TargetFramework,
+                    tfms,
                     usePrerelease,
-                    out var updateTo,
-                    allowedLicenses
+                    allowedLicenses,
+                    out var updateTo
                 )
             )
             {
@@ -152,7 +163,7 @@ internal sealed partial class Csproj
                     package,
                     packageId,
                     version,
-                    tfm ?? TargetFramework,
+                    tfms,
                     usePrerelease,
                     allowedLicenses
                 );
@@ -258,19 +269,22 @@ internal sealed partial class Csproj
             NuGetPackage package,
             string packageId,
             NuGetVersion version,
-            NuGetFramework targetFramework,
+            IReadOnlyCollection<NuGetFramework> tfms,
             bool usePrerelease,
             IReadOnlyCollection<string>? allowedLicenses
         )
         {
             if (
-                !package.TryGetNewerVersionWithDisallowedLicense(
+                allowedLicenses is not { Count: > 0 }
+                || !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
+                    package,
                     version,
-                    targetFramework,
+                    tfms,
                     usePrerelease,
-                    allowedLicenses,
+                    allowedLicenses: null,
                     out var skipped
                 )
+                || NuGetPackage.IsLicenseAllowed(skipped, allowedLicenses)
             )
             {
                 return;
@@ -294,15 +308,15 @@ internal sealed partial class Csproj
         }
     }
 
-    private NuGetFramework GetTargetFramework()
+    private NuGetFramework[] GetTargetFrameworks()
     {
-        var targetFramework =
-            RetriveTargetFramework.GetTargetFramework(Path)
-            ?? GetTargetFrameworkFromDirectoryBuildProps(new(Parent));
+        var targetFrameworks =
+            RetriveTargetFramework.GetTargetFrameworks(Path)
+            ?? GetTargetFrameworksFromDirectoryBuildProps(new(Parent));
 
-        return targetFramework is null
-            ? NuGetFramework.AnyFramework
-            : NuGetFramework.Parse(targetFramework);
+        return targetFrameworks is null
+            ? [NuGetFramework.AnyFramework]
+            : targetFrameworks.Select(NuGetFramework.Parse).ToArray();
     }
 
     private void UpdateEntityFrameworkVersion()
