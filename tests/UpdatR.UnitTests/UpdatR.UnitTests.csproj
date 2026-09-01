@@ -11,10 +11,10 @@
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
     <!--
       Needed directly: UpdatR.csproj no longer flows this transitively (see the comment on the
-      same PackageReference there). Must be excluded here too, since Microsoft.Build.Locator
-      reaches this project transitively via the ProjectReference to UpdatR below. Because this
-      project (unlike UpdatR.dll) has no guaranteed entry point, ModuleInitializer.cs in this
-      project registers MSBuildLocator before any test can run.
+      same PackageReference there). Must be excluded here too, since Microsoft.Build.Locator is
+      referenced directly below (needed for the same reason). Because this project (unlike
+      UpdatR.dll) has no guaranteed entry point, ModuleInitializer.cs in this project registers
+      MSBuildLocator before any test can run.
     -->
     <PackageReference
       Include="NuGet.Frameworks"
@@ -22,6 +22,14 @@
       ExcludeAssets="runtime"
       PrivateAssets="all"
     />
+    <!--
+      Needed directly: UpdatR.csproj marks its own Microsoft.Build.Locator PackageReference
+      PrivateAssets="all" (see the comment there), which also stops it flowing transitively via
+      the ProjectReference to UpdatR below. This project consumes UpdatR via ProjectReference,
+      not the packed .nupkg, so it must reference the same version itself to get
+      Microsoft.Build.Locator.dll copied to its own output.
+    -->
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
     <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
     <PackageReference Include="xunit.v3" Version="4.0.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
