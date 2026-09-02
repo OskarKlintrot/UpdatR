@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/.Build/">
     <File Path=".editorconfig" />
+    <File Path=".updatrrc" />
     <File Path="Directory.Build.props" />
     <File Path="src/Build/nuget.props" />
     <File Path="tools/Build/Build.cs" />
