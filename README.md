@@ -84,6 +84,12 @@ If you don't want to allow packages with certain licenses to be installed you ca
 
 Packages without any license metadata are always allowed, and this only affects installing new versions - it will neither touch nor warn about already installed packages that don't match, unless a newer version is available.
 
+If there are specific files (e.g. test fixtures) you never want touched, you can exclude them by path:
+
+```
+> update --exclude-file "tests/**/Resources/**"
+```
+
 If UpdatR fails to find the correct lowest TFM to support, for example for projects that supports multiple TFM's, then it's possible to set the TFM manually:
 
 ```
@@ -97,11 +103,13 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
 ```json
 {
   "excludePackages": ["Microsoft.*", "Newtonsoft.*"],
-  "allowedLicenses": ["MIT", "Apache-2.0"]
+  "allowedLicenses": ["MIT", "Apache-2.0"],
+  "defaultTarget": "src/MySolution.sln",
+  "excludeFiles": ["tests/**/Resources/**"]
 }
 ```
 
-Both properties are optional, and any value in `.updatrrc` is merged with the corresponding command line option, if given.
+All properties are optional. `excludePackages`, `allowedLicenses` and `excludeFiles` are merged (union) with the corresponding command line option, if given. `defaultTarget` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
 
 Use `update config init` to create a `.updatrrc` file with all properties present, but empty:
 
@@ -168,6 +176,7 @@ Options:
   --interactive                                                      Interaction with user is possible.
   --tfm <tfm>                                                        Lowest TFM to support.
   --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking. Merged with "allowedLicenses" from a .updatrrc file, if present.
+  --exclude-file <exclude-file>                                      File to exclude, matched against its path relative to the resolved target. Supports * as wildcard. Merged with "excludeFiles" from a .updatrrc file, if present.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
 

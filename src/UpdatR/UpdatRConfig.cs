@@ -7,9 +7,23 @@ namespace UpdatR;
 /// Optional JSON config file (<c>.updatrrc</c>) that can be used instead of, or together with,
 /// command line arguments / <see cref="Updater.UpdateAsync"/> parameters.
 /// </summary>
+/// <param name="ExcludePackages">Packages to exclude. Supports * as wildcard.</param>
+/// <param name="AllowedLicenses">
+/// Only update to (and warn about) versions whose license contains one of these values.
+/// </param>
+/// <param name="DefaultTarget">
+/// Path to a solution or project(s), relative to the directory this config file is in. Used
+/// instead of the current directory when no target path is explicitly given (i.e. the resolved
+/// target path is the current directory).
+/// </param>
+/// <param name="ExcludeFiles">
+/// Files to exclude, relative to the resolved target path. Supports * as wildcard.
+/// </param>
 public sealed record UpdatRConfig(
     [property: JsonPropertyName("excludePackages")] string[]? ExcludePackages,
-    [property: JsonPropertyName("allowedLicenses")] string[]? AllowedLicenses
+    [property: JsonPropertyName("allowedLicenses")] string[]? AllowedLicenses,
+    [property: JsonPropertyName("defaultTarget")] string? DefaultTarget = null,
+    [property: JsonPropertyName("excludeFiles")] string[]? ExcludeFiles = null
 )
 {
     /// <summary>
@@ -17,7 +31,13 @@ public sealed record UpdatRConfig(
     /// </summary>
     public const string FileName = ".updatrrc";
 
-    private static readonly string[] KnownProperties = ["excludePackages", "allowedLicenses"];
+    private static readonly string[] KnownProperties =
+    [
+        "excludePackages",
+        "allowedLicenses",
+        "defaultTarget",
+        "excludeFiles",
+    ];
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -31,9 +51,17 @@ public sealed record UpdatRConfig(
     /// <paramref name="path"/> itself if it's a directory, or its parent directory if it's a
     /// file) and, if not found there, in the current working directory.
     /// </summary>
-    internal static UpdatRConfig? Load(string path)
+    internal static UpdatRConfig? Load(string path) => Load(path, out _);
+
+    /// <summary>
+    /// Same as <see cref="Load(string)"/>, but also returns the directory the config file, if
+    /// any, was found in - needed to resolve a relative <see cref="DefaultTarget"/>.
+    /// </summary>
+    internal static UpdatRConfig? Load(string path, out string? configDirectory)
     {
         var filePath = FindConfigFile(path);
+
+        configDirectory = filePath is null ? null : Path.GetDirectoryName(filePath);
 
         if (filePath is null)
         {
@@ -103,7 +131,7 @@ public sealed record UpdatRConfig(
     }
 
     /// <summary>
-    /// Creates a new <c>.updatrrc</c> file containing all known properties, empty.
+    /// Creates a new <c>.updatrrc</c> file containing all known options, empty.
     /// </summary>
     /// <param name="path">
     /// Path to write the file to. If it's an existing directory, or doesn't exist and doesn't
@@ -132,7 +160,15 @@ public sealed record UpdatRConfig(
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(new UpdatRConfig([], []), WriteJsonOptions);
+        var json = JsonSerializer.Serialize(
+            new UpdatRConfig(
+                ExcludePackages: [],
+                AllowedLicenses: [],
+                DefaultTarget: null,
+                ExcludeFiles: []
+            ),
+            WriteJsonOptions
+        );
 
         File.WriteAllText(filePath, json);
 
@@ -164,8 +200,9 @@ public sealed record UpdatRConfig(
 
     /// <summary>
     /// Validates the content of a <c>.updatrrc</c> file: that it's valid JSON containing a JSON
-    /// object, that it doesn't contain unknown properties, and that <c>excludePackages</c> /
-    /// <c>allowedLicenses</c> - if present - are arrays of non-empty strings.
+    /// object, that it doesn't contain unknown option, that <c>excludePackages</c> /
+    /// <c>allowedLicenses</c> / <c>excludeFiles</c> - if present - are arrays of non-empty
+    /// strings, and that <c>defaultTarget</c> - if present - is a non-empty string.
     /// </summary>
     /// <returns>
     /// A list of human-readable validation errors. Empty if <paramref name="json"/> is valid.
@@ -201,7 +238,7 @@ public sealed record UpdatRConfig(
                 if (!KnownProperties.Contains(property.Name, StringComparer.OrdinalIgnoreCase))
                 {
                     errors.Add(
-                        $"Unknown property '{property.Name}'. Known properties are: "
+                        $"Unknown option '{property.Name}'. Known options are: "
                             + string.Join(", ", KnownProperties)
                             + "."
                     );
@@ -209,11 +246,34 @@ public sealed record UpdatRConfig(
                     continue;
                 }
 
-                ValidateStringArray(property, errors);
+                if (property.Name.Equals("defaultTarget", StringComparison.OrdinalIgnoreCase))
+                {
+                    ValidateString(property, errors);
+                }
+                else
+                {
+                    ValidateStringArray(property, errors);
+                }
             }
         }
 
         return errors;
+    }
+
+    private static void ValidateString(JsonProperty property, List<string> errors)
+    {
+        if (property.Value.ValueKind is JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (
+            property.Value.ValueKind is not JsonValueKind.String
+            || string.IsNullOrWhiteSpace(property.Value.GetString())
+        )
+        {
+            errors.Add($"'{property.Name}' must be a non-empty string.");
+        }
     }
 
     private static void ValidateStringArray(JsonProperty property, List<string> errors)

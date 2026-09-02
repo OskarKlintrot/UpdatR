@@ -34,11 +34,19 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// allowed. Packages without any license metadata are always allowed. Leave out or empty to
     /// disable license checking.
     /// </param>
+    /// <param name="excludeFiles">
+    /// Csproj-, dotnet-tools.json-, props/targets- and file-based app files to exclude from being
+    /// processed altogether, matched against each file's path relative to the resolved
+    /// <paramref name="path"/>. Supports * as wildcard.
+    /// </param>
     /// <remarks>
     /// If a <c>.updatrrc</c> JSON file is found - first next to <paramref name="path"/>, then in
-    /// the current working directory - its <c>excludePackages</c> and <c>allowedLicenses</c>
-    /// values are merged (union) with <paramref name="excludePackages"/> and
-    /// <paramref name="allowedLicenses"/> respectively.
+    /// the current working directory - its <c>excludePackages</c>, <c>allowedLicenses</c> and
+    /// <c>excludeFiles</c> values are merged (union) with <paramref name="excludePackages"/>,
+    /// <paramref name="allowedLicenses"/> and <paramref name="excludeFiles"/> respectively. If
+    /// <paramref name="path"/> is left out (i.e. it resolves to the current directory) and the
+    /// config file has a <c>defaultTarget</c>, that's used as the target path instead of the
+    /// current directory.
     /// </remarks>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="ArgumentException"></exception>
@@ -50,22 +58,43 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         bool prerelease = false,
         bool interactive = false,
         string? targetFrameworkMoniker = null,
-        string[]? allowedLicenses = null
+        string[]? allowedLicenses = null,
+        string[]? excludeFiles = null
     )
     {
         var tfm = ParseTFM(targetFrameworkMoniker);
 
         path ??= Directory.GetCurrentDirectory();
 
-        var updatRConfig = UpdatRConfig.Load(path);
+        var updatRConfig = UpdatRConfig.Load(path, out var configDirectory);
 
         excludePackages = UpdatRConfig.Merge(excludePackages, updatRConfig?.ExcludePackages);
         allowedLicenses = UpdatRConfig.Merge(allowedLicenses, updatRConfig?.AllowedLicenses);
+        excludeFiles = UpdatRConfig.Merge(excludeFiles, updatRConfig?.ExcludeFiles);
+
+        if (
+            !string.IsNullOrWhiteSpace(updatRConfig?.DefaultTarget)
+            && configDirectory is not null
+            && PathsAreEqual(path, Directory.GetCurrentDirectory())
+        )
+        {
+            path = ResolveDefaultTarget(configDirectory, updatRConfig.DefaultTarget);
+        }
 
         var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
         var shouldExcludePackage = CreateSearch(excludePackages, treatNullOrEmptyAs: false);
 
         var dir = RootDir.Create(path);
+
+        if (excludeFiles is { Length: > 0 })
+        {
+            var shouldExcludeFile = CreateFileExclusionSearch(dir.Path, excludeFiles);
+
+            RemoveExcludedFiles(dir.Csprojs, x => x.Path, shouldExcludeFile);
+            RemoveExcludedFiles(dir.DotnetTools, x => x.Path, shouldExcludeFile);
+            RemoveExcludedFiles(dir.FileBasedApps, x => x.Path, shouldExcludeFile);
+            RemoveExcludedFiles(dir.PropsFiles, x => x.Path, shouldExcludeFile);
+        }
 
         var result = new Result(path);
 
@@ -178,19 +207,77 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             return _ => treatNullOrEmptyAs;
         }
 
-        var regexes = strs.Select(x => ConvertSearchPatternToRegex(x)).ToList();
+        var regexes = strs.Select(ConvertSearchPatternToRegex).ToList();
 
         return str => regexes.Any(x => x.IsMatch(str));
+    }
 
-        static Regex ConvertSearchPatternToRegex(string matchAgainst)
+    private static Regex ConvertSearchPatternToRegex(string matchAgainst)
+    {
+        var pattern = "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
+
+        pattern = pattern.Replace("()$", "$");
+
+        return new Regex(pattern, RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Creates a predicate matching a file's full path against <paramref name="excludeFiles"/>
+    /// patterns, evaluated against the file's path relative to <paramref name="root"/> (with
+    /// directory separators normalized to <c>/</c>).
+    /// </summary>
+    private static Func<string, bool> CreateFileExclusionSearch(string root, string[]? excludeFiles)
+    {
+        if (excludeFiles is null || excludeFiles.Length == 0)
         {
-            var pattern =
-                "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
-
-            pattern = pattern.Replace("()$", "$");
-
-            return new Regex(pattern, RegexOptions.IgnoreCase);
+            return _ => false;
         }
+
+        var regexes = excludeFiles
+            .Select(x => ConvertSearchPatternToRegex(x.Replace('\\', '/')))
+            .ToList();
+
+        return filePath =>
+        {
+            var relative = Path.GetRelativePath(root, filePath).Replace('\\', '/');
+
+            return regexes.Any(x => x.IsMatch(relative));
+        };
+    }
+
+    private static void RemoveExcludedFiles<T>(
+        ICollection<T>? items,
+        Func<T, string> pathSelector,
+        Func<string, bool> shouldExcludeFile
+    )
+    {
+        if (items is null)
+        {
+            return;
+        }
+
+        foreach (var item in items.Where(x => shouldExcludeFile(pathSelector(x))).ToList())
+        {
+            items.Remove(item);
+        }
+    }
+
+    private static bool PathsAreEqual(string left, string right) =>
+        string.Equals(
+            Path.GetFullPath(left)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            Path.GetFullPath(right)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase
+        );
+
+    private static string ResolveDefaultTarget(string configDirectory, string defaultTarget)
+    {
+        var resolved = Path.IsPathRooted(defaultTarget)
+            ? defaultTarget
+            : Path.Combine(configDirectory, defaultTarget);
+
+        return Path.GetFullPath(resolved);
     }
 
     private async Task<(

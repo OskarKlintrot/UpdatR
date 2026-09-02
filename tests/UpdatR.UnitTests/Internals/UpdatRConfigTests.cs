@@ -26,7 +26,9 @@ public class UpdatRConfigTests
             """
             {
               "excludePackages": ["Foo.*"],
-              "allowedLicenses": ["MIT", "Apache-2.0"]
+              "allowedLicenses": ["MIT", "Apache-2.0"],
+              "defaultTarget": "src/Foo.sln",
+              "excludeFiles": ["tests/**/*"]
             }
             """
         );
@@ -38,6 +40,8 @@ public class UpdatRConfigTests
         Assert.NotNull(config);
         Assert.Equal(["Foo.*"], config.ExcludePackages ?? []);
         Assert.Equal(["MIT", "Apache-2.0"], config.AllowedLicenses ?? []);
+        Assert.Equal("src/Foo.sln", config.DefaultTarget);
+        Assert.Equal(["tests/**/*"], config.ExcludeFiles ?? []);
     }
 
     [Fact]
@@ -134,6 +138,8 @@ public class UpdatRConfigTests
         Assert.NotNull(config);
         Assert.Empty(config.ExcludePackages ?? []);
         Assert.Empty(config.AllowedLicenses ?? []);
+        Assert.Null(config.DefaultTarget);
+        Assert.Empty(config.ExcludeFiles ?? []);
     }
 
     [Fact]
@@ -169,9 +175,13 @@ public class UpdatRConfigTests
     }
 
     [Theory]
-    [InlineData("""{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"] }""")]
+    [InlineData(
+        """{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"], "defaultTarget": "src/Foo.sln", "excludeFiles": ["tests/*"] }"""
+    )]
     [InlineData("{}")]
-    [InlineData("""{ "excludePackages": null, "allowedLicenses": null }""")]
+    [InlineData(
+        """{ "excludePackages": null, "allowedLicenses": null, "defaultTarget": null, "excludeFiles": null }"""
+    )]
     public void ValidateReturnsNoErrorsForValidJson(string json)
     {
         // Act
@@ -211,7 +221,7 @@ public class UpdatRConfigTests
 
         // Assert
         Assert.Single(errors);
-        Assert.Contains("Unknown property 'unknownProperty'", errors[0]);
+        Assert.Contains("Unknown option 'unknownProperty'", errors[0]);
     }
 
     [Theory]
@@ -220,6 +230,33 @@ public class UpdatRConfigTests
     [InlineData("""{ "excludePackages": [""] }""")]
     [InlineData("""{ "excludePackages": ["  "] }""")]
     public void ValidateReturnsErrorForInvalidExcludePackagesValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "defaultTarget": [] }""")]
+    [InlineData("""{ "defaultTarget": "" }""")]
+    [InlineData("""{ "defaultTarget": "  " }""")]
+    public void ValidateReturnsErrorForInvalidDefaultTargetValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "excludeFiles": "Foo/*" }""")]
+    [InlineData("""{ "excludeFiles": [1] }""")]
+    [InlineData("""{ "excludeFiles": [""] }""")]
+    [InlineData("""{ "excludeFiles": ["  "] }""")]
+    public void ValidateReturnsErrorForInvalidExcludeFilesValue(string json)
     {
         // Act
         var errors = UpdatRConfig.Validate(json);

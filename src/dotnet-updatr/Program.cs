@@ -85,6 +85,13 @@ internal static partial class Program
             DefaultValueFactory = _ => [],
         };
 
+        var excludeFileOption = new Option<string[]>("--exclude-file")
+        {
+            Description =
+                "File to exclude, matched against its path relative to the resolved target. Supports * as wildcard. Merged with \"excludeFiles\" from a .updatrrc file, if present.",
+            DefaultValueFactory = _ => [],
+        };
+
         var configPathArgument = new Argument<string>("path")
         {
             Description =
@@ -99,7 +106,7 @@ internal static partial class Program
 
         var initCommand = new Command(
             "init",
-            "Create a .updatrrc file with all properties present, but empty."
+            "Create a .updatrrc file with all options present, but empty."
         )
         {
             configPathArgument,
@@ -152,6 +159,7 @@ internal static partial class Program
             interactiveOption,
             tfmOption,
             allowedLicensesOption,
+            excludeFileOption,
             configCommand,
         };
 
@@ -170,7 +178,8 @@ internal static partial class Program
                     browser: parseResult.GetValue(browserOption),
                     interactive: parseResult.GetValue(interactiveOption),
                     tfm: parseResult.GetValue(tfmOption),
-                    allowedLicenses: parseResult.GetValue(allowedLicensesOption)
+                    allowedLicenses: parseResult.GetValue(allowedLicensesOption),
+                    excludeFile: parseResult.GetValue(excludeFileOption)
                 )
         );
 
@@ -251,7 +260,8 @@ internal static partial class Program
         bool browser = false,
         bool interactive = false,
         string? tfm = null,
-        string[]? allowedLicenses = null
+        string[]? allowedLicenses = null,
+        string[]? excludeFile = null
     )
     {
         var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
@@ -296,7 +306,8 @@ internal static partial class Program
             prerelease: prerelease,
             interactive: interactive,
             targetFrameworkMoniker: tfm,
-            allowedLicenses: allowedLicenses
+            allowedLicenses: allowedLicenses,
+            excludeFiles: excludeFile
         );
 
         var outputStr = TextFormatter.PlainText(summary);

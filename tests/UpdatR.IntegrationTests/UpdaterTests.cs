@@ -552,6 +552,130 @@ public class UpdaterTests
         }
     }
 
+    [Fact]
+    public async Task Given_UpdatRRcFileWithExcludeFiles_When_Update_Then_ExcludedFileIsUntouched()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatRRcFileWithExcludeFiles_When_Update_Then_ExcludedFileIsUntouched)
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var excludedCsproj = Path.Combine(
+            temp,
+            "tests",
+            "Resources",
+            "Templates",
+            "Dummy.App.csproj"
+        );
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(excludedCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1")
+        );
+
+        var excludedCsprojOriginal = await CreateTempCsprojAsync(
+            excludedCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        await CreateUpdatRConfigAsync(
+            Path.Combine(temp, ".updatrrc"),
+            """{ "excludeFiles": ["tests/**"] }"""
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp);
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return csprojOriginal;
+            yield return await File.ReadAllTextAsync(tempCsproj);
+
+            yield return excludedCsprojOriginal;
+            yield return await File.ReadAllTextAsync(excludedCsproj);
+        }
+    }
+
+    [Fact]
+    public async Task Given_UpdatRRcFileWithDefaultTarget_When_PathIsCurrentDirectory_Then_UseDefaultTarget()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_UpdatRRcFileWithDefaultTarget_When_PathIsCurrentDirectory_Then_UseDefaultTarget
+            )
+        );
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var otherCsproj = Path.Combine(temp, "tests", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(otherCsproj)!);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1")
+        );
+
+        var otherCsprojOriginal = await CreateTempCsprojAsync(
+            otherCsproj,
+            new KeyValuePair<string, string>("Dummy.Tool", "0.0.1")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        await CreateUpdatRConfigAsync(
+            Path.Combine(temp, ".updatrrc"),
+            """{ "defaultTarget": "src/Dummy.App.csproj" }"""
+        );
+
+        var update = new Updater();
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+
+        try
+        {
+            Directory.SetCurrentDirectory(temp);
+
+            // Act
+            var summary = await update.UpdateAsync();
+
+            // Assert
+            await Verify(GetVerifyObjects());
+
+            async IAsyncEnumerable<object> GetVerifyObjects()
+            {
+                yield return summary.UpdatedPackages;
+
+                yield return csprojOriginal;
+                yield return await File.ReadAllTextAsync(tempCsproj);
+
+                yield return otherCsprojOriginal;
+                yield return await File.ReadAllTextAsync(otherCsproj);
+            }
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+        }
+    }
+
     [Theory]
     [InlineData("Dummy.*", "Microsoft.*")]
     [InlineData("Dummy.*", "Dummy.Tool")]
