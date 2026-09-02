@@ -280,6 +280,154 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesSkipsFloatingVersionWithoutWarningWhenAlreadyLatest()
+    {
+        // Arrange - a floating version like "4.8.*" isn't a NuGetVersion, but NuGet already
+        // resolves it to the latest matching version on restore. If nothing newer than that is
+        // available, there's nothing to update.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="4.8.*" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [new PackageMetadata(NuGetVersion.Parse("4.8.5"), [], null, null)]
+        );
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger
+        );
+
+        // Assert
+        Assert.Null(result);
+        Assert.DoesNotContain(logger.Logs, x => x.Level == LogLevel.Warning);
+
+        var (level, message) = Assert.Single(logger.Logs);
+
+        Assert.Equal(LogLevel.Debug, level);
+        Assert.Equal(
+            """Skipping automatic update of floating version 4.8.* for package reference <PackageReference Include="Some.Package" Version="4.8.*" /> since NuGet already resolves it to the latest matching version.""",
+            message
+        );
+        Assert.Contains("""Version="4.8.*" """.Trim(), File.ReadAllText(_propsPath));
+    }
+
+    [Fact]
+    public void UpdatePackagesReportsDeprecationForFloatingVersionWithoutBumpingIt()
+    {
+        // Arrange - 1.5.0 is both deprecated and the highest version matching "1.*" (no newer
+        // version at all exists), so nothing should be rewritten, but the deprecation should
+        // still be reported.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="1.*" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(NuGetVersion.Parse("1.0.0"), [], null, null),
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.5.0"),
+                    [],
+                    new PackageDeprecationMetadata("deprecated", ["Legacy"], null),
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result.UpdatedPackages);
+
+        var deprecated = Assert.Single(result.DeprecatedPackages);
+
+        Assert.Equal("Some.Package", deprecated.PackageId);
+        Assert.Equal(NuGetVersion.Parse("1.5.0"), deprecated.Version);
+        Assert.Contains("""Version="1.*" """.Trim(), File.ReadAllText(_propsPath));
+    }
+
+    [Fact]
+    public void UpdatePackagesBumpsFloatingVersionToNewerSeries()
+    {
+        // Arrange - "4.8.*" only floats within the 4.8.x series. If the latest available version
+        // is 4.9.2, UpdatR should bump the fixed prefix to "4.9.*" so the project can float to
+        // the newer series too, since NuGet won't do that on its own.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="4.8.*" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(NuGetVersion.Parse("4.8.5"), [], null, null),
+                new PackageMetadata(NuGetVersion.Parse("4.9.2"), [], null, null),
+            ]
+        );
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: logger
+        );
+
+        // Assert
+        Assert.NotNull(result);
+
+        var updated = Assert.Single(result.UpdatedPackages);
+
+        Assert.Equal("Some.Package", updated.PackageId);
+        Assert.Equal(NuGetVersion.Parse("4.8.5"), updated.From);
+        Assert.Equal(NuGetVersion.Parse("4.9.2"), updated.To);
+
+        Assert.Contains("""Version="4.9.*" """.Trim(), File.ReadAllText(_propsPath));
+        Assert.DoesNotContain(logger.Logs, x => x.Level == LogLevel.Warning);
+    }
+
+    [Fact]
     public void UpdatePackagesTracksUnknownPackage()
     {
         // Arrange

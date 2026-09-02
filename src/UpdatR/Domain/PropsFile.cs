@@ -114,7 +114,21 @@ internal sealed partial class PropsFile
 
             var versionStr = item.GetAttribute("Version");
 
-            if (!NuGetVersion.TryParse(versionStr, out var version))
+            VersionRange? versionRange = null;
+            NuGetVersion? version;
+
+            if (NuGetVersion.TryParse(versionStr, out var parsedVersion))
+            {
+                version = parsedVersion;
+            }
+            else if (VersionRange.TryParse(versionStr, out versionRange))
+            {
+                // A floating version, e.g. "4.8.*", or a version range, e.g. "[1.0,2.0)".
+                // The concrete version is resolved further down, once the package's available
+                // versions are known.
+                version = null;
+            }
+            else
             {
                 LogParseError(logger, versionStr, item.OuterXml);
 
@@ -135,16 +149,38 @@ internal sealed partial class PropsFile
 
                 continue;
             }
-            else if (package.TryGet(version, out var metadata))
+
+            if (versionRange is not null)
+            {
+                // Resolve the version NuGet would currently pick for the floating version/range,
+                // so it can be used the same way an exact <c>Version</c> would be below.
+                var resolved = package
+                    .PackageMetadatas.Where(x => Satisfies(versionRange, x.Version))
+                    .OrderByDescending(x => x.Version)
+                    .FirstOrDefault();
+
+                if (resolved is null)
+                {
+                    LogFloatingVersionSkipped(logger, versionStr, item.OuterXml);
+
+                    continue;
+                }
+
+                version = resolved.Version;
+
+                CheckForDeprecationAndVulnerabilities(project, packageId, resolved);
+                CheckForLicenseMismatch(project, packageId, version, resolved);
+            }
+            else if (package.TryGet(version!, out var metadata))
             {
                 CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
-                CheckForLicenseMismatch(project, packageId, version, metadata);
+                CheckForLicenseMismatch(project, packageId, version!, metadata);
             }
 
             if (
                 !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
                     package,
-                    version,
+                    version!,
                     tfms,
                     usePrerelease,
                     allowedLicenses,
@@ -152,6 +188,14 @@ internal sealed partial class PropsFile
                 )
             )
             {
+                if (versionRange is not null)
+                {
+                    // Nothing newer than what the floating version/range already resolves to.
+                    LogFloatingVersionSkipped(logger, versionStr, item.OuterXml);
+
+                    continue;
+                }
+
                 CheckForDeprecationAndVulnerabilities(
                     project,
                     packageId,
@@ -162,7 +206,7 @@ internal sealed partial class PropsFile
                     project,
                     package,
                     packageId,
-                    version,
+                    version!,
                     tfms,
                     usePrerelease
                 );
@@ -170,11 +214,42 @@ internal sealed partial class PropsFile
                 continue;
             }
 
+            if (versionRange is not null)
+            {
+                if (Satisfies(versionRange, updateTo.Version))
+                {
+                    // The newer version is already covered by the existing floating version/range
+                    // - NuGet already resolves to it automatically, nothing to write.
+                    continue;
+                }
+
+                var newVersionStr = BuildFloatingVersionString(versionRange, updateTo.Version);
+
+                if (newVersionStr is null)
+                {
+                    // Don't know how to safely rewrite this kind of floating version/range (e.g.
+                    // a prerelease float, or a fixed range like "[1.0,2.0)") - leave it as-is.
+                    LogFloatingVersionSkipped(logger, versionStr, item.OuterXml);
+
+                    continue;
+                }
+
+                item.SetAttribute("Version", newVersionStr);
+
+                LogUpdateSuccessful(logger, Name, packageId, version!, updateTo.Version);
+
+                project.AddUpdatedPackage(new(packageId, version!, updateTo.Version));
+
+                CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
+
+                continue;
+            }
+
             item.SetAttribute("Version", updateTo.Version.ToString());
 
-            LogUpdateSuccessful(logger, Name, packageId, version, updateTo.Version);
+            LogUpdateSuccessful(logger, Name, packageId, version!, updateTo.Version);
 
-            project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
+            project.AddUpdatedPackage(new(packageId, version!, updateTo.Version));
 
             CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
@@ -313,15 +388,55 @@ internal sealed partial class PropsFile
                     Version: x!.GetAttribute("Version")
                 )
             )
-            .Where(x =>
-                !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _)
-            )
+            .Where(x => !string.IsNullOrWhiteSpace(x.PackageId))
+            .Select(x => (x.PackageId, Version: ResolveRepresentativeVersion(x.Version)))
+            .Where(x => x.Version is not null)
             .DistinctBy(x => x.PackageId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                x => x.PackageId,
-                x => NuGetVersion.Parse(x.Version),
-                StringComparer.OrdinalIgnoreCase
-            );
+            .ToDictionary(x => x.PackageId, x => x.Version!, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Resolves a <see cref="NuGetVersion"/> that represents <paramref name="versionStr"/> well
+    /// enough to be used as a lookup key, i.e. to ensure the package is queried for on NuGet even
+    /// though it can't be parsed as an exact version. Returns the lower bound of the version
+    /// range for a floating version (e.g. "4.8.*") or a version range (e.g. "[1.0,2.0)"), or
+    /// <see langword="null"/> if <paramref name="versionStr"/> can't be parsed at all.
+    /// </summary>
+    private static NuGetVersion? ResolveRepresentativeVersion(string versionStr) =>
+        NuGetVersion.TryParse(versionStr, out var version) ? version
+        : VersionRange.TryParse(versionStr, out var versionRange)
+            ? versionRange.MinVersion ?? versionRange.Float?.MinVersion
+        : null;
+
+    /// <summary>
+    /// Checks if <paramref name="version"/> matches <paramref name="range"/>, respecting its
+    /// floating segment (if any). <see cref="VersionRange.Satisfies(NuGetVersion)"/> alone
+    /// ignores the floating segment, e.g. it considers "2.0.0" to satisfy "1.*" even though "1.*"
+    /// is restricted to the 1.x series.
+    /// </summary>
+    private static bool Satisfies(VersionRange range, NuGetVersion version) =>
+        range.Float?.Satisfies(version) ?? range.Satisfies(version);
+
+    /// <summary>
+    /// Builds a new floating version string with the same floating segment as
+    /// <paramref name="range"/>, but with its fixed prefix updated to match
+    /// <paramref name="newVersion"/> - e.g. bumps "4.8.*" to "4.9.*" if <paramref name="newVersion"/>
+    /// is "4.9.2". Returns <see langword="null"/> for floating segments that aren't safe to
+    /// rewrite this way (prerelease floats), or for a plain version range without a floating
+    /// segment (e.g. "[1.0,2.0)"), since rewriting those could silently change their meaning.
+    /// </summary>
+    private static string? BuildFloatingVersionString(
+        VersionRange range,
+        NuGetVersion newVersion
+    ) =>
+        range.Float?.FloatBehavior switch
+        {
+            NuGetVersionFloatBehavior.Major => "*",
+            NuGetVersionFloatBehavior.Minor => $"{newVersion.Major}.*",
+            NuGetVersionFloatBehavior.Patch => $"{newVersion.Major}.{newVersion.Minor}.*",
+            NuGetVersionFloatBehavior.Revision =>
+                $"{newVersion.Major}.{newVersion.Minor}.{newVersion.Patch}.*",
+            _ => null,
+        };
 
     #region LogMessages
     [LoggerMessage(
@@ -330,6 +445,17 @@ internal sealed partial class PropsFile
         Message = "Could not parse {Version} to NuGetVersion for package reference {PackageReference}."
     )]
     static partial void LogParseError(ILogger logger, string version, string packageReference);
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        EventId = 8,
+        Message = "Skipping automatic update of floating version {Version} for package reference {PackageReference} since NuGet already resolves it to the latest matching version."
+    )]
+    static partial void LogFloatingVersionSkipped(
+        ILogger logger,
+        string version,
+        string packageReference
+    );
 
     [LoggerMessage(Level = LogLevel.Warning, EventId = 2, Message = "Could not find {PackageId}.")]
     static partial void LogMissingPackage(ILogger logger, string packageId);
