@@ -106,15 +106,22 @@ internal sealed partial class Csproj
                 ? packageReference.GetAttribute("Include")
                 : packageReference.GetAttribute("Update");
 
-            if (!packageReference.HasAttribute("Version"))
+            // With Central Package Management, a project overrides the centrally managed
+            // version for a single PackageReference using VersionOverride instead of Version.
+            var versionAttributeName =
+                packageReference.HasAttribute("Version") ? "Version"
+                : packageReference.HasAttribute("VersionOverride") ? "VersionOverride"
+                : null;
+
+            if (versionAttributeName is null)
             {
-                // No Version attribute means there's nothing to update, e.g. a
+                // Neither Version nor VersionOverride means there's nothing to update, e.g. a
                 // PackageReference using Update to only override metadata (such as
                 // PrivateAssets) for a package already referenced via Directory.Build.props.
                 continue;
             }
 
-            var versionStr = packageReference.GetAttribute("Version");
+            var versionStr = packageReference.GetAttribute(versionAttributeName);
 
             if (!NuGetVersion.TryParse(versionStr, out var version))
             {
@@ -173,7 +180,7 @@ internal sealed partial class Csproj
                 continue;
             }
 
-            packageReference.SetAttribute("Version", updateTo.Version.ToString());
+            packageReference.SetAttribute(versionAttributeName, updateTo.Version.ToString());
 
             LogUpdateSuccessful(logger, Name, packageId, version, updateTo.Version);
 
@@ -367,7 +374,9 @@ internal sealed partial class Csproj
                     PackageId: x!.HasAttribute("Include")
                         ? x!.GetAttribute("Include")
                         : x!.GetAttribute("Update"),
-                    Version: x!.GetAttribute("Version")
+                    Version: x!.HasAttribute("Version")
+                        ? x!.GetAttribute("Version")
+                        : x!.GetAttribute("VersionOverride")
                 )
             )
             .Where(x =>
