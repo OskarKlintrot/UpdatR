@@ -104,7 +104,7 @@ By default it's created in the current directory. Pass a path to create it elsew
 > update config init path/to/project --force
 ```
 
-Use `update config validate` to check that a `.updatrrc` file is valid JSON, only contains known properties and that `excludePackages`/`allowedLicenses` are arrays of non-empty strings:
+Use `update config validate` to check that a `.updatrrc` file is valid:
 
 ```
 > update config validate
