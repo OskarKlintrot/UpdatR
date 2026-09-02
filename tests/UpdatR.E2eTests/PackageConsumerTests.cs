@@ -1,5 +1,4 @@
-using System.IO.Compression;
-using Xunit;
+﻿using System.IO.Compression;
 using static SimpleExec.Command;
 
 namespace UpdatR.E2e;

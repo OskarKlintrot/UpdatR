@@ -1,5 +1,4 @@
 ﻿using UpdatR.Internals;
-using Xunit;
 
 namespace UpdatR.UnitTests;
 

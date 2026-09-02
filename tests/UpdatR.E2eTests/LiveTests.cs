@@ -1,5 +1,4 @@
-﻿using Xunit;
-using static SimpleExec.Command;
+﻿using static SimpleExec.Command;
 
 namespace UpdatR.E2e;
 
