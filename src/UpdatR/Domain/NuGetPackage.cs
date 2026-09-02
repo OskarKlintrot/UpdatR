@@ -140,42 +140,6 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     }
 
     /// <summary>
-    /// Finds the version that <see cref="TryGetLatestComparedTo"/> would have returned if
-    /// <paramref name="allowedLicenses"/> was ignored, but only if that version's license isn't
-    /// allowed - i.e. this reports an update that exists but was skipped due to
-    /// <paramref name="allowedLicenses"/>.
-    /// </summary>
-    public bool TryGetNewerVersionWithDisallowedLicense(
-        NuGetVersion version,
-        NuGetFramework targetFramework,
-        bool usePrerelease,
-        IReadOnlyCollection<string>? allowedLicenses,
-        [NotNullWhen(returnValue: true)] out PackageMetadata? package
-    )
-    {
-        if (
-            allowedLicenses is { Count: > 0 }
-            && TryGetLatestComparedTo(
-                version,
-                targetFramework,
-                usePrerelease,
-                out var candidate,
-                allowedLicenses: null
-            )
-            && !IsLicenseAllowed(candidate, allowedLicenses)
-        )
-        {
-            package = candidate;
-
-            return true;
-        }
-
-        package = null;
-
-        return false;
-    }
-
-    /// <summary>
     /// Checks if the license of the currently installed <paramref name="version"/> is allowed.
     /// Always <see langword="true"/> if <paramref name="allowedLicenses"/> is <see langword="null"/>
     /// or empty, or if <paramref name="version"/>'s license is unknown.

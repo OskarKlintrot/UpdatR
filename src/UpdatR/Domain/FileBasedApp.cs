@@ -12,7 +12,7 @@ namespace UpdatR.Domain;
 /// `#:package` directives to reference NuGet packages.
 /// </summary>
 /// <seealso href="https://learn.microsoft.com/en-us/dotnet/core/sdk/file-based-apps">File-based apps</seealso>
-internal sealed partial class FileBasedApp
+internal sealed partial class FileBasedApp : PackageContainer
 {
     [GeneratedRegex(
         @"^\s*#:package\s+(?<id>[^\s@]+)(?:@(?<version>\S+))?\s*$",
@@ -28,17 +28,23 @@ internal sealed partial class FileBasedApp
 
     private readonly FileInfo _path;
     private NuGetFramework? _targetFramework;
+    private string? _content;
+    private readonly List<(string OldDirective, string NewDirective)> _replacements = [];
 
     private FileBasedApp(FileInfo path)
     {
         _path = path;
     }
 
-    public string Name => _path.Name;
+    public override string Name => _path.Name;
 
-    public string Path => _path.FullName;
+    public override string Path => _path.FullName;
 
     public string Parent => _path.DirectoryName!;
+
+    protected override string ReferenceKind => "package directive";
+
+    protected override bool IncludeUnknownOnlyProjects => true;
 
     public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework();
 
@@ -104,215 +110,86 @@ internal sealed partial class FileBasedApp
         IReadOnlyCollection<string>? allowedLicenses = null
     )
     {
-        var content = await File.ReadAllTextAsync(Path).ConfigureAwait(false);
+        _content = await File.ReadAllTextAsync(Path).ConfigureAwait(false);
+        _replacements.Clear();
 
-        var project = new ProjectWithPackages(Path);
+        return await UpdatePackagesCoreAsync(
+                packages,
+                dryRun,
+                usePrerelease,
+                logger,
+                tfm,
+                allowedLicenses
+            )
+            .ConfigureAwait(false);
+    }
 
-        var replacements = new List<(string OldDirective, string NewDirective)>();
+    protected override IReadOnlyCollection<NuGetFramework> ResolveTfms(
+        NuGetFramework? tfmOverride
+    ) => [tfmOverride ?? TargetFramework];
 
-        foreach (Match match in PackageDirectiveRegex().Matches(content))
+    protected override IEnumerable<Candidate> EnumerateCandidates()
+    {
+        foreach (Match match in PackageDirectiveRegex().Matches(_content!))
         {
             var packageId = match.Groups["id"].Value;
             var versionGroup = match.Groups["version"];
 
-            if (
-                !versionGroup.Success || !NuGetVersion.TryParse(versionGroup.Value, out var version)
-            )
+            if (!versionGroup.Success)
             {
-                // No pinned version, e.g. `#:package Foo` or `#:package Foo@*`, nothing to update.
+                // No version at all, e.g. `#:package Foo` - NuGet resolves it automatically on
+                // restore, nothing to update.
                 continue;
             }
 
-            if (!packages.TryGetValue(packageId, out var package))
+            yield return new FileBasedAppCandidate
             {
-                LogMissingPackage(logger, packageId);
+                PackageId = packageId,
+                VersionString = versionGroup.Value,
+                SiteText = match.Value,
+                Match = match,
+            };
+        }
+    }
 
-                project.AddUnknownPackage(packageId);
+    protected override void ApplyVersionUpdate(Candidate candidate, string newVersionString)
+    {
+        var fileBasedAppCandidate = (FileBasedAppCandidate)candidate;
 
-                continue;
-            }
-            else if (package is null)
-            {
-                // Ignore package
+        var oldDirective = fileBasedAppCandidate.Match.Value;
+        var newDirective = oldDirective.Replace(
+            candidate.VersionString,
+            newVersionString,
+            StringComparison.Ordinal
+        );
 
-                continue;
-            }
-            else if (package.TryGet(version, out var metadata))
-            {
-                CheckForDeprecationAndVulnerabilities(project, packageId, metadata);
-                CheckForLicenseMismatch(project, packageId, version, metadata);
-            }
+        _replacements.Add((oldDirective, newDirective));
+    }
 
-            if (
-                !package.TryGetLatestComparedTo(
-                    version,
-                    tfm ?? TargetFramework,
-                    usePrerelease,
-                    out var updateTo,
-                    allowedLicenses
-                )
-            )
-            {
-                CheckForDeprecationAndVulnerabilities(
-                    project,
-                    packageId,
-                    package.PackageMetadatas.SingleOrDefault(x => x.Version == version)
-                );
+    protected override async Task PersistAsync(bool dryRun)
+    {
+        if (dryRun)
+        {
+            return;
+        }
 
-                CheckForSkippedLicenseMismatch(
-                    project,
-                    package,
-                    packageId,
-                    version,
-                    tfm ?? TargetFramework,
-                    usePrerelease
-                );
+        var updatedContent = _content!;
 
-                continue;
-            }
-
-            var oldDirective = match.Value;
-            var newDirective = oldDirective.Replace(
-                versionGroup.Value,
-                updateTo.Version.ToString(),
+        foreach (var (oldDirective, newDirective) in _replacements)
+        {
+            updatedContent = updatedContent.Replace(
+                oldDirective,
+                newDirective,
                 StringComparison.Ordinal
             );
-
-            replacements.Add((oldDirective, newDirective));
-
-            LogUpdateSuccessful(logger, Name, packageId, version, updateTo.Version);
-
-            project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
-
-            CheckForDeprecationAndVulnerabilities(project, packageId, updateTo);
         }
 
-        if (replacements.Count > 0)
-        {
-            if (!dryRun)
-            {
-                var updatedContent = content;
+        await File.WriteAllTextAsync(Path, updatedContent).ConfigureAwait(false);
+    }
 
-                foreach (var (oldDirective, newDirective) in replacements)
-                {
-                    updatedContent = updatedContent.Replace(
-                        oldDirective,
-                        newDirective,
-                        StringComparison.Ordinal
-                    );
-                }
-
-                await File.WriteAllTextAsync(Path, updatedContent).ConfigureAwait(false);
-            }
-        }
-
-        return project.AnyPackages() || project.UnknownPackages.Any() ? project : null;
-
-        void CheckForDeprecationAndVulnerabilities(
-            ProjectWithPackages project,
-            string packageId,
-            PackageMetadata? packageMetadata
-        )
-        {
-            if (packageMetadata is null)
-            {
-                return;
-            }
-
-            if (packageMetadata.DeprecationMetadata is not null)
-            {
-                project.AddDeprecatedPackage(
-                    new(packageId, packageMetadata.Version, packageMetadata.DeprecationMetadata)
-                );
-
-                LogDeprecatedPackage(
-                    logger,
-                    packageId,
-                    packageMetadata.Version,
-                    string.Join(", ", packageMetadata.DeprecationMetadata.Reasons)
-                );
-            }
-
-            if (packageMetadata.Vulnerabilities?.Any() == true)
-            {
-                project.AddVulnerablePackage(
-                    new(packageId, packageMetadata.Version, packageMetadata.Vulnerabilities)
-                );
-
-                LogVulnerablePackage(
-                    logger,
-                    packageId,
-                    packageMetadata.Version,
-                    packageMetadata.Vulnerabilities.Count()
-                );
-            }
-        }
-
-        void CheckForLicenseMismatch(
-            ProjectWithPackages project,
-            string packageId,
-            NuGetVersion version,
-            PackageMetadata packageMetadata
-        )
-        {
-            if (
-                allowedLicenses is not { Count: > 0 }
-                || NuGetPackage.IsLicenseAllowed(packageMetadata, allowedLicenses)
-            )
-            {
-                return;
-            }
-
-            project.AddLicenseMismatchPackage(
-                new(
-                    packageId,
-                    version,
-                    packageMetadata.LicenseExpression!,
-                    isInstalledVersion: true
-                )
-            );
-
-            LogLicenseMismatch(logger, packageId, version, packageMetadata.LicenseExpression!);
-        }
-
-        void CheckForSkippedLicenseMismatch(
-            ProjectWithPackages project,
-            NuGetPackage package,
-            string packageId,
-            NuGetVersion version,
-            NuGetFramework targetFramework,
-            bool usePrerelease
-        )
-        {
-            if (
-                !package.TryGetNewerVersionWithDisallowedLicense(
-                    version,
-                    targetFramework,
-                    usePrerelease,
-                    allowedLicenses,
-                    out var skipped
-                )
-            )
-            {
-                return;
-            }
-
-            project.AddLicenseMismatchPackage(
-                new(
-                    packageId,
-                    skipped.Version,
-                    skipped.LicenseExpression!,
-                    isInstalledVersion: false
-                )
-            );
-
-            LogSkippedLicenseMismatch(
-                logger,
-                packageId,
-                skipped.Version,
-                skipped.LicenseExpression!
-            );
-        }
+    private sealed class FileBasedAppCandidate : Candidate
+    {
+        public required Match Match { get; init; }
     }
 
     private NuGetFramework GetTargetFramework()
@@ -334,79 +211,9 @@ internal sealed partial class FileBasedApp
         PackageDirectiveRegex()
             .Matches(File.ReadAllText(Path))
             .Select(x => (PackageId: x.Groups["id"].Value, Version: x.Groups["version"].Value))
-            .Where(x =>
-                !string.IsNullOrWhiteSpace(x.PackageId) && NuGetVersion.TryParse(x.Version, out _)
-            )
+            .Where(x => !string.IsNullOrWhiteSpace(x.PackageId))
+            .Select(x => (x.PackageId, Version: ResolveRepresentativeVersion(x.Version)))
+            .Where(x => x.Version is not null)
             .DistinctBy(x => x.PackageId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                x => x.PackageId,
-                x => NuGetVersion.Parse(x.Version),
-                StringComparer.OrdinalIgnoreCase
-            );
-
-    #region LogMessages
-    [LoggerMessage(Level = LogLevel.Warning, EventId = 1, Message = "Could not find {PackageId}.")]
-    static partial void LogMissingPackage(ILogger logger, string packageId);
-
-    [LoggerMessage(
-        Level = LogLevel.Information,
-        EventId = 2,
-        Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}"
-    )]
-    static partial void LogUpdateSuccessful(
-        ILogger logger,
-        string name,
-        string packageId,
-        NuGetVersion fromVersion,
-        NuGetVersion toVersion
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        EventId = 3,
-        Message = "Package {PackageId} version {Version} is deprecated with reasons: {Reasons}"
-    )]
-    static partial void LogDeprecatedPackage(
-        ILogger logger,
-        string packageId,
-        NuGetVersion version,
-        string reasons
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        EventId = 4,
-        Message = "Package {PackageId} version {Version} has {Vulnerabilities} vulnerabilities"
-    )]
-    static partial void LogVulnerablePackage(
-        ILogger logger,
-        string packageId,
-        NuGetVersion version,
-        int vulnerabilities
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        EventId = 5,
-        Message = "Package {PackageId} version {Version} has a license that isn't allowed: {License}"
-    )]
-    static partial void LogLicenseMismatch(
-        ILogger logger,
-        string packageId,
-        NuGetVersion version,
-        string license
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        EventId = 6,
-        Message = "Package {PackageId} has a newer version {Version} available, but it was skipped because its license isn't allowed: {License}"
-    )]
-    static partial void LogSkippedLicenseMismatch(
-        ILogger logger,
-        string packageId,
-        NuGetVersion version,
-        string license
-    );
-    #endregion
+            .ToDictionary(x => x.PackageId, x => x.Version!, StringComparer.OrdinalIgnoreCase);
 }

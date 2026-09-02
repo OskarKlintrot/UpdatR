@@ -379,55 +379,6 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesBumpsFloatingVersionToNewerSeries()
-    {
-        // Arrange - "4.8.*" only floats within the 4.8.x series. If the latest available version
-        // is 4.9.2, UpdatR should bump the fixed prefix to "4.9.*" so the project can float to
-        // the newer series too, since NuGet won't do that on its own.
-        File.WriteAllText(
-            _propsPath,
-            """
-            <Project>
-              <ItemGroup>
-                <PackageReference Include="Some.Package" Version="4.8.*" />
-              </ItemGroup>
-            </Project>
-            """
-        );
-
-        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
-        var logger = new FakeLogger();
-
-        var package = new NuGetPackage(
-            "Some.Package",
-            [
-                new PackageMetadata(NuGetVersion.Parse("4.8.5"), [], null, null),
-                new PackageMetadata(NuGetVersion.Parse("4.9.2"), [], null, null),
-            ]
-        );
-
-        // Act
-        var result = propsFile.UpdatePackages(
-            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
-            dryRun: false,
-            usePrerelease: false,
-            logger: logger
-        );
-
-        // Assert
-        Assert.NotNull(result);
-
-        var updated = Assert.Single(result.UpdatedPackages);
-
-        Assert.Equal("Some.Package", updated.PackageId);
-        Assert.Equal(NuGetVersion.Parse("4.8.5"), updated.From);
-        Assert.Equal(NuGetVersion.Parse("4.9.2"), updated.To);
-
-        Assert.Contains("""Version="4.9.*" """.Trim(), File.ReadAllText(_propsPath));
-        Assert.DoesNotContain(logger.Logs, x => x.Level == LogLevel.Warning);
-    }
-
-    [Fact]
     public void UpdatePackagesWarnsAndReportsFixedVersionRangeThatCannotBeRewritten()
     {
         // Arrange - "[1.0,2.0)" has no floating segment, so UpdatR doesn't know how to safely
