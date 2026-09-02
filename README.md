@@ -105,11 +105,14 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
   "excludePackages": ["Microsoft.*", "Newtonsoft.*"],
   "allowedLicenses": ["MIT", "Apache-2.0"],
   "defaultTarget": "src/MySolution.sln",
-  "excludeFiles": ["tests/**/Resources/**"]
+  "excludeFiles": ["tests/**/Resources/**"],
+  "alignWithTfm": ["Microsoft.Extensions.*"]
 }
 ```
 
-All options are optional. `excludePackages`, `allowedLicenses` and `excludeFiles` are merged with the corresponding command line option, if given. `defaultTarget` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
+All options are optional. `excludePackages`, `allowedLicenses`, `excludeFiles` and `alignWithTfm` are merged with the corresponding command line option, if given. `defaultTarget` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
+
+`alignWithTfm` supports `*` as wildcard and is matched against package ids. Some packages (e.g. `Microsoft.Extensions.*`) release versions that multi-target several TFMs, including newer ones than your project targets - which means UpdatR would normally update to that newer major even though it's not actually required, leading to mismatched majors across a package family. Packages matching `alignWithTfm` are instead capped to the major version of the project's target framework (the lowest, for multi-targeted projects), as long as the currently installed version isn't already ahead of it. It also applies to `dotnet-tools.json`, aligned with the target framework(s) of the project(s) the tool manifest applies to - e.g. keeping `dotnet-ef` in step with `Microsoft.EntityFrameworkCore`.
 
 Use `update config init` to create a `.updatrrc` file with all options present, but empty:
 
@@ -177,6 +180,7 @@ Options:
   --tfm <tfm>                                                        Lowest TFM to support.
   --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking. Merged with "allowedLicenses" from a .updatrrc file, if present.
   --exclude-file <exclude-file>                                      File to exclude, matched against its path relative to the resolved target. Supports * as wildcard. Merged with "excludeFiles" from a .updatrrc file, if present.
+  --align-with-tfm <align-with-tfm>                                  Package to keep aligned with the project's target framework's major version, instead of updating to a newer version whose major just happens to also be compatible. Supports * as wildcard. Merged with "alignWithTfm" from a .updatrrc file, if present.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
 

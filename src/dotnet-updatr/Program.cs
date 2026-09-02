@@ -92,6 +92,13 @@ internal static partial class Program
             DefaultValueFactory = _ => [],
         };
 
+        var alignWithTfmOption = new Option<string[]>("--align-with-tfm")
+        {
+            Description =
+                "Package to keep aligned with the project's target framework's major version, instead of updating to a newer version whose major just happens to also be compatible. Supports * as wildcard. Merged with \"alignWithTfm\" from a .updatrrc file, if present.",
+            DefaultValueFactory = _ => [],
+        };
+
         var configPathArgument = new Argument<string>("path")
         {
             Description =
@@ -160,6 +167,7 @@ internal static partial class Program
             tfmOption,
             allowedLicensesOption,
             excludeFileOption,
+            alignWithTfmOption,
             configCommand,
         };
 
@@ -179,7 +187,8 @@ internal static partial class Program
                     interactive: parseResult.GetValue(interactiveOption),
                     tfm: parseResult.GetValue(tfmOption),
                     allowedLicenses: parseResult.GetValue(allowedLicensesOption),
-                    excludeFile: parseResult.GetValue(excludeFileOption)
+                    excludeFile: parseResult.GetValue(excludeFileOption),
+                    alignWithTfm: parseResult.GetValue(alignWithTfmOption)
                 )
         );
 
@@ -261,7 +270,8 @@ internal static partial class Program
         bool interactive = false,
         string? tfm = null,
         string[]? allowedLicenses = null,
-        string[]? excludeFile = null
+        string[]? excludeFile = null,
+        string[]? alignWithTfm = null
     )
     {
         var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
@@ -307,7 +317,8 @@ internal static partial class Program
             interactive: interactive,
             targetFrameworkMoniker: tfm,
             allowedLicenses: allowedLicenses,
-            excludeFiles: excludeFile
+            excludeFiles: excludeFile,
+            alignWithTfm: alignWithTfm
         );
 
         var outputStr = TextFormatter.PlainText(summary);

@@ -26,7 +26,8 @@ internal static class TargetFrameworkCompatibility
         IReadOnlyCollection<NuGetFramework> tfms,
         bool usePrerelease,
         IReadOnlyCollection<string>? allowedLicenses,
-        [NotNullWhen(returnValue: true)] out PackageMetadata? updateTo
+        [NotNullWhen(returnValue: true)] out PackageMetadata? updateTo,
+        int? maxMajor = null
     )
     {
         PackageMetadata? lowestCommonUpdate = null;
@@ -39,7 +40,8 @@ internal static class TargetFrameworkCompatibility
                     candidateTfm,
                     usePrerelease,
                     out var updateToForTfm,
-                    allowedLicenses
+                    allowedLicenses,
+                    maxMajor
                 )
             )
             {

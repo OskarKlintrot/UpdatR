@@ -19,11 +19,22 @@ namespace UpdatR;
 /// <param name="ExcludeFiles">
 /// Files to exclude, relative to the resolved target path. Supports * as wildcard.
 /// </param>
+/// <param name="AlignWithTfm">
+/// Packages to keep aligned with a project's target framework's major version, instead of
+/// updating to a newer version whose major just happens to also be compatible (e.g. a package
+/// that multi-targets both <c>net9.0</c> and <c>net10.0</c> in the same, higher-major, release).
+/// Supports * as wildcard. Only applies to modern (<c>net5.0</c>+) target frameworks, and only if
+/// the currently installed version's major isn't already ahead of the target framework's - if it
+/// is, updates are left unrestricted. Also applies to <c>dotnet-tools.json</c> entries, aligned
+/// with the target framework(s) of the csproj(s) the manifest applies to (e.g. keeping
+/// <c>dotnet-ef</c> in step with <c>Microsoft.EntityFrameworkCore</c>).
+/// </param>
 public sealed record UpdatRConfig(
     [property: JsonPropertyName("excludePackages")] string[]? ExcludePackages,
     [property: JsonPropertyName("allowedLicenses")] string[]? AllowedLicenses,
     [property: JsonPropertyName("defaultTarget")] string? DefaultTarget = null,
-    [property: JsonPropertyName("excludeFiles")] string[]? ExcludeFiles = null
+    [property: JsonPropertyName("excludeFiles")] string[]? ExcludeFiles = null,
+    [property: JsonPropertyName("alignWithTfm")] string[]? AlignWithTfm = null
 )
 {
     /// <summary>
@@ -37,6 +48,7 @@ public sealed record UpdatRConfig(
         "allowedLicenses",
         "defaultTarget",
         "excludeFiles",
+        "alignWithTfm",
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -165,7 +177,8 @@ public sealed record UpdatRConfig(
                 ExcludePackages: [],
                 AllowedLicenses: [],
                 DefaultTarget: null,
-                ExcludeFiles: []
+                ExcludeFiles: [],
+                AlignWithTfm: []
             ),
             WriteJsonOptions
         );
@@ -201,8 +214,9 @@ public sealed record UpdatRConfig(
     /// <summary>
     /// Validates the content of a <c>.updatrrc</c> file: that it's valid JSON containing a JSON
     /// object, that it doesn't contain unknown option, that <c>excludePackages</c> /
-    /// <c>allowedLicenses</c> / <c>excludeFiles</c> - if present - are arrays of non-empty
-    /// strings, and that <c>defaultTarget</c> - if present - is a non-empty string.
+    /// <c>allowedLicenses</c> / <c>excludeFiles</c> / <c>alignWithTfm</c> - if present - are
+    /// arrays of non-empty strings, and that <c>defaultTarget</c> - if present - is a non-empty
+    /// string.
     /// </summary>
     /// <returns>
     /// A list of human-readable validation errors. Empty if <paramref name="json"/> is valid.

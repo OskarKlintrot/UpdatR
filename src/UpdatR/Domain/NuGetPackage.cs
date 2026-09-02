@@ -18,55 +18,65 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
 
     private PackageMetadata? LatestStable(
         NuGetFramework targetFramework,
-        IReadOnlyCollection<string>? allowedLicenses = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        int? maxMajor = null
     )
     {
-        if (allowedLicenses is null || allowedLicenses.Count == 0)
+        if (maxMajor is null && (allowedLicenses is null || allowedLicenses.Count == 0))
         {
             return _latestStable ??= Latest(targetFramework, x => !x.Version.IsPrerelease);
         }
 
         return Latest(
             targetFramework,
-            x => !x.Version.IsPrerelease && IsLicenseAllowed(x, allowedLicenses)
+            x => !x.Version.IsPrerelease && IsLicenseAllowed(x, allowedLicenses),
+            maxMajor
         );
     }
 
     private PackageMetadata? LatestPrerelease(
         NuGetFramework targetFramework,
-        IReadOnlyCollection<string>? allowedLicenses = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        int? maxMajor = null
     )
     {
-        if (allowedLicenses is null || allowedLicenses.Count == 0)
+        if (maxMajor is null && (allowedLicenses is null || allowedLicenses.Count == 0))
         {
             return _latestPrerelease ??= Latest(targetFramework, x => x.Version.IsPrerelease);
         }
 
         return Latest(
             targetFramework,
-            x => x.Version.IsPrerelease && IsLicenseAllowed(x, allowedLicenses)
+            x => x.Version.IsPrerelease && IsLicenseAllowed(x, allowedLicenses),
+            maxMajor
         );
     }
 
     private PackageMetadata? Latest(
         NuGetFramework targetFramework,
-        IReadOnlyCollection<string>? allowedLicenses = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        int? maxMajor = null
     )
     {
-        if (allowedLicenses is null || allowedLicenses.Count == 0)
+        if (maxMajor is null && (allowedLicenses is null || allowedLicenses.Count == 0))
         {
             return _latest ??= Latest(targetFramework, _ => true);
         }
 
-        return Latest(targetFramework, x => IsLicenseAllowed(x, allowedLicenses));
+        return Latest(targetFramework, x => IsLicenseAllowed(x, allowedLicenses), maxMajor);
     }
 
     private PackageMetadata? Latest(
         NuGetFramework targetFramework,
-        Func<PackageMetadata, bool> predicate
+        Func<PackageMetadata, bool> predicate,
+        int? maxMajor = null
     ) =>
         PackageMetadatas
-            .Where(x => predicate(x) && IsCompatibleWithFramework(targetFramework, x)) // Todo: Bodge for tools
+            .Where(x =>
+                predicate(x)
+                && (maxMajor is null || x.Version.Major <= maxMajor)
+                && IsCompatibleWithFramework(targetFramework, x)
+            ) // Todo: Bodge for tools
             .OrderByDescending(x => x.Version)
             .FirstOrDefault();
 
@@ -97,39 +107,48 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     /// (case-insensitive substring match) are considered. Versions without any license
     /// information are always allowed.
     /// </param>
+    /// <param name="maxMajor">
+    /// If specified, only versions with a major component less than or equal to this are
+    /// considered - used to keep a package's major version aligned with a project's target
+    /// framework (e.g. don't update a <c>net9.0</c> project to a package version whose major
+    /// happens to be <c>10</c>, even if that version is otherwise compatible).
+    /// </param>
     /// <returns><see langword="true"/> if a newer version is avalible.</returns>
     public bool TryGetLatestComparedTo(
         NuGetVersion version,
         NuGetFramework targetFramework,
         bool usePrerelease,
         [NotNullWhen(returnValue: true)] out PackageMetadata? package,
-        IReadOnlyCollection<string>? allowedLicenses = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        int? maxMajor = null
     )
     {
         if (usePrerelease)
         {
-            package = Latest(targetFramework, allowedLicenses)!;
+            package = Latest(targetFramework, allowedLicenses, maxMajor)!;
 
             return package is not null;
         }
         else if (
-            (LatestStable(targetFramework, allowedLicenses)?.Version ?? NuGetVersion.Parse("0.0.0"))
-            > version
+            (
+                LatestStable(targetFramework, allowedLicenses, maxMajor)?.Version
+                ?? NuGetVersion.Parse("0.0.0")
+            ) > version
         )
         {
-            package = LatestStable(targetFramework, allowedLicenses)!;
+            package = LatestStable(targetFramework, allowedLicenses, maxMajor)!;
 
             return true;
         }
         else if (
             version.IsPrerelease
             && (
-                LatestPrerelease(targetFramework, allowedLicenses)?.Version
+                LatestPrerelease(targetFramework, allowedLicenses, maxMajor)?.Version
                 ?? NuGetVersion.Parse("0.0.0")
             ) > version
         )
         {
-            package = LatestPrerelease(targetFramework, allowedLicenses)!;
+            package = LatestPrerelease(targetFramework, allowedLicenses, maxMajor)!;
 
             return true;
         }

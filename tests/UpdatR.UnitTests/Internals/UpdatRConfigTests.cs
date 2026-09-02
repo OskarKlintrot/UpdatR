@@ -28,7 +28,8 @@ public class UpdatRConfigTests
               "excludePackages": ["Foo.*"],
               "allowedLicenses": ["MIT", "Apache-2.0"],
               "defaultTarget": "src/Foo.sln",
-              "excludeFiles": ["tests/**/*"]
+              "excludeFiles": ["tests/**/*"],
+              "alignWithTfm": ["Microsoft.Extensions.*"]
             }
             """
         );
@@ -42,6 +43,7 @@ public class UpdatRConfigTests
         Assert.Equal(["MIT", "Apache-2.0"], config.AllowedLicenses ?? []);
         Assert.Equal("src/Foo.sln", config.DefaultTarget);
         Assert.Equal(["tests/**/*"], config.ExcludeFiles ?? []);
+        Assert.Equal(["Microsoft.Extensions.*"], config.AlignWithTfm ?? []);
     }
 
     [Fact]
@@ -140,6 +142,7 @@ public class UpdatRConfigTests
         Assert.Empty(config.AllowedLicenses ?? []);
         Assert.Null(config.DefaultTarget);
         Assert.Empty(config.ExcludeFiles ?? []);
+        Assert.Empty(config.AlignWithTfm ?? []);
     }
 
     [Fact]
@@ -176,11 +179,11 @@ public class UpdatRConfigTests
 
     [Theory]
     [InlineData(
-        """{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"], "defaultTarget": "src/Foo.sln", "excludeFiles": ["tests/*"] }"""
+        """{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"], "defaultTarget": "src/Foo.sln", "excludeFiles": ["tests/*"], "alignWithTfm": ["Microsoft.Extensions.*"] }"""
     )]
     [InlineData("{}")]
     [InlineData(
-        """{ "excludePackages": null, "allowedLicenses": null, "defaultTarget": null, "excludeFiles": null }"""
+        """{ "excludePackages": null, "allowedLicenses": null, "defaultTarget": null, "excludeFiles": null, "alignWithTfm": null }"""
     )]
     public void ValidateReturnsNoErrorsForValidJson(string json)
     {
@@ -257,6 +260,20 @@ public class UpdatRConfigTests
     [InlineData("""{ "excludeFiles": [""] }""")]
     [InlineData("""{ "excludeFiles": ["  "] }""")]
     public void ValidateReturnsErrorForInvalidExcludeFilesValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "alignWithTfm": "Microsoft.*" }""")]
+    [InlineData("""{ "alignWithTfm": [1] }""")]
+    [InlineData("""{ "alignWithTfm": [""] }""")]
+    [InlineData("""{ "alignWithTfm": ["  "] }""")]
+    public void ValidateReturnsErrorForInvalidAlignWithTfmValue(string json)
     {
         // Act
         var errors = UpdatRConfig.Validate(json);

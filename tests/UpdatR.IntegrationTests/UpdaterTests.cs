@@ -1785,4 +1785,56 @@ public class UpdaterTests
 
         Assert.Contains("Version=\"5.0.0\"", content, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Given_AlignWithTfm_When_DotnetToolPackageHasNewerMajor_Then_CapToProjectTfmMajor()
+    {
+        // Arrange - Has.Newer.Tfm 3.1.0/5.0.0/6.0.0 are all otherwise valid updates for a tool
+        // entry (dotnet-tools.json isn't tied to a specific TFM when resolving compatibility),
+        // but with "Has.Newer.Tfm" matched by alignWithTfm, the update must be capped to the
+        // affected csproj's TFM major (net5.0 => 5), even though 6.0.0 is newer and otherwise
+        // picked.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_AlignWithTfm_When_DotnetToolPackageHasNewerMajor_Then_CapToProjectTfmMajor)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempDotnetConfig = Path.Combine(temp, ".config", "dotnet-tools.json");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        await CreateTempCsprojAsync(tempCsproj, "net5.0");
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "Has.Newer.Tfm",
+            version: "3.1.0",
+            command: "dummy"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(temp, alignWithTfm: ["Has.Newer.Tfm"]);
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var updated = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("Has.Newer.Tfm", updatedPackage.PackageId);
+        Assert.Equal("3.1.0", updated.From.ToString());
+        Assert.Equal("5.0.0", updated.To.ToString());
+
+        var content = await File.ReadAllTextAsync(
+            tempDotnetConfig,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotEqual(toolsOriginal, content);
+        Assert.Contains("\"version\": \"5.0.0\"", content, StringComparison.Ordinal);
+    }
 }

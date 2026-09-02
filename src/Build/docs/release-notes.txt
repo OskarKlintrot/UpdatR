@@ -5,3 +5,4 @@
 - Add support for a `.updatrrc` JSON config file. The file is looked up next to the target path, falling back to the current working directory, and its values are merged with the corresponding command line options / `Updater.UpdateAsync` parameters.
 - Add SourceLink support to the `UpdatR` and `dotnet-updatr` packages, enabling source debugging and repository metadata (commit, branch, URL) in the published NuGet packages.
 - Add `update config init` / `update config validate` commands, and public `UpdatRConfig.CreateFile` / `UpdatRConfig.Validate` API, for scaffolding and validating a `.updatrrc` file.
+- Add `--align-with-tfm` option / `alignWithTfm` in `.updatrrc`, to cap matching packages (e.g. `Microsoft.Extensions.*`) to the project's (or, for `dotnet-tools.json`, the affected project(s)') target framework major version, instead of updating to a newer major that only happens to also multi-target the project's TFM.

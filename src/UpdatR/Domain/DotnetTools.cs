@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using NuGet.Frameworks;
 using NuGet.Versioning;
+using UpdatR.Domain.Utils;
 using UpdatR.Internals;
 
 namespace UpdatR.Domain;
@@ -85,9 +86,18 @@ internal sealed partial class DotnetTools
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
         bool usePrerelease,
-        ILogger logger
+        ILogger logger,
+        IReadOnlyCollection<string>? alignWithTfm = null
     )
     {
+        var alignMajor = TfmAlignment.ResolveAlignMajor(
+            _affectedCsprojs.SelectMany(x => x.TargetFrameworks).ToList()
+        );
+        var shouldAlignWithTfm = SearchPattern.CreateSearch(
+            alignWithTfm,
+            treatNullOrEmptyAs: false
+        );
+
         var rawJson = await File.ReadAllTextAsync(Path);
 
         var config = JsonSerializer.Deserialize<JsonObject>(rawJson, s_jsonSerializerOptions);
@@ -146,12 +156,17 @@ internal sealed partial class DotnetTools
             }
             else if (package is not null)
             {
+                var maxMajor = shouldAlignWithTfm(packageId)
+                    ? TfmAlignment.ResolveMaxMajor(alignMajor, version)
+                    : null;
+
                 if (
                     package.TryGetLatestComparedTo(
                         version,
                         NuGetFramework.AnyFramework,
                         usePrerelease,
-                        out var updateTo
+                        out var updateTo,
+                        maxMajor: maxMajor
                     )
                 )
                 {

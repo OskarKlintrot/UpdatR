@@ -418,4 +418,68 @@ public class NuGetPackageTests
         // Assert
         Assert.Equal(expected, result);
     }
+
+    [Theory]
+    [InlineData(null, "9.0.0", "10.0.0")]
+    [InlineData(9, "9.0.0", "9.5.0")]
+    [InlineData(9, "9.5.0", null)]
+    [InlineData(10, "9.0.0", "10.0.0")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Naming",
+        "CA1707:Identifiers should not contain underscores",
+        Justification = "Test name"
+    )]
+    public void TryGetLatestComparedTo_With_MaxMajor(
+        int? maxMajor,
+        string comparedTo,
+        string? expected
+    )
+    {
+        // Arrange - simulates a runtime-versioned package (e.g. Microsoft.Extensions.*) whose
+        // 10.0.0 release multi-targets both net9.0 and net10.0, i.e. is compatible with a net9.0
+        // project even though its major (10) is ahead of the project's target framework (9).
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("9.0.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("9.5.0"),
+                    [NuGetFramework.Parse("net9.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("10.0.0"),
+                    [NuGetFramework.Parse("net9.0"), NuGetFramework.Parse("net10.0")],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var newerVersionIsAvailable = package.TryGetLatestComparedTo(
+            version: NuGetVersion.Parse(comparedTo),
+            targetFramework: NuGetFramework.Parse("net9.0"),
+            usePrerelease: false,
+            package: out var packageMetadata,
+            maxMajor: maxMajor
+        );
+
+        // Assert
+        if (expected is null)
+        {
+            Assert.False(newerVersionIsAvailable);
+        }
+        else
+        {
+            Assert.True(newerVersionIsAvailable);
+            Assert.Equal(expected, packageMetadata?.Version.ToString());
+        }
+    }
 }

@@ -81,9 +81,18 @@ internal sealed partial class PropsFile : PackageContainer
         bool usePrerelease,
         ILogger logger,
         NuGetFramework? tfm = null,
-        IReadOnlyCollection<string>? allowedLicenses = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        IReadOnlyCollection<string>? alignWithTfm = null
     ) =>
-        UpdatePackagesCoreAsync(packages, dryRun, usePrerelease, logger, tfm, allowedLicenses)
+        UpdatePackagesCoreAsync(
+                packages,
+                dryRun,
+                usePrerelease,
+                logger,
+                tfm,
+                allowedLicenses,
+                alignWithTfm
+            )
             .GetAwaiter()
             .GetResult();
 

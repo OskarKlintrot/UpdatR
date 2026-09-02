@@ -107,7 +107,8 @@ internal sealed partial class FileBasedApp : PackageContainer
         bool usePrerelease,
         ILogger logger,
         NuGetFramework? tfm = null,
-        IReadOnlyCollection<string>? allowedLicenses = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        IReadOnlyCollection<string>? alignWithTfm = null
     )
     {
         _content = await File.ReadAllTextAsync(Path).ConfigureAwait(false);
@@ -119,7 +120,8 @@ internal sealed partial class FileBasedApp : PackageContainer
                 usePrerelease,
                 logger,
                 tfm,
-                allowedLicenses
+                allowedLicenses,
+                alignWithTfm
             )
             .ConfigureAwait(false);
     }

@@ -1,4 +1,3 @@
-﻿using System.Text.RegularExpressions;
 using BuildingBlocks;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
@@ -7,6 +6,7 @@ using NuGet.Frameworks;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using UpdatR.Domain;
+using UpdatR.Domain.Utils;
 using UpdatR.Internals;
 
 namespace UpdatR;
@@ -39,11 +39,23 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// processed altogether, matched against each file's path relative to the resolved
     /// <paramref name="path"/>. Supports * as wildcard.
     /// </param>
+    /// <param name="alignWithTfm">
+    /// Packages to keep aligned with a project's target framework's major version, instead of
+    /// updating to a newer version whose major just happens to also be compatible (e.g. a package
+    /// that multi-targets both <c>net9.0</c> and <c>net10.0</c> in the same, higher-major,
+    /// release). Supports * as wildcard. Only applies to modern (<c>net5.0</c>+) target
+    /// frameworks, and only if the currently installed version's major isn't already ahead of the
+    /// target framework's - if it is, updates are left unrestricted. Also applies to
+    /// <c>dotnet-tools.json</c> entries, aligned with the target framework(s) of the csproj(s)
+    /// the manifest applies to (e.g. keeping <c>dotnet-ef</c> in step with
+    /// <c>Microsoft.EntityFrameworkCore</c>).
+    /// </param>
     /// <remarks>
     /// If a <c>.updatrrc</c> JSON file is found - first next to <paramref name="path"/>, then in
-    /// the current working directory - its <c>excludePackages</c>, <c>allowedLicenses</c> and
-    /// <c>excludeFiles</c> values are merged (union) with <paramref name="excludePackages"/>,
-    /// <paramref name="allowedLicenses"/> and <paramref name="excludeFiles"/> respectively. If
+    /// the current working directory - its <c>excludePackages</c>, <c>allowedLicenses</c>,
+    /// <c>excludeFiles</c> and <c>alignWithTfm</c> values are merged (union) with
+    /// <paramref name="excludePackages"/>, <paramref name="allowedLicenses"/>,
+    /// <paramref name="excludeFiles"/> and <paramref name="alignWithTfm"/> respectively. If
     /// <paramref name="path"/> is left out (i.e. it resolves to the current directory) and the
     /// config file has a <c>defaultTarget</c>, that's used as the target path instead of the
     /// current directory.
@@ -59,7 +71,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         bool interactive = false,
         string? targetFrameworkMoniker = null,
         string[]? allowedLicenses = null,
-        string[]? excludeFiles = null
+        string[]? excludeFiles = null,
+        string[]? alignWithTfm = null
     )
     {
         var tfm = ParseTFM(targetFrameworkMoniker);
@@ -71,6 +84,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         excludePackages = UpdatRConfig.Merge(excludePackages, updatRConfig?.ExcludePackages);
         allowedLicenses = UpdatRConfig.Merge(allowedLicenses, updatRConfig?.AllowedLicenses);
         excludeFiles = UpdatRConfig.Merge(excludeFiles, updatRConfig?.ExcludeFiles);
+        alignWithTfm = UpdatRConfig.Merge(alignWithTfm, updatRConfig?.AlignWithTfm);
 
         if (
             !string.IsNullOrWhiteSpace(updatRConfig?.DefaultTarget)
@@ -122,7 +136,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 prerelease,
                 _logger,
                 tfm,
-                allowedLicenses
+                allowedLicenses,
+                alignWithTfm
             );
 
             if (project is not null)
@@ -139,7 +154,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 prerelease,
                 _logger,
                 tfm,
-                allowedLicenses
+                allowedLicenses,
+                alignWithTfm
             );
 
             if (project is not null)
@@ -154,7 +170,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 nugetPackages,
                 dryRun,
                 prerelease,
-                _logger
+                _logger,
+                alignWithTfm
             );
 
             if (project is not null)
@@ -171,7 +188,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 prerelease,
                 _logger,
                 tfm,
-                allowedLicenses
+                allowedLicenses,
+                alignWithTfm
             );
 
             if (project is not null)
@@ -200,26 +218,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         return tfm;
     }
 
-    private static Func<string, bool> CreateSearch(string[]? strs, bool treatNullOrEmptyAs)
-    {
-        if (strs is null || strs.Length == 0)
-        {
-            return _ => treatNullOrEmptyAs;
-        }
-
-        var regexes = strs.Select(ConvertSearchPatternToRegex).ToList();
-
-        return str => regexes.Any(x => x.IsMatch(str));
-    }
-
-    private static Regex ConvertSearchPatternToRegex(string matchAgainst)
-    {
-        var pattern = "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
-
-        pattern = pattern.Replace("()$", "$");
-
-        return new Regex(pattern, RegexOptions.IgnoreCase);
-    }
+    private static Func<string, bool> CreateSearch(string[]? strs, bool treatNullOrEmptyAs) =>
+        SearchPattern.CreateSearch(strs, treatNullOrEmptyAs);
 
     /// <summary>
     /// Creates a predicate matching a file's full path against <paramref name="excludeFiles"/>
@@ -234,7 +234,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         }
 
         var regexes = excludeFiles
-            .Select(x => ConvertSearchPatternToRegex(x.Replace('\\', '/')))
+            .Select(x => SearchPattern.ConvertToRegex(x.Replace('\\', '/')))
             .ToList();
 
         return filePath =>
