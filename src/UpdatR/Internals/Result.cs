@@ -96,6 +96,7 @@ internal sealed record ProjectWithPackages
     private readonly List<DeprecatedPackage> _deprecatedPackages = [];
     private readonly List<VulnerablePackage> _vulnerablePackages = [];
     private readonly List<LicenseMismatchPackage> _licenseMismatchPackages = [];
+    private readonly List<UnsupportedRangePackage> _unsupportedRangePackages = [];
 
     public string Path { get; init; }
     public IEnumerable<string> UnknownPackages => _unknownPackages;
@@ -103,6 +104,8 @@ internal sealed record ProjectWithPackages
     public IEnumerable<DeprecatedPackage> DeprecatedPackages => _deprecatedPackages;
     public IEnumerable<VulnerablePackage> VulnerablePackages => _vulnerablePackages;
     public IEnumerable<LicenseMismatchPackage> LicenseMismatchPackages => _licenseMismatchPackages;
+    public IEnumerable<UnsupportedRangePackage> UnsupportedRangePackages =>
+        _unsupportedRangePackages;
 
     public ProjectWithPackages(string path)
     {
@@ -134,11 +137,17 @@ internal sealed record ProjectWithPackages
         _licenseMismatchPackages.Add(package);
     }
 
+    public void AddUnsupportedRangePackage(UnsupportedRangePackage package)
+    {
+        _unsupportedRangePackages.Add(package);
+    }
+
     public bool AnyPackages() =>
         _updatedPackages.Count > 0
         || _deprecatedPackages.Count > 0
         || _vulnerablePackages.Count > 0
-        || _licenseMismatchPackages.Count > 0;
+        || _licenseMismatchPackages.Count > 0
+        || _unsupportedRangePackages.Count > 0;
 }
 
 internal sealed class UpdatedPackage(string packageId, NuGetVersion from, NuGetVersion to)
@@ -187,6 +196,17 @@ internal sealed class LicenseMismatchPackage(
     /// license isn't allowed.
     /// </summary>
     public bool IsInstalledVersion { get; } = isInstalledVersion;
+}
+
+internal sealed class UnsupportedRangePackage(string packageId, string versionRange)
+{
+    public string PackageId { get; } = packageId;
+
+    /// <summary>
+    /// The original, unmodified version range/floating version string as written in the
+    /// project, e.g. "[1.0,2.0)" or "1.0.*-*".
+    /// </summary>
+    public string VersionRange { get; } = versionRange;
 }
 
 internal record PackageMetadata(

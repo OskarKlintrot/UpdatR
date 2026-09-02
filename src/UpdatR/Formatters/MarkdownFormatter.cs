@@ -89,6 +89,14 @@ public static class MarkdownFormatter
             sb.AppendLine();
         }
 
+        if (summary.UnsupportedRangePackages.Any())
+        {
+            sb.AppendLine("## Unsupported version ranges");
+            sb.AppendLine();
+            UnsupportedRangePackages(sb, summary.UnsupportedRangePackages);
+            sb.AppendLine();
+        }
+
         if (summary.UnauthorizedSources.Any())
         {
             sb.AppendLine("## Unauthorized sources");
@@ -150,6 +158,38 @@ public static class MarkdownFormatter
             }
 
             sb.AppendLine();
+        }
+    }
+
+    private static void UnsupportedRangePackages(
+        StringBuilder sb,
+        IEnumerable<UnsupportedRangePackage> unsupportedRangePackages
+    )
+    {
+        foreach (var (packageId, ranges) in unsupportedRangePackages)
+        {
+            sb.Append("### ").AppendLine(packageId).AppendLine();
+
+            foreach (var (versionRange, projects) in ranges)
+            {
+                sb.AppendFormat(new CultureInfo("en-US"), "Version range: `{0}`", versionRange)
+                    .AppendLine()
+                    .AppendLine();
+
+                sb.AppendLine(
+                        "> A newer version may be available, but UpdatR doesn't know how to safely rewrite this version range - update it manually if needed."
+                    )
+                    .AppendLine();
+
+                sb.AppendLine("Used in:");
+
+                foreach (var project in projects)
+                {
+                    sb.Append("- ").AppendLine(project);
+                }
+
+                sb.AppendLine();
+            }
         }
     }
 

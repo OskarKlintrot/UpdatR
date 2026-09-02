@@ -228,8 +228,11 @@ internal sealed partial class PropsFile
                 if (newVersionStr is null)
                 {
                     // Don't know how to safely rewrite this kind of floating version/range (e.g.
-                    // a prerelease float, or a fixed range like "[1.0,2.0)") - leave it as-is.
-                    LogFloatingVersionSkipped(logger, versionStr, item.OuterXml);
+                    // a prerelease float, or a fixed range like "[1.0,2.0)") - leave it as-is,
+                    // but call it out clearly since a newer version is available.
+                    LogUnsupportedVersionRange(logger, versionStr, item.OuterXml);
+
+                    project.AddUnsupportedRangePackage(new(packageId, versionStr));
 
                     continue;
                 }
@@ -454,6 +457,17 @@ internal sealed partial class PropsFile
     static partial void LogFloatingVersionSkipped(
         ILogger logger,
         string version,
+        string packageReference
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventId = 9,
+        Message = "Could not automatically update version range {VersionRange} for package reference {PackageReference} - UpdatR doesn't know how to safely rewrite this kind of version range (e.g. a fixed range like \"[1.0,2.0)\", or a prerelease float). A newer version may be available; update it manually if needed."
+    )]
+    static partial void LogUnsupportedVersionRange(
+        ILogger logger,
+        string versionRange,
         string packageReference
     );
 

@@ -59,6 +59,15 @@ public static class TextFormatter
             sb.AppendLine("------------------------------");
         }
 
+        if (summary.UnsupportedRangePackages.Any())
+        {
+            sb.AppendLine("Unsupported version ranges");
+            sb.AppendLine("--");
+            UnsupportedRangePackages(sb, summary.UnsupportedRangePackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
+
         if (summary.UnauthorizedSources.Any())
         {
             sb.AppendLine("Unauthorized sources");
@@ -96,6 +105,33 @@ public static class TextFormatter
             foreach (var project in package.Value)
             {
                 sb.Append("- ").AppendLine(project);
+            }
+            sb.AppendLine("--");
+        }
+    }
+
+    private static void UnsupportedRangePackages(
+        StringBuilder sb,
+        IEnumerable<UnsupportedRangePackage> unsupportedRangePackages
+    )
+    {
+        foreach (var (packageId, ranges) in unsupportedRangePackages)
+        {
+            sb.AppendLine(packageId);
+
+            foreach (var (versionRange, projects) in ranges)
+            {
+                sb.AppendFormat(new CultureInfo("en-US"), "Version range: {0}", versionRange);
+                sb.AppendLine();
+                sb.AppendLine(
+                    "A newer version may be available, but UpdatR doesn't know how to safely rewrite this version range - update it manually if needed."
+                );
+                sb.AppendLine("Used in:");
+
+                foreach (var project in projects)
+                {
+                    sb.Append("- ").AppendLine(project);
+                }
             }
             sb.AppendLine("--");
         }

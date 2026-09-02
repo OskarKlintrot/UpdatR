@@ -428,6 +428,63 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesWarnsAndReportsFixedVersionRangeThatCannotBeRewritten()
+    {
+        // Arrange - "[1.0,2.0)" has no floating segment, so UpdatR doesn't know how to safely
+        // rewrite it even though a newer, non-matching version (2.5.0) is available. This should
+        // be surfaced clearly (a warning, and a report entry) instead of silently being skipped.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="[1.0,2.0)" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var logger = new FakeLogger();
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(NuGetVersion.Parse("1.5.0"), [], null, null),
+                new PackageMetadata(NuGetVersion.Parse("2.5.0"), [], null, null),
+            ]
+        );
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: true,
+            usePrerelease: false,
+            logger: logger
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result.UpdatedPackages);
+
+        var unsupported = Assert.Single(result.UnsupportedRangePackages);
+
+        Assert.Equal("Some.Package", unsupported.PackageId);
+        Assert.Equal("[1.0,2.0)", unsupported.VersionRange);
+
+        var (level, message) = Assert.Single(logger.Logs);
+
+        Assert.Equal(LogLevel.Warning, level);
+        Assert.Contains("[1.0,2.0)", message);
+        Assert.Contains(
+            """<PackageReference Include="Some.Package" Version="[1.0,2.0)" />""",
+            message
+        );
+
+        Assert.Contains("""Version="[1.0,2.0)" """.Trim(), File.ReadAllText(_propsPath));
+    }
+
+    [Fact]
     public void UpdatePackagesTracksUnknownPackage()
     {
         // Arrange

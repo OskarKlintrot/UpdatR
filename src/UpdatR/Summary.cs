@@ -9,7 +9,8 @@ public sealed class Summary(
     IEnumerable<UpdatedPackage> updatedPackages,
     IEnumerable<DeprecatedPackage> deprecatedPackages,
     IEnumerable<VulnerablePackage> vulnerablePackages,
-    IEnumerable<LicenseMismatchPackage> licenseMismatchPackages
+    IEnumerable<LicenseMismatchPackage> licenseMismatchPackages,
+    IEnumerable<UnsupportedRangePackage> unsupportedRangePackages
 )
 {
     private int? _updatedPackagesCount;
@@ -20,6 +21,14 @@ public sealed class Summary(
     public IEnumerable<VulnerablePackage> VulnerablePackages { get; } = vulnerablePackages;
     public IEnumerable<LicenseMismatchPackage> LicenseMismatchPackages { get; } =
         licenseMismatchPackages;
+
+    /// <summary>
+    /// Version ranges and floating versions that UpdatR doesn't know how to safely rewrite
+    /// (e.g. fixed ranges like "[1.0,2.0)", or prerelease floats like "1.0.*-*"), even though a
+    /// newer version may be available. These are left untouched and must be updated manually.
+    /// </summary>
+    public IEnumerable<UnsupportedRangePackage> UnsupportedRangePackages { get; } =
+        unsupportedRangePackages;
 
     /// <summary>
     /// PackageId as key and projects and value.
@@ -127,13 +136,25 @@ public sealed class Summary(
                 )
             ));
 
+        var unsupportedRangePackages = result
+            .Projects.SelectMany(x =>
+                x.UnsupportedRangePackages.Select(y => (Package: y, Project: x.Path))
+            )
+            .GroupBy(x => x.Package.PackageId)
+            .Select(x => (PackageId: x.Key, Ranges: x.GroupBy(y => y.Package.VersionRange)))
+            .Select(x => new UnsupportedRangePackage(
+                x.PackageId,
+                x.Ranges.Select(y => (y.Key, Projects: y.Select(z => z.Project)))
+            ));
+
         return new Summary(
             result.UnknownPackages,
             result.UnauthorizedSources,
             updatedPackages,
             deprecatedPackages,
             vulnerablePackages,
-            licenseMismatchPackages
+            licenseMismatchPackages,
+            unsupportedRangePackages
         );
     }
 }
@@ -172,6 +193,11 @@ public sealed record LicenseMismatchVersion(
     NuGetVersion NuGetVersion,
     string License,
     bool IsInstalledVersion
+);
+
+public sealed record UnsupportedRangePackage(
+    string PackageId,
+    IEnumerable<(string VersionRange, IEnumerable<string> Projects)> Ranges
 );
 
 public sealed record PackageDeprecationMetadata(
