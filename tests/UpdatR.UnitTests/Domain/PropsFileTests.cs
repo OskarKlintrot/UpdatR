@@ -137,6 +137,47 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesUpdatesGlobalPackageReference()
+    {
+        // Arrange - GlobalPackageReference is typically used for analyzers/source generators
+        // that should apply to every project, and unlike PackageVersion it carries its own
+        // Version directly.
+        File.WriteAllText(
+            _propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <GlobalPackageReference Include="Some.Analyzer" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var propsFile = PropsFile.Create(_propsPath, [NuGetFramework.Parse("net10.0")]);
+        var packages = CreatePackages("Some.Analyzer", "1.0.0", "2.0.0");
+
+        // Act
+        var result = propsFile.UpdatePackages(
+            packages,
+            dryRun: false,
+            usePrerelease: false,
+            logger: new FakeLogger()
+        );
+
+        // Assert
+        var updated = Assert.Single(result!.UpdatedPackages);
+
+        Assert.Equal("Some.Analyzer", updated.PackageId);
+        Assert.Equal(NuGetVersion.Parse("1.0.0"), updated.From);
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), updated.To);
+
+        var content = File.ReadAllText(_propsPath);
+
+        Assert.Contains("GlobalPackageReference", content);
+        Assert.Contains("""Version="2.0.0" """.Trim(), content);
+    }
+
+    [Fact]
     public void UpdatePackagesDoesNotSaveFileWhenDryRun()
     {
         // Arrange

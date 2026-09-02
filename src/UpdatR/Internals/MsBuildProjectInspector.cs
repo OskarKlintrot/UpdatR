@@ -5,10 +5,10 @@ using Microsoft.Build.Locator;
 namespace UpdatR.Internals;
 
 /// <summary>
-/// Which physical file a <c>PackageReference</c> or <c>PackageVersion</c> item was declared in.
-/// <see cref="SourceFile"/> is the project or the imported <c>Directory.Build.props</c> /
-/// <c>Directory.Packages.props</c> (or any other props/targets file) that actually contains the
-/// item, no matter how deep the import chain is.
+/// Which physical file a <c>PackageReference</c>, <c>PackageVersion</c> or
+/// <c>GlobalPackageReference</c> item was declared in. <see cref="SourceFile"/> is the project or
+/// the imported <c>Directory.Build.props</c> / <c>Directory.Packages.props</c> (or any other
+/// props/targets file) that actually contains the item, no matter how deep the import chain is.
 /// </summary>
 internal sealed record PackageItemSource(
     string ItemType,
@@ -31,8 +31,8 @@ internal static class MsBuildProjectInspector
 
     /// <summary>
     /// Evaluates <paramref name="projectPath"/> and returns every evaluated
-    /// <c>PackageReference</c> and <c>PackageVersion</c> item together with the file it was
-    /// declared in.
+    /// <c>PackageReference</c>, <c>PackageVersion</c> and <c>GlobalPackageReference</c> item
+    /// together with the file it was declared in.
     /// </summary>
     public static IReadOnlyList<PackageItemSource> GetPackageItemSources(string projectPath)
     {
@@ -78,7 +78,10 @@ internal static class MsBuildProjectInspector
             [
                 .. project
                     .AllEvaluatedItems.Where(item =>
-                        item.ItemType is "PackageReference" or "PackageVersion"
+                        item.ItemType
+                            is "PackageReference"
+                                or "PackageVersion"
+                                or "GlobalPackageReference"
                     )
                     .Select(item => new PackageItemSource(
                         item.ItemType,

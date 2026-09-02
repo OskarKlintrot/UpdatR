@@ -351,8 +351,9 @@ internal sealed class RootDir
     /// <summary>
     /// Finds every <c>.props</c>/<c>.targets</c> file (typically <c>Directory.Build.props</c> or,
     /// with Central Package Management, <c>Directory.Packages.props</c>) imported by any csproj
-    /// in <paramref name="dir"/> that declares a <c>PackageReference</c> or <c>PackageVersion</c>
-    /// item, using real MSBuild evaluation. A file imported by several csproj is only added once,
+    /// in <paramref name="dir"/> that declares a <c>PackageReference</c>, <c>PackageVersion</c>
+    /// or <c>GlobalPackageReference</c> item, using real MSBuild evaluation. A file imported by
+    /// several csproj is only added once,
     /// tracking every contributing csproj's target framework so it can later be updated
     /// conservatively (i.e. only to a version compatible with all of them).
     /// </summary>

@@ -10,8 +10,9 @@ namespace UpdatR.Domain;
 /// <summary>
 /// A <c>.props</c> or <c>.targets</c> file - most commonly <c>Directory.Build.props</c> or, for
 /// Central Package Management, <c>Directory.Packages.props</c> - that declares
-/// <c>PackageReference</c> and/or <c>PackageVersion</c> items imported by one or more
-/// <see cref="Csproj"/>. Unlike a <see cref="Csproj"/>, a props/targets file has no target
+/// <c>PackageReference</c>, <c>PackageVersion</c> and/or <c>GlobalPackageReference</c> items
+/// imported by one or more <see cref="Csproj"/>. Unlike a <see cref="Csproj"/>, a props/targets
+/// file has no target
 /// framework of its own: it can be imported by several projects that each target a different
 /// framework, so <see cref="TargetFrameworks"/> tracks every framework of every project that was
 /// found to import it (via <see cref="Internals.MsBuildProjectInspector"/>).
@@ -65,7 +66,8 @@ internal sealed partial class PropsFile
     }
 
     /// <summary>
-    /// Updates every <c>PackageReference</c> and <c>PackageVersion</c> item in this file.
+    /// Updates every <c>PackageReference</c>, <c>PackageVersion</c> and
+    /// <c>GlobalPackageReference</c> item in this file.
     /// </summary>
     /// <param name="tfm">
     /// Overrides <see cref="TargetFrameworks"/> when supplied. Otherwise, a package is only
@@ -93,7 +95,7 @@ internal sealed partial class PropsFile
         _doc.NodeRemoved += handler;
 
         var items = _doc.SelectNodes(
-                    "/Project/ItemGroup/PackageReference|/Project/ItemGroup/PackageVersion"
+                    "/Project/ItemGroup/PackageReference|/Project/ItemGroup/PackageVersion|/Project/ItemGroup/GlobalPackageReference"
                 )!
             .OfType<XmlElement>();
 
@@ -299,7 +301,9 @@ internal sealed partial class PropsFile
     }
 
     private Dictionary<string, NuGetVersion> GetPackages() =>
-        _doc.SelectNodes("/Project/ItemGroup/PackageReference|/Project/ItemGroup/PackageVersion")!
+        _doc.SelectNodes(
+                    "/Project/ItemGroup/PackageReference|/Project/ItemGroup/PackageVersion|/Project/ItemGroup/GlobalPackageReference"
+                )!
             .OfType<XmlElement>()
             .Select(x =>
                 (
