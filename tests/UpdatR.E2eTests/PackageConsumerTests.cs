@@ -75,14 +75,14 @@ public sealed class PackageConsumerTests : IDisposable
             ct: TestContext.Current.CancellationToken
         );
 
-        // Diagnostic, defense-in-depth check: assert the produced .nupkg actually contains both
-        // UpdatR.dll's runtime dependencies (UpdatR.MsBuild.dll, Microsoft.Build.Locator.dll)
-        // alongside UpdatR.dll itself. These are bundled by the CopyProjectReferencesToPackage
-        // target in UpdatR.csproj instead of being normal NuGet dependencies (see the comments
-        // there) - if that target's item-filtering ever silently stops matching (e.g. an MSBuild
-        // version/OS difference in how ReferenceCopyLocalPaths/RuntimeCopyLocalItems metadata gets
-        // populated), this fails right here at pack-time instead of showing up as a confusing
-        // runtime FileNotFoundException in the consumer app further down.
+        // Diagnostic, defense-in-depth check: assert the produced .nupkg actually contains
+        // UpdatR.dll's bundled runtime dependency Microsoft.Build.Locator.dll alongside UpdatR.dll
+        // itself. It's bundled by the CopyMicrosoftBuildLocatorToPackage target in UpdatR.csproj
+        // instead of being a normal NuGet dependency (see the comments there) - if that target's
+        // item-filtering ever silently stops matching (e.g. an MSBuild version/OS difference in
+        // how RuntimeCopyLocalItems metadata gets populated), this fails right here at pack-time
+        // instead of showing up as a confusing runtime FileNotFoundException in the consumer app
+        // further down.
         var nupkgPath = Path.Combine(localFeed, $"UpdatR.{testVersion}.nupkg");
 
         Assert.True(File.Exists(nupkgPath), $"Expected package not found at {nupkgPath}.");
@@ -97,10 +97,6 @@ public sealed class PackageConsumerTests : IDisposable
             Console.WriteLine("Package lib/ entries: " + string.Join(", ", libEntries));
 
             Assert.Contains(libEntries, e => e.EndsWith("UpdatR.dll", StringComparison.Ordinal));
-            Assert.Contains(
-                libEntries,
-                e => e.EndsWith("UpdatR.MsBuild.dll", StringComparison.Ordinal)
-            );
             Assert.Contains(
                 libEntries,
                 e => e.EndsWith("Microsoft.Build.Locator.dll", StringComparison.Ordinal)
@@ -165,7 +161,7 @@ public sealed class PackageConsumerTests : IDisposable
         // assertion is defense-in-depth in case the check is ever downgraded to a warning.
         Assert.DoesNotContain("MSBL001", buildStdOutput, StringComparison.OrdinalIgnoreCase);
 
-        // Diagnostic, defense-in-depth check: assert UpdatR's bundled runtime dependencies
+        // Diagnostic, defense-in-depth check: assert UpdatR's bundled Microsoft.Build.Locator.dll
         // actually got copied into the consumer app's own output directory by NuGet/MSBuild
         // during the build above - not just present in the .nupkg (checked earlier). If this ever
         // fails, the break is in restore/copy-local resolution rather than in packing.
@@ -179,14 +175,13 @@ public sealed class PackageConsumerTests : IDisposable
             "Consumer output directory contents: " + string.Join(", ", consumerOutputFiles)
         );
 
-        Assert.Contains("UpdatR.MsBuild.dll", consumerOutputFiles);
         Assert.Contains("Microsoft.Build.Locator.dll", consumerOutputFiles);
 
-        // Exercise the actual runtime behavior too (ModuleInitializer registering
-        // MSBuildLocator, and UpdatR.MsBuild actually resolving a real MSBuild), not just the
-        // build - the DLL needs to both be present (build-time check above) and loadable. Uses
-        // `dotnet exec` against the binary just built, the same proven pattern LiveTests uses for
-        // the CLI, instead of `dotnet run` (which would re-evaluate/rebuild the project again).
+        // Exercise the actual runtime behavior too (ModuleInitializer registering MSBuildLocator,
+        // and MsBuildProjectInspector actually resolving a real MSBuild), not just the build - the
+        // DLL needs to both be present (build-time check above) and loadable. Uses `dotnet exec`
+        // against the binary just built, the same proven pattern LiveTests uses for the CLI,
+        // instead of `dotnet run` (which would re-evaluate/rebuild the project again).
         var consumerDll = Path.Combine(consumerDir, "bin", "Release", "net10.0", "Consumer.dll");
 
         if (!File.Exists(consumerDll))

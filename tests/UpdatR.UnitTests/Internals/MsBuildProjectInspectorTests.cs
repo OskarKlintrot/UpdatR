@@ -1,13 +1,13 @@
-﻿using UpdatR.MsBuild;
+﻿using UpdatR.Internals;
 using Xunit;
 
-namespace UpdatR.MsBuild.Tests;
+namespace UpdatR.UnitTests;
 
 public sealed class MsBuildProjectInspectorTests : IDisposable
 {
     private readonly string _root = Directory
         .CreateDirectory(
-            Path.Combine(Path.GetTempPath(), "UpdatR.MsBuild.Tests", Guid.NewGuid().ToString())
+            Path.Combine(Path.GetTempPath(), "UpdatR.UnitTests", Guid.NewGuid().ToString())
         )
         .FullName;
 

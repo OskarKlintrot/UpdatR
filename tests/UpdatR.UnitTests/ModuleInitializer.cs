@@ -19,6 +19,6 @@ internal static class ModuleInitializer
     [ModuleInitializer]
     internal static void Initialize()
     {
-        UpdatR.MsBuild.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
+        UpdatR.Internals.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
     }
 }

@@ -43,10 +43,8 @@
   <Folder Name="/Tests/">
     <Project Path="tests/UpdatR.E2eTests/UpdatR.E2eTests.csproj" />
     <Project Path="tests/UpdatR.IntegrationTests/UpdatR.IntegrationTests.csproj" />
-    <Project Path="tests/UpdatR.MsBuild.Tests/UpdatR.MsBuild.Tests.csproj" />
     <Project Path="tests/UpdatR.UnitTests/UpdatR.UnitTests.csproj" />
   </Folder>
   <Project Path="src/dotnet-updatr/dotnet-updatr.csproj" />
   <Project Path="src/UpdatR/UpdatR.csproj" />
-  <Project Path="src/UpdatR.MsBuild/UpdatR.MsBuild.csproj" />
 </Solution>

@@ -2,7 +2,7 @@
 using System.Xml.Linq;
 using NuGet.Frameworks;
 using NuGet.Packaging;
-using UpdatR.MsBuild;
+using UpdatR.Internals;
 
 namespace UpdatR.Domain;
 

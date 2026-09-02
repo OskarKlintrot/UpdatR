@@ -10,7 +10,7 @@ internal static class ModuleInitializer
     /// Eagerly registers MSBuildLocator's assembly resolver as soon as this assembly is loaded.
     /// </summary>
     /// <remarks>
-    /// <see cref="UpdatR.MsBuild.MsBuildProjectInspector"/> is used to resolve
+    /// <see cref="Internals.MsBuildProjectInspector"/> is used to resolve
     /// <c>PackageReference</c>/<c>PackageVersion</c> items declared in <c>Directory.Build.props</c>
     /// and <c>Directory.Packages.props</c> files, which pulls in Microsoft.Build.Locator. Because
     /// this project also references <c>NuGet.Frameworks</c> - one of the assemblies
@@ -42,29 +42,29 @@ internal static class ModuleInitializer
     [ModuleInitializer]
     internal static void Initialize()
     {
-        // UpdatR.MsBuild.dll and Microsoft.Build.Locator.dll are bundled directly into UpdatR's own
-        // package output instead of being declared as regular NuGet dependencies (see the
-        // PrivateAssets="all" comments in UpdatR.csproj - a real dependency would break every
-        // consumer's build via Microsoft.Build.Locator's MSBL001 buildTransitive check). That means
-        // neither assembly is guaranteed to be listed in a consuming app's .deps.json, which the
-        // default AssemblyLoadContext uses to build its trusted-assembly list for
-        // framework-dependent apps. Relying on that default, implicit probing to still find the
-        // files is fragile: they ARE physically copied next to UpdatR.dll (NuGet copies every file
-        // under a referenced package's lib/<tfm> folder to the consumer's output directory
-        // regardless of .deps.json), but resolving a simple assembly name still failed with a
-        // FileNotFoundException on Linux even though the exact same package/output layout worked
-        // fine on Windows. Resolving both assemblies explicitly from UpdatR.dll's own directory
+        // Microsoft.Build.Locator.dll is bundled directly into UpdatR's own package output
+        // instead of being declared as a regular NuGet dependency (see the PrivateAssets="all"
+        // comment in UpdatR.csproj - a real dependency would break every consumer's build via its
+        // MSBL001 buildTransitive check). That means it isn't guaranteed to be listed in a
+        // consuming app's .deps.json, which the default AssemblyLoadContext uses to build its
+        // trusted-assembly list for framework-dependent apps. Relying on that default, implicit
+        // probing to still find the file is fragile: it IS physically copied next to UpdatR.dll
+        // (NuGet copies every file under a referenced package's lib/<tfm> folder to the consumer's
+        // output directory regardless of .deps.json), but resolving a simple assembly name still
+        // failed with a FileNotFoundException on Linux even though the exact same package/output
+        // layout worked fine on Windows. Resolving it explicitly from UpdatR.dll's own directory
         // removes any dependency on .deps.json - or on any OS-specific probing behavior - entirely.
         //
         // This registration MUST happen in a method that itself contains no reference to any
-        // UpdatR.MsBuild type: the JIT resolves every type referenced by a method's IL - including
-        // simple call targets - while compiling THAT method, before any of its instructions
-        // actually run. If the Resolving registration and the call into UpdatR.MsBuild lived in the
-        // same method, compiling this method would try to resolve UpdatR.MsBuild before the
-        // registration line ever executed, so the handler would never get a chance to run (this
-        // was tried and confirmed not to fix the issue). Splitting the actual usage into a separate
-        // NoInlining method defers resolving UpdatR.MsBuild until that method is actually invoked,
-        // by which point the handler below is already registered.
+        // Microsoft.Build.* type: the JIT resolves every type referenced by a method's IL -
+        // including simple call targets - while compiling THAT method, before any of its
+        // instructions actually run. If the Resolving registration and the call into
+        // MsBuildProjectInspector lived in the same method, compiling this method would try to
+        // resolve Microsoft.Build.Locator before the registration line ever executed, so the
+        // handler would never get a chance to run (this was tried and confirmed not to fix the
+        // issue). Splitting the actual usage into a separate NoInlining method defers resolving
+        // Microsoft.Build.* types until that method is actually invoked, by which point the
+        // handler below is already registered.
         AssemblyLoadContext.Default.Resolving += ResolveBundledDependency;
 
         RegisterMsBuildLocator();
@@ -75,7 +75,7 @@ internal static class ModuleInitializer
     {
         try
         {
-            UpdatR.MsBuild.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
+            Internals.MsBuildProjectInspector.EnsureMsBuildLocatorIsRegistered();
         }
         catch (Exception ex)
         {
@@ -85,7 +85,7 @@ internal static class ModuleInitializer
             // the .NET SDK" from. UpdatR fundamentally requires a local .NET SDK or Visual Studio
             // installation - not just the .NET runtime - because NuGet.Frameworks (used for every
             // target framework comparison, not just .props/.targets support) is deliberately not
-            // shipped in UpdatR's own output (see the ProjectReference PrivateAssets comment in
+            // shipped in UpdatR's own output (see the PackageReference PrivateAssets comment in
             // UpdatR.csproj) and is only ever resolved via MSBuildLocator redirecting to whatever
             // SDK/Visual Studio installation it finds on the machine.
             throw new InvalidOperationException(
@@ -102,7 +102,7 @@ internal static class ModuleInitializer
         AssemblyName assemblyName
     )
     {
-        if (assemblyName.Name is not ("UpdatR.MsBuild" or "Microsoft.Build.Locator"))
+        if (assemblyName.Name != "Microsoft.Build.Locator")
         {
             return null;
         }

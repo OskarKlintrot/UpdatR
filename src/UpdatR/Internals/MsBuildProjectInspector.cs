@@ -2,7 +2,7 @@
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Locator;
 
-namespace UpdatR.MsBuild;
+namespace UpdatR.Internals;
 
 /// <summary>
 /// Which physical file a <c>PackageReference</c> or <c>PackageVersion</c> item was declared in.
@@ -10,7 +10,7 @@ namespace UpdatR.MsBuild;
 /// <c>Directory.Packages.props</c> (or any other props/targets file) that actually contains the
 /// item, no matter how deep the import chain is.
 /// </summary>
-public sealed record PackageItemSource(
+internal sealed record PackageItemSource(
     string ItemType,
     string PackageId,
     string? Version,
@@ -24,7 +24,7 @@ public sealed record PackageItemSource(
 /// <c>Directory.Packages.props</c> for Central Package Management) because MSBuild itself
 /// resolves them during evaluation.
 /// </summary>
-public static class MsBuildProjectInspector
+internal static class MsBuildProjectInspector
 {
     private static readonly Lock RegistrationLock = new();
     private static bool _registered;

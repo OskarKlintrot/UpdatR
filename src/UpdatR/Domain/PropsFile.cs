@@ -14,7 +14,7 @@ namespace UpdatR.Domain;
 /// <see cref="Csproj"/>. Unlike a <see cref="Csproj"/>, a props/targets file has no target
 /// framework of its own: it can be imported by several projects that each target a different
 /// framework, so <see cref="TargetFrameworks"/> tracks every framework of every project that was
-/// found to import it (via <see cref="MsBuild.MsBuildProjectInspector"/>).
+/// found to import it (via <see cref="Internals.MsBuildProjectInspector"/>).
 /// </summary>
 internal sealed partial class PropsFile
 {
