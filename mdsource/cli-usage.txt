@@ -1,5 +1,5 @@
 Usage:
-  update [<args>] [options]
+  update [<args>] [command] [options]
 
 Arguments:
   <args>  Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files, dotnet-tools.json-files and file-based apps will be processed. [default: .]
@@ -19,5 +19,8 @@ Options:
   --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking. Merged with "allowedLicenses" from a .updatrrc file, if present.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
+
+Commands:
+  config  Manage the .updatrrc config file.
 
 
