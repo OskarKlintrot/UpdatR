@@ -15,8 +15,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
     <PackageReference Include="NuGet.Credentials" Version="7.9.0" />
     <!--
-      NuGet.Frameworks is one of the packages Microsoft.Build.Locator (brought in transitively via
-      the ProjectReference below) warns about (MSBL001): MSBuild ships its own copy internally, so
+      NuGet.Frameworks is one of the packages Microsoft.Build (referenced below) and, transitively,
+      Microsoft.Build.Locator warn about (MSBL001): MSBuild ships its own copy internally, so
       this one must not be copied to the output directory. ExcludeAssets="runtime" achieves that,
       and PrivateAssets="all" stops the reference from flowing to downstream consumers (so their
       own builds don't trip the same MSBL001 check for a package they never asked for). UpdatR's
