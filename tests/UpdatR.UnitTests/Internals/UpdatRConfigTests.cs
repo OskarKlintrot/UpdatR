@@ -1,6 +1,4 @@
-﻿using UpdatR.Internals;
-
-namespace UpdatR.UnitTests;
+﻿namespace UpdatR.UnitTests;
 
 public class UpdatRConfigTests
 {
@@ -118,6 +116,117 @@ public class UpdatRConfigTests
             { ["Foo.*"], ["Bar.*"], ["Foo.*", "Bar.*"] },
             { ["Foo.*"], ["foo.*", "Bar.*"], ["Foo.*", "Bar.*"] },
         };
+
+    [Fact]
+    public void CreateFileCreatesFileWithAllPropertiesEmpty()
+    {
+        // Arrange
+        var temp = CreateTempDirectory();
+
+        // Act
+        var filePath = UpdatRConfig.CreateFile(temp);
+
+        // Assert
+        Assert.Equal(Path.Combine(temp, UpdatRConfig.FileName), filePath);
+
+        var config = UpdatRConfig.Load(temp);
+
+        Assert.NotNull(config);
+        Assert.Empty(config.ExcludePackages ?? []);
+        Assert.Empty(config.AllowedLicenses ?? []);
+    }
+
+    [Fact]
+    public void CreateFileThrowsWhenFileAlreadyExistsAndNotOverwriting()
+    {
+        // Arrange
+        var temp = CreateTempDirectory();
+
+        UpdatRConfig.CreateFile(temp);
+
+        // Act & Assert
+        Assert.Throws<IOException>(() => UpdatRConfig.CreateFile(temp));
+    }
+
+    [Fact]
+    public void CreateFileOverwritesWhenOverwriteIsTrue()
+    {
+        // Arrange
+        var temp = CreateTempDirectory();
+
+        var filePath = UpdatRConfig.CreateFile(temp);
+
+        File.WriteAllText(filePath, """{ "excludePackages": ["Foo.*"] }""");
+
+        // Act
+        UpdatRConfig.CreateFile(temp, overwrite: true);
+
+        // Assert
+        var config = UpdatRConfig.Load(temp);
+
+        Assert.NotNull(config);
+        Assert.Empty(config.ExcludePackages ?? []);
+    }
+
+    [Theory]
+    [InlineData("""{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"] }""")]
+    [InlineData("{}")]
+    [InlineData("""{ "excludePackages": null, "allowedLicenses": null }""")]
+    public void ValidateReturnsNoErrorsForValidJson(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void ValidateReturnsErrorForInvalidJson()
+    {
+        // Act
+        var errors = UpdatRConfig.Validate("{ invalid json");
+
+        // Assert
+        Assert.Single(errors);
+        Assert.Contains("not valid JSON", errors[0]);
+    }
+
+    [Fact]
+    public void ValidateReturnsErrorWhenRootIsNotAnObject()
+    {
+        // Act
+        var errors = UpdatRConfig.Validate("[]");
+
+        // Assert
+        Assert.Single(errors);
+        Assert.Contains("must contain a JSON object", errors[0]);
+    }
+
+    [Fact]
+    public void ValidateReturnsErrorForUnknownProperty()
+    {
+        // Act
+        var errors = UpdatRConfig.Validate("""{ "unknownProperty": [] }""");
+
+        // Assert
+        Assert.Single(errors);
+        Assert.Contains("Unknown property 'unknownProperty'", errors[0]);
+    }
+
+    [Theory]
+    [InlineData("""{ "excludePackages": "Foo.*" }""")]
+    [InlineData("""{ "excludePackages": [1] }""")]
+    [InlineData("""{ "excludePackages": [""] }""")]
+    [InlineData("""{ "excludePackages": ["  "] }""")]
+    public void ValidateReturnsErrorForInvalidExcludePackagesValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
 
     private static string CreateTempDirectory()
     {

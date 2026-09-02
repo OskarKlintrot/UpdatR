@@ -92,6 +92,30 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
 
 Both properties are optional, and any value in `.updatrrc` is merged with the corresponding command line option, if given.
 
+Use `update config init` to create a `.updatrrc` file with all properties present, but empty:
+
+```
+> update config init
+```
+
+By default it's created in the current directory. Pass a path to create it elsewhere, and `--force` to overwrite an existing file:
+
+```
+> update config init path/to/project --force
+```
+
+Use `update config validate` to check that a `.updatrrc` file is valid JSON, only contains known properties and that `excludePackages`/`allowedLicenses` are arrays of non-empty strings:
+
+```
+> update config validate
+```
+
+Like `init`, it defaults to looking for `.updatrrc` in the current directory, but a path to a directory or the file itself can be given instead:
+
+```
+> update config validate path/to/project
+```
+
 ### As part of CI/CD
 
 You can get the output as a markdown by setting a path for the output:

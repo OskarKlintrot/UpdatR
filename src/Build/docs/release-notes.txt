@@ -4,3 +4,4 @@
 - breaking: `Updater.UpdateAsync` has a new optional `allowedLicenses` parameter and `Summary` has a new `LicenseMismatchPackages` property.
 - Add support for a `.updatrrc` JSON config file with `excludePackages` and `allowedLicenses`. The file is looked up next to the target path, falling back to the current working directory, and its values are merged with the corresponding command line options / `Updater.UpdateAsync` parameters.
 - Add SourceLink support to the `UpdatR` and `dotnet-updatr` packages, enabling source debugging and repository metadata (commit, branch, URL) in the published NuGet packages.
+- Add `update config init` / `update config validate` commands, and public `UpdatRConfig.CreateFile` / `UpdatRConfig.Validate` API, for scaffolding and validating a `.updatrrc` file.

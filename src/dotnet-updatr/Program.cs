@@ -85,6 +85,58 @@ internal static partial class Program
             DefaultValueFactory = _ => [],
         };
 
+        var configPathArgument = new Argument<string>("path")
+        {
+            Description =
+                "Directory to create the .updatrrc file in, or a file path to use directly. Defaults to the current directory.",
+            DefaultValueFactory = _ => ".",
+        };
+
+        var forceOption = new Option<bool>("--force")
+        {
+            Description = "Overwrite the file if it already exists.",
+        };
+
+        var initCommand = new Command(
+            "init",
+            "Create a .updatrrc file with all properties present, but empty."
+        )
+        {
+            configPathArgument,
+            forceOption,
+        };
+
+        initCommand.SetAction(
+            (parseResult, cancellationToken) =>
+                InitConfigAsync(
+                    path: parseResult.GetValue(configPathArgument) ?? ".",
+                    force: parseResult.GetValue(forceOption)
+                )
+        );
+
+        var validatePathArgument = new Argument<string>("path")
+        {
+            Description =
+                "Path to a .updatrrc file, or a directory to look for one in. Defaults to the current directory.",
+            DefaultValueFactory = _ => ".",
+        };
+
+        var validateCommand = new Command("validate", "Validate a .updatrrc file.")
+        {
+            validatePathArgument,
+        };
+
+        validateCommand.SetAction(
+            (parseResult, cancellationToken) =>
+                ValidateConfigAsync(path: parseResult.GetValue(validatePathArgument) ?? ".")
+        );
+
+        var configCommand = new Command("config", "Manage the .updatrrc config file.")
+        {
+            initCommand,
+            validateCommand,
+        };
+
         var rootCommand = new RootCommand("Update all packages in solution or project(s).")
         {
             pathArgument,
@@ -100,6 +152,7 @@ internal static partial class Program
             interactiveOption,
             tfmOption,
             allowedLicensesOption,
+            configCommand,
         };
 
         rootCommand.SetAction(
@@ -122,6 +175,66 @@ internal static partial class Program
         );
 
         return rootCommand.Parse(args).InvokeAsync();
+    }
+
+    private static Task<int> InitConfigAsync(string path, bool force)
+    {
+        try
+        {
+            var filePath = UpdatRConfig.CreateFile(path, overwrite: force);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Created '{filePath}'.");
+            Console.ResetColor();
+
+            return Task.FromResult(0);
+        }
+        catch (IOException exception)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(exception.Message);
+            Console.ResetColor();
+
+            return Task.FromResult(1);
+        }
+    }
+
+    private static Task<int> ValidateConfigAsync(string path)
+    {
+        var filePath = Directory.Exists(path) ? Path.Combine(path, UpdatRConfig.FileName) : path;
+
+        if (!File.Exists(filePath))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"'{filePath}' not found.");
+            Console.ResetColor();
+
+            return Task.FromResult(1);
+        }
+
+        var json = File.ReadAllText(filePath);
+        var errors = UpdatRConfig.Validate(json);
+
+        if (errors.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"'{filePath}' is invalid:");
+
+            foreach (var error in errors)
+            {
+                Console.WriteLine($"- {error}");
+            }
+
+            Console.ResetColor();
+
+            return Task.FromResult(1);
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"'{filePath}' is valid.");
+        Console.ResetColor();
+
+        return Task.FromResult(0);
     }
 
     /// <exception cref="ArgumentException"></exception>
