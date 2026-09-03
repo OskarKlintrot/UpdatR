@@ -5,7 +5,8 @@ namespace UpdatR;
 
 /// <summary>
 /// Optional JSON config file (<c>.updatrrc</c>) that can be used instead of, or together with,
-/// command line arguments / <see cref="Updater.UpdateAsync"/> parameters.
+/// command line arguments / <see cref="Updater.UpdateAsync"/> parameters. Both <c>//</c> line
+/// comments and <c>/* */</c> block comments, as well as trailing commas, are allowed.
 /// </summary>
 /// <param name="ExcludePackages">Packages to exclude. Supports * as wildcard.</param>
 /// <param name="AllowedLicenses">
@@ -51,11 +52,21 @@ public sealed record UpdatRConfig(
         "alignWithTfm",
     ];
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
 
     private static readonly JsonSerializerOptions WriteJsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
+    };
+
+    private static readonly JsonDocumentOptions JsonDocumentOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
     };
 
     /// <summary>
@@ -226,11 +237,11 @@ public sealed record UpdatRConfig(
     }
 
     /// <summary>
-    /// Validates the content of a <c>.updatrrc</c> file: that it's valid JSON containing a JSON
-    /// object, that it doesn't contain unknown option, that <c>excludePackages</c> /
-    /// <c>allowedLicenses</c> / <c>excludeFiles</c> / <c>alignWithTfm</c> - if present - are
-    /// arrays of non-empty strings, and that <c>defaultTarget</c> - if present - is a non-empty
-    /// string.
+    /// Validates the content of a <c>.updatrrc</c> file: that it's valid JSON (comments and
+    /// trailing commas are allowed) containing a JSON object, that it doesn't contain unknown
+    /// option, that <c>excludePackages</c> / <c>allowedLicenses</c> / <c>excludeFiles</c> /
+    /// <c>alignWithTfm</c> - if present - are arrays of non-empty strings, and that
+    /// <c>defaultTarget</c> - if present - is a non-empty string.
     /// </summary>
     /// <param name="json">The content of the <c>.updatrrc</c> file.</param>
     /// <param name="configDirectory">
@@ -249,7 +260,7 @@ public sealed record UpdatRConfig(
 
         try
         {
-            document = JsonDocument.Parse(json);
+            document = JsonDocument.Parse(json, JsonDocumentOptions);
         }
         catch (JsonException exception)
         {

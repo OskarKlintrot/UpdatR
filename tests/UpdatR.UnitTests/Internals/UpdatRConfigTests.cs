@@ -47,6 +47,33 @@ public class UpdatRConfigTests
     }
 
     [Fact]
+    public void LoadReturnsConfigWhenFileContainsComments()
+    {
+        // Arrange
+        var temp = CreateTempDirectory();
+
+        File.WriteAllText(
+            Path.Combine(temp, UpdatRConfig.FileName),
+            """
+            {
+              // Line comment.
+              "excludePackages": ["Foo.*"], // Trailing line comment.
+              /* Block comment. */
+              "allowedLicenses": ["MIT", "Apache-2.0"],
+            }
+            """
+        );
+
+        // Act
+        var config = UpdatRConfig.Load(temp);
+
+        // Assert
+        Assert.NotNull(config);
+        Assert.Equal(["Foo.*"], config.ExcludePackages ?? []);
+        Assert.Equal(["MIT", "Apache-2.0"], config.AllowedLicenses ?? []);
+    }
+
+    [Fact]
     public void LoadReturnsConfigWhenFileIsNextToFilePath()
     {
         // Arrange
@@ -189,6 +216,25 @@ public class UpdatRConfigTests
     {
         // Act
         var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void ValidateReturnsNoErrorsForJsonWithCommentsAndTrailingCommas()
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(
+            """
+            {
+              // Line comment.
+              "excludePackages": ["Foo.*"], // Trailing line comment.
+              /* Block comment. */
+              "allowedLicenses": ["MIT"],
+            }
+            """
+        );
 
         // Assert
         Assert.Empty(errors);
