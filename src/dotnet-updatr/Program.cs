@@ -231,7 +231,8 @@ internal static partial class Program
         }
 
         var json = File.ReadAllText(filePath);
-        var errors = UpdatRConfig.Validate(json);
+        var configDirectory = new FileInfo(filePath).DirectoryName;
+        var errors = UpdatRConfig.Validate(json, configDirectory);
 
         if (errors.Count > 0)
         {

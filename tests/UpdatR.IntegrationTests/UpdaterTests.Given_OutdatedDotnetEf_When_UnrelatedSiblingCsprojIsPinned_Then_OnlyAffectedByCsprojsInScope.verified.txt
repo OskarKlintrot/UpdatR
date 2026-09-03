@@ -1,0 +1,98 @@
+﻿[
+  [
+    {
+      PackageId: Microsoft.EntityFrameworkCore,
+      Updates: [
+        {
+          Item1: 5.0.12,
+          Item2: 5.0.16,
+          Item3: ProjectA\A.csproj
+        }
+      ]
+    },
+    {
+      PackageId: dotnet-ef,
+      Updates: [
+        {
+          Item1: 5.0.5,
+          Item2: 5.0.16,
+          Item3: ProjectA\.config\dotnet-tools.json
+        }
+      ]
+    }
+  ],
+  {
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "dotnet-ef": {
+      "version": "5.0.5",
+      "commands": [
+        "dotnet"
+      ]
+    }
+  }
+}
+,
+  {
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "dotnet-ef": {
+      "version": "5.0.16",
+      "commands": [
+        "dotnet"
+      ]
+    }
+  }
+}
+,
+  <?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+  </ItemGroup>
+</Project>,
+  <?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.16" />
+  </ItemGroup>
+</Project>,
+  <?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[5.0.12]" />
+  </ItemGroup>
+</Project>,
+  <?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[5.0.12]" />
+  </ItemGroup>
+</Project>
+]

@@ -124,6 +124,20 @@ public sealed record UpdatRConfig(
     }
 
     /// <summary>
+    /// Resolves <paramref name="defaultTarget"/> (from a <c>.updatrrc</c> file's
+    /// <c>defaultTarget</c>) relative to <paramref name="configDirectory"/>, unless it's already
+    /// rooted.
+    /// </summary>
+    internal static string ResolveDefaultTarget(string configDirectory, string defaultTarget)
+    {
+        var resolved = Path.IsPathRooted(defaultTarget)
+            ? defaultTarget
+            : Path.Combine(configDirectory, defaultTarget);
+
+        return Path.GetFullPath(resolved);
+    }
+
+    /// <summary>
     /// Merges CLI/parameter values with config file values (union, case-insensitive,
     /// order-preserving, CLI/parameter values first).
     /// </summary>
@@ -218,10 +232,16 @@ public sealed record UpdatRConfig(
     /// arrays of non-empty strings, and that <c>defaultTarget</c> - if present - is a non-empty
     /// string.
     /// </summary>
+    /// <param name="json">The content of the <c>.updatrrc</c> file.</param>
+    /// <param name="configDirectory">
+    /// If provided, and the config has a <c>defaultTarget</c>, it's resolved relative to this
+    /// directory and verified to exist on disk. Left out, <c>defaultTarget</c> is only checked
+    /// for being a non-empty string.
+    /// </param>
     /// <returns>
     /// A list of human-readable validation errors. Empty if <paramref name="json"/> is valid.
     /// </returns>
-    public static IReadOnlyList<string> Validate(string json)
+    public static IReadOnlyList<string> Validate(string json, string? configDirectory = null)
     {
         List<string> errors = [];
 
@@ -263,6 +283,22 @@ public sealed record UpdatRConfig(
                 if (property.Name.Equals("defaultTarget", StringComparison.OrdinalIgnoreCase))
                 {
                     ValidateString(property, errors);
+
+                    if (
+                        configDirectory is not null
+                        && property.Value.ValueKind is JsonValueKind.String
+                        && property.Value.GetString() is { Length: > 0 } defaultTarget
+                    )
+                    {
+                        var resolved = ResolveDefaultTarget(configDirectory, defaultTarget);
+
+                        if (!Directory.Exists(resolved) && !File.Exists(resolved))
+                        {
+                            errors.Add(
+                                $"'defaultTarget' resolved to '{resolved}', which does not exist."
+                            );
+                        }
+                    }
                 }
                 else
                 {

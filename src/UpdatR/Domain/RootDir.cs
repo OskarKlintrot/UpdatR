@@ -105,7 +105,10 @@ internal sealed class RootDir
         {
             var config = Domain.DotnetTools.Create(
                 configFile,
-                dir.Csprojs ?? GetProjectsRecursiveFromParent(path)
+                FilterCsprojsInScope(
+                    configFile,
+                    dir.Csprojs ?? GetProjectsRecursiveFromParent(path)
+                )
             );
 
             dir.AddDotnetTools(config);
@@ -263,9 +266,60 @@ internal sealed class RootDir
                     continue;
                 }
 
-                dir.AddDotnetTools(Domain.DotnetTools.Create(configPath, dir.Csprojs ?? []));
+                dir.AddDotnetTools(
+                    Domain.DotnetTools.Create(
+                        configPath,
+                        FilterCsprojsInScope(configPath, dir.Csprojs ?? [])
+                    )
+                );
             }
         }
+    }
+
+    /// <summary>
+    /// Restricts <paramref name="csprojs"/> to the ones actually within the scope of
+    /// <paramref name="configFilePath"/> (a <c>dotnet-tools.json</c> file), i.e. the directory
+    /// containing its <c>.config</c> folder and any subdirectory of it. Without this, a
+    /// <c>dotnet-tools.json</c> could be affected by an unrelated csproj found elsewhere in a
+    /// larger folder/solution scan - e.g. capping <c>dotnet-ef</c> to a lower
+    /// <c>Microsoft.EntityFrameworkCore</c> version than necessary just because some other,
+    /// unrelated, project happens to reference an older version of it.
+    /// </summary>
+    private static IEnumerable<Csproj> FilterCsprojsInScope(
+        string configFilePath,
+        IEnumerable<Csproj> csprojs
+    )
+    {
+        var configDir = new FileInfo(configFilePath).Directory;
+
+        var scopeRoot =
+            configDir is not null
+            && configDir.Name.Equals(".config", StringComparison.OrdinalIgnoreCase)
+                ? configDir.Parent?.FullName
+                : configDir?.FullName;
+
+        if (scopeRoot is null)
+        {
+            return csprojs;
+        }
+
+        var normalizedRoot = System
+            .IO.Path.GetFullPath(scopeRoot)
+            .TrimEnd(
+                System.IO.Path.DirectorySeparatorChar,
+                System.IO.Path.AltDirectorySeparatorChar
+            );
+
+        return csprojs.Where(csproj =>
+        {
+            var csprojDir = System.IO.Path.GetFullPath(csproj.Parent);
+
+            return csprojDir.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase)
+                || csprojDir.StartsWith(
+                    normalizedRoot + System.IO.Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase
+                );
+        });
     }
 
     private static HashSet<Csproj> GetProjectsRecursiveFromParent(DirectoryInfo path)
@@ -321,7 +375,9 @@ internal sealed class RootDir
             .Select(x => System.IO.Path.Combine(solution.DirectoryName!, x))
             .Select(x => new FileInfo(x))
             .Where(x => x.Exists)
-            .Select(x => Domain.DotnetTools.Create(x.FullName, csprojs));
+            .Select(x =>
+                Domain.DotnetTools.Create(x.FullName, FilterCsprojsInScope(x.FullName, csprojs))
+            );
 
     private static IEnumerable<Csproj> GetProjectsFromSolutionX(FileInfo solution) =>
         GetPathsFromSolutionX(solution, "Project")
@@ -338,7 +394,9 @@ internal sealed class RootDir
             .Where(x => x.EndsWith("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
             .Select(x => new FileInfo(x))
             .Where(x => x.Exists)
-            .Select(x => Domain.DotnetTools.Create(x.FullName, csprojs));
+            .Select(x =>
+                Domain.DotnetTools.Create(x.FullName, FilterCsprojsInScope(x.FullName, csprojs))
+            );
 
     private static IEnumerable<FileBasedApp> GetFileBasedAppsFromSolutionX(FileInfo solution) =>
         GetPathsFromSolutionX(solution, "File")

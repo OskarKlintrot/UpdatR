@@ -254,6 +254,56 @@ public class UpdatRConfigTests
         Assert.Single(errors);
     }
 
+    [Fact]
+    public void ValidateReturnsErrorWhenDefaultTargetDoesNotExist()
+    {
+        // Arrange
+        var configDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(configDirectory);
+
+        try
+        {
+            // Act
+            var errors = UpdatRConfig.Validate(
+                """{ "defaultTarget": "does-not-exist" }""",
+                configDirectory
+            );
+
+            // Assert
+            Assert.Single(errors);
+            Assert.Contains("defaultTarget", errors[0]);
+            Assert.Contains("does not exist", errors[0]);
+        }
+        finally
+        {
+            Directory.Delete(configDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ValidateReturnsNoErrorWhenDefaultTargetExists()
+    {
+        // Arrange
+        var configDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(configDirectory);
+        Directory.CreateDirectory(Path.Combine(configDirectory, "src"));
+
+        try
+        {
+            // Act
+            var errors = UpdatRConfig.Validate("""{ "defaultTarget": "src" }""", configDirectory);
+
+            // Assert
+            Assert.Empty(errors);
+        }
+        finally
+        {
+            Directory.Delete(configDirectory, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("""{ "excludeFiles": "Foo/*" }""")]
     [InlineData("""{ "excludeFiles": [1] }""")]

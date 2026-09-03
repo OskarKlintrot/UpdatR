@@ -675,6 +675,45 @@ public class UpdaterTests
         }
     }
 
+    [Fact]
+    public async Task Given_UpdatRRcFileWithNonExistentDefaultTarget_When_PathIsCurrentDirectory_Then_ThrowWithClearMessage()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_UpdatRRcFileWithNonExistentDefaultTarget_When_PathIsCurrentDirectory_Then_ThrowWithClearMessage
+            )
+        );
+
+        Directory.CreateDirectory(temp);
+
+        await CreateUpdatRConfigAsync(
+            Path.Combine(temp, ".updatrrc"),
+            """{ "defaultTarget": "does-not-exist" }"""
+        );
+
+        var update = new Updater();
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+
+        try
+        {
+            Directory.SetCurrentDirectory(temp);
+
+            // Act
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => update.UpdateAsync());
+
+            // Assert
+            Assert.Contains("defaultTarget", exception.Message);
+            Assert.Contains(".updatrrc", exception.Message);
+            Assert.Contains("does not exist", exception.Message);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+        }
+    }
+
     [Theory]
     [InlineData("Dummy.*", "Microsoft.*")]
     [InlineData("Dummy.*", "Dummy.Tool")]
@@ -1048,6 +1087,78 @@ public class UpdaterTests
 
             yield return csprojOriginal;
             yield return await File.ReadAllTextAsync(tempCsproj);
+        }
+    }
+
+    [Fact]
+    public async Task Given_OutdatedDotnetEf_When_UnrelatedSiblingCsprojIsPinned_Then_OnlyAffectedByCsprojsInScope()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_OutdatedDotnetEf_When_UnrelatedSiblingCsprojIsPinned_Then_OnlyAffectedByCsprojsInScope
+            )
+        );
+        var tempDotnetConfig = Path.Combine(
+            temp,
+            "src",
+            "ProjectA",
+            ".config",
+            "dotnet-tools.json"
+        );
+        var tempCsprojA = Path.Combine(temp, "src", "ProjectA", "A.csproj");
+        var tempCsprojB = Path.Combine(temp, "src", "ProjectB", "B.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+        Directory.CreateDirectory(new FileInfo(tempCsprojB).DirectoryName!);
+
+        var csprojAOriginal = await CreateTempCsprojAsync(
+            tempCsprojA,
+            "net5.0",
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.12")
+        );
+
+        // ProjectB is an unrelated sibling project (not in ProjectA's scope) whose EF Core
+        // version is pinned and can never update. It should not affect ProjectA's own
+        // dotnet-tools.json, which is only scoped to ProjectA.
+        var csprojBOriginal = await CreateTempCsprojAsync(
+            tempCsprojB,
+            "net5.0",
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "[5.0.12]")
+        );
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.5",
+            command: "dotnet"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(Path.Combine(temp, "src"));
+
+        // Assert
+        await Verify(GetVerifyObjects());
+
+        async IAsyncEnumerable<object> GetVerifyObjects()
+        {
+            yield return summary.UpdatedPackages;
+
+            yield return toolsOriginal;
+            yield return await File.ReadAllTextAsync(tempDotnetConfig);
+
+            yield return csprojAOriginal;
+            yield return await File.ReadAllTextAsync(tempCsprojA);
+
+            yield return csprojBOriginal;
+            yield return await File.ReadAllTextAsync(tempCsprojB);
         }
     }
 

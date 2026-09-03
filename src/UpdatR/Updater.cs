@@ -92,7 +92,15 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             && PathsAreEqual(path, Directory.GetCurrentDirectory())
         )
         {
-            path = ResolveDefaultTarget(configDirectory, updatRConfig.DefaultTarget);
+            path = UpdatRConfig.ResolveDefaultTarget(configDirectory, updatRConfig.DefaultTarget);
+
+            if (!Directory.Exists(path) && !File.Exists(path))
+            {
+                throw new ArgumentException(
+                    $"'{nameof(UpdatRConfig.DefaultTarget)}' (\"defaultTarget\") in '{Path.Combine(configDirectory, UpdatRConfig.FileName)}' resolved to '{path}', which does not exist.",
+                    nameof(path)
+                );
+            }
         }
 
         var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
@@ -270,15 +278,6 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase
         );
-
-    private static string ResolveDefaultTarget(string configDirectory, string defaultTarget)
-    {
-        var resolved = Path.IsPathRooted(defaultTarget)
-            ? defaultTarget
-            : Path.Combine(configDirectory, defaultTarget);
-
-        return Path.GetFullPath(resolved);
-    }
 
     private async Task<(
         IDictionary<string, NuGetPackage?> Packages,
