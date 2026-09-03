@@ -8,9 +8,14 @@ namespace UpdatR.Domain;
 [SuppressMessage("Style", "IDE0022:Use block body for method", Justification = "<Pending>")]
 internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
 {
-    private PackageMetadata? _latest;
-    private PackageMetadata? _latestStable;
-    private PackageMetadata? _latestPrerelease;
+    // Keyed by target framework - a single NuGetPackage instance is now queried for multiple,
+    // different target frameworks within the same update run (e.g. a multi-targeted project with
+    // Conditioned PackageReferences resolving to different frameworks per candidate), so caching
+    // a single value regardless of which framework it was computed for would silently return a
+    // stale/wrong result for every other framework.
+    private readonly Dictionary<NuGetFramework, PackageMetadata?> _latest = [];
+    private readonly Dictionary<NuGetFramework, PackageMetadata?> _latestStable = [];
+    private readonly Dictionary<NuGetFramework, PackageMetadata?> _latestPrerelease = [];
     private CompatibilityProvider? _compatibilityProvider;
 
     private CompatibilityProvider CompatibilityProvider =>
@@ -24,7 +29,15 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     {
         if (maxMajor is null && (allowedLicenses is null || allowedLicenses.Count == 0))
         {
-            return _latestStable ??= Latest(targetFramework, x => !x.Version.IsPrerelease);
+            if (!_latestStable.TryGetValue(targetFramework, out var cached))
+            {
+                _latestStable[targetFramework] = cached = Latest(
+                    targetFramework,
+                    x => !x.Version.IsPrerelease
+                );
+            }
+
+            return cached;
         }
 
         return Latest(
@@ -42,7 +55,15 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     {
         if (maxMajor is null && (allowedLicenses is null || allowedLicenses.Count == 0))
         {
-            return _latestPrerelease ??= Latest(targetFramework, x => x.Version.IsPrerelease);
+            if (!_latestPrerelease.TryGetValue(targetFramework, out var cached))
+            {
+                _latestPrerelease[targetFramework] = cached = Latest(
+                    targetFramework,
+                    x => x.Version.IsPrerelease
+                );
+            }
+
+            return cached;
         }
 
         return Latest(
@@ -60,7 +81,12 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     {
         if (maxMajor is null && (allowedLicenses is null || allowedLicenses.Count == 0))
         {
-            return _latest ??= Latest(targetFramework, _ => true);
+            if (!_latest.TryGetValue(targetFramework, out var cached))
+            {
+                _latest[targetFramework] = cached = Latest(targetFramework, _ => true);
+            }
+
+            return cached;
         }
 
         return Latest(targetFramework, x => IsLicenseAllowed(x, allowedLicenses), maxMajor);

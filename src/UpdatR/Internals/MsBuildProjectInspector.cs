@@ -49,6 +49,39 @@ internal static class MsBuildProjectInspector
     }
 
     /// <summary>
+    /// Evaluates <paramref name="projectPath"/> once per framework in
+    /// <paramref name="targetFrameworks"/>, setting the <c>TargetFramework</c> global property
+    /// each time to simulate the "inner build" MSBuild performs per framework of a multi-targeted
+    /// (SDK-style, <c>TargetFrameworks</c>) project. This is required to get correct results for
+    /// <c>Condition</c> attributes that reference <c>$(TargetFramework)</c> - e.g. an
+    /// <c>ItemGroup Condition="'$(TargetFramework)'=='net6.0'"</c> wrapping framework-specific
+    /// <c>PackageReference</c>/<c>PackageVersion</c> items - since a single plain evaluation of a
+    /// multi-targeted project (as done by <see cref="GetPackageItemSources"/>) never sets
+    /// <c>$(TargetFramework)</c> at all: MSBuild only does that per inner build, once an outer
+    /// build has picked a single framework from <c>TargetFrameworks</c> to build.
+    /// </summary>
+    /// <returns>
+    /// Every evaluated <c>PackageReference</c>, <c>PackageVersion</c> and
+    /// <c>GlobalPackageReference</c> item together with the file it was declared in, per
+    /// framework in <paramref name="targetFrameworks"/> (as the key, using the exact string
+    /// supplied).
+    /// </returns>
+    public static IReadOnlyDictionary<
+        string,
+        IReadOnlyList<PackageItemSource>
+    > GetPackageItemSourcesByTfm(string projectPath, IReadOnlyCollection<string> targetFrameworks)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
+        ArgumentNullException.ThrowIfNull(targetFrameworks);
+
+        EnsureMsBuildLocatorIsRegistered();
+
+        // See comment in GetPackageItemSources for why this must be a separate, non-inlined
+        // method.
+        return GetPackageItemSourcesByTfmCore(projectPath, targetFrameworks);
+    }
+
+    /// <summary>
     /// Returns every props/targets file imported by <paramref name="projectPath"/>, in the order
     /// MSBuild imported them. This includes SDK-injected imports such as
     /// <c>Directory.Build.props</c> and, when Central Package Management is enabled,
@@ -98,6 +131,60 @@ internal static class MsBuildProjectInspector
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    private static Dictionary<
+        string,
+        IReadOnlyList<PackageItemSource>
+    > GetPackageItemSourcesByTfmCore(
+        string projectPath,
+        IReadOnlyCollection<string> targetFrameworks
+    )
+    {
+        Dictionary<string, IReadOnlyList<PackageItemSource>> result = new(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var targetFramework in targetFrameworks)
+        {
+            // A fresh ProjectCollection per framework, with TargetFramework as a global
+            // property, is what makes MSBuild evaluate this as the "inner build" for that
+            // specific framework - the same thing a real `dotnet build -f <tfm>` does - instead
+            // of the "outer build" (cross-targeting loop) a multi-targeted project normally
+            // evaluates as, where $(TargetFramework) is empty.
+            using var collection = new ProjectCollection(
+                new Dictionary<string, string> { ["TargetFramework"] = targetFramework }
+            );
+
+            try
+            {
+                var project = collection.LoadProject(projectPath);
+
+                result[targetFramework] =
+                [
+                    .. project
+                        .AllEvaluatedItems.Where(item =>
+                            item.ItemType
+                                is "PackageReference"
+                                    or "PackageVersion"
+                                    or "GlobalPackageReference"
+                        )
+                        .Select(item => new PackageItemSource(
+                            item.ItemType,
+                            item.EvaluatedInclude,
+                            GetVersionOrOverrideMetadata(item),
+                            item.Xml!.ContainingProject.FullPath
+                        )),
+                ];
+            }
+            finally
+            {
+                collection.UnloadAllProjects();
+            }
+        }
+
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static IReadOnlyList<string> GetImportedFilesCore(string projectPath)
     {
         using var collection = new ProjectCollection();
@@ -123,6 +210,24 @@ internal static class MsBuildProjectInspector
 
         return string.IsNullOrEmpty(version) ? null : version;
     }
+
+    /// <summary>
+    /// Same as <see cref="GetVersionMetadata"/>, but also falls back to a
+    /// <c>VersionOverride</c> metadata value (used by a <c>PackageReference</c> to override a
+    /// centrally-managed version for a single project under Central Package Management) when
+    /// <c>Version</c> isn't set. Only used by <see cref="GetPackageItemSourcesByTfm"/>, to
+    /// correlate results back to a hand-parsed <c>PackageReference</c> element that used
+    /// <c>VersionOverride</c> instead of <c>Version</c> - unlike a centrally-managed
+    /// <c>PackageVersion</c>'s <c>Version</c>, <c>VersionOverride</c> is a literal attribute
+    /// already present at evaluation time, no build target needs to run to populate it.
+    /// </summary>
+    private static string? GetVersionOrOverrideMetadata(ProjectItem item) =>
+        GetVersionMetadata(item)
+        ?? (
+            item.GetMetadataValue("VersionOverride") is { Length: > 0 } versionOverride
+                ? versionOverride
+                : null
+        );
 
     /// <summary>
     /// Registers MSBuildLocator's assembly resolver, if it hasn't already been registered. Safe

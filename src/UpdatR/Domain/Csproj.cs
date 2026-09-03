@@ -15,6 +15,7 @@ internal sealed partial class Csproj : PackageContainer
     private IReadOnlyList<NuGetFramework>? _targetFrameworks;
     private NuGetVersion? _entityFrameworkVersion;
     private bool _entityFrameworkVersionLoaded;
+    private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? _candidateTfmsByKey;
 
     private Csproj(FileInfo path, XmlDocument doc)
     {
@@ -106,6 +107,8 @@ internal sealed partial class Csproj : PackageContainer
 
     protected override IEnumerable<Candidate> EnumerateCandidates()
     {
+        var candidateTfmsByKey = GetCandidateTfmsByKey();
+
         var packageReferences = _doc.SelectNodes("/Project/ItemGroup/PackageReference")!
             .OfType<XmlElement>();
 
@@ -130,13 +133,21 @@ internal sealed partial class Csproj : PackageContainer
                 continue;
             }
 
+            var versionString = packageReference.GetAttribute(versionAttributeName);
+
+            candidateTfmsByKey.TryGetValue(
+                CandidateTfmKey.Create("PackageReference", packageId, versionString),
+                out var applicableTfms
+            );
+
             yield return new CsprojCandidate
             {
                 PackageId = packageId,
-                VersionString = packageReference.GetAttribute(versionAttributeName),
+                VersionString = versionString,
                 SiteText = packageReference.OuterXml,
                 Element = packageReference,
                 AttributeName = versionAttributeName,
+                ApplicableTfms = applicableTfms,
             };
         }
     }
@@ -168,6 +179,74 @@ internal sealed partial class Csproj : PackageContainer
         public required XmlElement Element { get; init; }
 
         public required string AttributeName { get; init; }
+    }
+
+    /// <summary>
+    /// Maps each distinct (item type, package id, version string) occurrence declared directly
+    /// in this csproj to the target framework(s) - resolved via a real per-framework MSBuild
+    /// evaluation - it actually applies to. Only attempted for a genuinely multi-targeted project
+    /// (a single/no <c>TargetFramework</c> is already evaluated correctly by a plain evaluation,
+    /// so there's nothing more precise to learn); falls back to an empty map - meaning every
+    /// candidate uses <see cref="TargetFrameworks"/> as before - if evaluation isn't attempted or
+    /// fails for any reason (e.g. a malformed project, or a missing SDK).
+    /// </summary>
+    private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>> GetCandidateTfmsByKey()
+    {
+        if (_candidateTfmsByKey is not null)
+        {
+            return _candidateTfmsByKey;
+        }
+
+        Dictionary<string, HashSet<NuGetFramework>> map = new(StringComparer.Ordinal);
+
+        if (TargetFrameworks.Count > 1 && !TargetFrameworks.Contains(NuGetFramework.AnyFramework))
+        {
+            try
+            {
+                var byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
+                    Path,
+                    [.. TargetFrameworks.Select(x => x.GetShortFolderName())]
+                );
+
+                foreach (var (tfmString, sources) in byTfm)
+                {
+                    var tfm = NuGetFramework.Parse(tfmString);
+
+                    foreach (
+                        var source in sources.Where(x =>
+                            x.Version is not null
+                            && string.Equals(x.SourceFile, Path, StringComparison.OrdinalIgnoreCase)
+                        )
+                    )
+                    {
+                        var key = CandidateTfmKey.Create(
+                            source.ItemType,
+                            source.PackageId,
+                            source.Version!
+                        );
+
+                        if (!map.TryGetValue(key, out var tfms))
+                        {
+                            map[key] = tfms = [];
+                        }
+
+                        tfms.Add(tfm);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Fall back to no per-candidate information at all - every candidate then uses
+                // TargetFrameworks, same as before this per-framework evaluation existed.
+                map.Clear();
+            }
+        }
+
+        return _candidateTfmsByKey = map.ToDictionary(
+            x => x.Key,
+            x => (IReadOnlyCollection<NuGetFramework>)x.Value,
+            StringComparer.Ordinal
+        );
     }
 
     private NuGetFramework[] GetTargetFrameworks()

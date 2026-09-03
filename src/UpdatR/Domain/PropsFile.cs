@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NuGet.Frameworks;
 using NuGet.Versioning;
+using UpdatR.Domain.Utils;
 using UpdatR.Internals;
 
 namespace UpdatR.Domain;
@@ -20,12 +21,24 @@ internal sealed partial class PropsFile : PackageContainer
 {
     private readonly FileInfo _path;
     private readonly XmlDocument _doc;
+    private readonly IReadOnlyDictionary<
+        string,
+        IReadOnlyCollection<NuGetFramework>
+    > _candidateTfmsByKey;
 
-    private PropsFile(FileInfo path, XmlDocument doc, IReadOnlyCollection<NuGetFramework> tfms)
+    private PropsFile(
+        FileInfo path,
+        XmlDocument doc,
+        IReadOnlyCollection<NuGetFramework> tfms,
+        IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? candidateTfmsByKey
+    )
     {
         _path = path;
         _doc = doc;
         TargetFrameworks = tfms.Count > 0 ? tfms : [NuGetFramework.AnyFramework];
+        _candidateTfmsByKey =
+            candidateTfmsByKey
+            ?? new Dictionary<string, IReadOnlyCollection<NuGetFramework>>(StringComparer.Ordinal);
     }
 
     public override string Name => _path.Name;
@@ -42,7 +55,26 @@ internal sealed partial class PropsFile : PackageContainer
 
     public IDictionary<string, NuGetVersion> Packages => GetPackages();
 
-    public static PropsFile Create(string path, IEnumerable<NuGetFramework>? tfms = null)
+    /// <summary>
+    /// Creates a <see cref="PropsFile"/> for <paramref name="path"/>.
+    /// </summary>
+    /// <param name="tfms">
+    /// Every target framework of every project known to import this file - see
+    /// <see cref="TargetFrameworks"/>.
+    /// </param>
+    /// <param name="candidateTfmsByKey">
+    /// Maps a <see cref="Utils.CandidateTfmKey"/> (item type, package id, version string) to the
+    /// target framework(s), across every importing project, that a real per-framework MSBuild
+    /// evaluation determined it actually applies to - e.g. because it sits in an
+    /// <c>ItemGroup Condition="'$(TargetFramework)'=='net6.0'"</c>. Only occurrences resolved
+    /// this precisely are present; anything else falls back to <paramref name="tfms"/> as a
+    /// whole, same as before this per-candidate resolution existed.
+    /// </param>
+    public static PropsFile Create(
+        string path,
+        IEnumerable<NuGetFramework>? tfms = null,
+        IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? candidateTfmsByKey = null
+    )
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -63,7 +95,7 @@ internal sealed partial class PropsFile : PackageContainer
 
         doc.Load(file.FullName);
 
-        return new PropsFile(file, doc, tfms?.Distinct().ToArray() ?? []);
+        return new PropsFile(file, doc, tfms?.Distinct().ToArray() ?? [], candidateTfmsByKey);
     }
 
     /// <summary>
@@ -120,12 +152,20 @@ internal sealed partial class PropsFile : PackageContainer
                 continue;
             }
 
+            var versionString = item.GetAttribute("Version");
+
+            _candidateTfmsByKey.TryGetValue(
+                CandidateTfmKey.Create(item.Name, packageId, versionString),
+                out var applicableTfms
+            );
+
             yield return new PropsFileCandidate
             {
                 PackageId = packageId,
-                VersionString = item.GetAttribute("Version"),
+                VersionString = versionString,
                 SiteText = item.OuterXml,
                 Element = item,
+                ApplicableTfms = applicableTfms,
             };
         }
     }

@@ -38,6 +38,20 @@ internal abstract partial class PackageContainer
         /// PackageReference's XML, or the <c>#:package</c> directive.
         /// </summary>
         public required string SiteText { get; init; }
+
+        /// <summary>
+        /// The specific target framework(s) this candidate is known to apply to - e.g. a
+        /// <c>PackageReference</c> inside an
+        /// <c>ItemGroup Condition="'$(TargetFramework)'=='net6.0'"</c> in a multi-targeted
+        /// project or a shared props/targets file. Resolved via a real per-framework MSBuild
+        /// evaluation (see <see cref="Internals.MsBuildProjectInspector.GetPackageItemSourcesByTfm"/>),
+        /// so it reflects exactly what MSBuild itself would build with. <see langword="null"/> if
+        /// not known more precisely than the container's overall target framework(s) - the common
+        /// case for an unconditioned reference, or when a more precise resolution wasn't
+        /// attempted/possible (e.g. a single-targeted project, or failed MSBuild evaluation) - in
+        /// which case <see cref="ResolveTfms"/>'s result is used instead.
+        /// </summary>
+        public IReadOnlyCollection<NuGetFramework>? ApplicableTfms { get; init; }
     }
 
     /// <summary>
@@ -104,7 +118,6 @@ internal abstract partial class PackageContainer
     {
         var tfms = ResolveTfms(tfm);
 
-        var alignMajor = TfmAlignment.ResolveAlignMajor(tfms);
         var shouldAlignWithTfm = SearchPattern.CreateSearch(
             alignWithTfm,
             treatNullOrEmptyAs: false
@@ -118,6 +131,16 @@ internal abstract partial class PackageContainer
         {
             var packageId = candidate.PackageId;
             var versionStr = candidate.VersionString;
+
+            // An explicit tfmOverride always wins (same as ResolveTfms itself). Otherwise, a
+            // candidate resolved to a more precise subset of the container's target
+            // framework(s) - e.g. via a Condition on $(TargetFramework) - is only checked for
+            // compatibility against that subset, so the same package can be updated to a
+            // different version for each subset independently.
+            var candidateTfms =
+                tfm is null && candidate.ApplicableTfms is { Count: > 0 } specificTfms
+                    ? specificTfms
+                    : tfms;
 
             VersionRange? versionRange = null;
             NuGetVersion? version;
@@ -201,6 +224,8 @@ internal abstract partial class PackageContainer
                 );
             }
 
+            var alignMajor = TfmAlignment.ResolveAlignMajor(candidateTfms);
+
             var maxMajor = shouldAlignWithTfm(packageId)
                 ? TfmAlignment.ResolveMaxMajor(alignMajor, version!)
                 : null;
@@ -209,7 +234,7 @@ internal abstract partial class PackageContainer
                 !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
                     package,
                     version!,
-                    tfms,
+                    candidateTfms,
                     usePrerelease,
                     allowedLicenses,
                     out var updateTo,
@@ -243,7 +268,7 @@ internal abstract partial class PackageContainer
                     package,
                     packageId,
                     version!,
-                    tfms,
+                    candidateTfms,
                     usePrerelease,
                     allowedLicenses,
                     maxMajor

@@ -21,6 +21,81 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
     }
 
     [Fact]
+    public void GetPackageItemSourcesByTfmResolvesConditionedPackageReferencesPerFramework()
+    {
+        // Arrange - a multi-targeted project referencing the same package at a different version
+        // per framework, via a Condition on $(TargetFramework) on each ItemGroup. Evaluating with
+        // TargetFramework set as a global property (like MSBuild's own per-framework "inner
+        // build") should resolve each Condition to only the ItemGroup that actually applies.
+        var csproj = WriteFile(
+            "MyProj.csproj",
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net6.0'">
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net8.0'">
+                <PackageReference Include="Some.Package" Version="2.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        // Act
+        var byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
+            csproj,
+            ["net6.0", "net8.0"]
+        );
+
+        // Assert
+        var net6 = Assert.Single(byTfm["net6.0"]);
+        Assert.Equal("Some.Package", net6.PackageId);
+        Assert.Equal("1.0.0", net6.Version);
+
+        var net8 = Assert.Single(byTfm["net8.0"]);
+        Assert.Equal("Some.Package", net8.PackageId);
+        Assert.Equal("2.0.0", net8.Version);
+    }
+
+    [Fact]
+    public void GetPackageItemSourcesByTfmOnlyReturnsPackageReferenceForTheTfmItsConditionedOn()
+    {
+        // Arrange - a multi-targeted project where a Condition on $(TargetFramework) means
+        // Some.Package is only ever referenced for net5.0 - net6.0 has no ItemGroup for it at
+        // all. Evaluating net6.0 must not report the package at all, rather than e.g. leaking it
+        // in from a different framework's evaluation.
+        var csproj = WriteFile(
+            "MyProj.csproj",
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net5.0'">
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        // Act
+        var byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
+            csproj,
+            ["net5.0", "net6.0"]
+        );
+
+        // Assert
+        var net5 = Assert.Single(byTfm["net5.0"]);
+        Assert.Equal("Some.Package", net5.PackageId);
+        Assert.Equal("1.0.0", net5.Version);
+
+        Assert.Empty(byTfm["net6.0"]);
+    }
+
+    [Fact]
     public void PackageReferenceDeclaredInTheProjectItselfIsAttributedToTheProjectFile()
     {
         // Arrange

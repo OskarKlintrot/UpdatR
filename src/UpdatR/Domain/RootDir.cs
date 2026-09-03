@@ -2,6 +2,7 @@
 using System.Xml.Linq;
 using NuGet.Frameworks;
 using NuGet.Packaging;
+using UpdatR.Domain.Utils;
 using UpdatR.Internals;
 
 namespace UpdatR.Domain;
@@ -411,9 +412,12 @@ internal sealed class RootDir
     /// with Central Package Management, <c>Directory.Packages.props</c>) imported by any csproj
     /// in <paramref name="dir"/> that declares a <c>PackageReference</c>, <c>PackageVersion</c>
     /// or <c>GlobalPackageReference</c> item, using real MSBuild evaluation. A file imported by
-    /// several csproj is only added once,
-    /// tracking every contributing csproj's target framework so it can later be updated
-    /// conservatively (i.e. only to a version compatible with all of them).
+    /// several csproj is only added once, tracking every contributing csproj's target framework
+    /// so it can later be updated conservatively (i.e. only to a version compatible with all of
+    /// them) - as well as, per occurrence, exactly which of those frameworks it applies to, so a
+    /// <c>Condition</c>-guarded occurrence (e.g. framework-specific package versions in a shared
+    /// <c>Directory.Packages.props</c>) can be updated independently of the same package's other
+    /// occurrence(s) in the same file.
     /// </summary>
     private static void DiscoverPropsFiles(RootDir dir)
     {
@@ -423,6 +427,10 @@ internal sealed class RootDir
         }
 
         Dictionary<string, List<NuGetFramework>> tfmsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+        Dictionary<string, Dictionary<string, HashSet<NuGetFramework>>> candidateTfmsByPath = new(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         foreach (var csproj in dir.Csprojs)
         {
@@ -440,10 +448,15 @@ internal sealed class RootDir
                 continue;
             }
 
+            var importedSources = sources
+                .Where(x =>
+                    !string.Equals(x.SourceFile, csproj.Path, StringComparison.OrdinalIgnoreCase)
+                )
+                .ToArray();
+
             foreach (
-                var sourceFile in sources
+                var sourceFile in importedSources
                     .Select(x => x.SourceFile)
-                    .Where(x => !string.Equals(x, csproj.Path, StringComparison.OrdinalIgnoreCase))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
             )
             {
@@ -454,11 +467,100 @@ internal sealed class RootDir
 
                 tfms.AddRange(csproj.TargetFrameworks);
             }
+
+            // A single-targeted (or untargeted) project's plain evaluation above already
+            // resolved $(TargetFramework) correctly - MSBuild sets it directly from the
+            // TargetFramework property, no cross-targeting "outer build" is involved - so
+            // whatever occurrence won there already reflects the right Condition branch for that
+            // one framework. A genuinely multi-targeted project needs a real per-framework
+            // evaluation instead, since a single plain evaluation of it never sets
+            // $(TargetFramework) at all.
+            if (
+                csproj.TargetFrameworks.Count > 1
+                && !csproj.TargetFrameworks.Contains(NuGetFramework.AnyFramework)
+            )
+            {
+                IReadOnlyDictionary<string, IReadOnlyList<PackageItemSource>> byTfm;
+
+                try
+                {
+                    byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
+                        csproj.Path,
+                        [.. csproj.TargetFrameworks.Select(x => x.GetShortFolderName())]
+                    );
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                foreach (var (tfmString, tfmSources) in byTfm)
+                {
+                    var tfm = NuGetFramework.Parse(tfmString);
+
+                    foreach (
+                        var source in tfmSources.Where(x =>
+                            x.Version is not null
+                            && !string.Equals(
+                                x.SourceFile,
+                                csproj.Path,
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
+                    )
+                    {
+                        AddCandidateTfm(candidateTfmsByPath, source, tfm);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var tfm in csproj.TargetFrameworks)
+                {
+                    foreach (var source in importedSources.Where(x => x.Version is not null))
+                    {
+                        AddCandidateTfm(candidateTfmsByPath, source, tfm);
+                    }
+                }
+            }
         }
 
         foreach (var (path, tfms) in tfmsByPath)
         {
-            dir.AddPropsFile(PropsFile.Create(path, tfms));
+            candidateTfmsByPath.TryGetValue(path, out var candidateTfms);
+
+            dir.AddPropsFile(
+                PropsFile.Create(
+                    path,
+                    tfms,
+                    candidateTfms?.ToDictionary(
+                        x => x.Key,
+                        x => (IReadOnlyCollection<NuGetFramework>)x.Value,
+                        StringComparer.Ordinal
+                    )
+                )
+            );
+        }
+
+        static void AddCandidateTfm(
+            Dictionary<string, Dictionary<string, HashSet<NuGetFramework>>> candidateTfmsByPath,
+            PackageItemSource source,
+            NuGetFramework tfm
+        )
+        {
+            if (!candidateTfmsByPath.TryGetValue(source.SourceFile, out var byKey))
+            {
+                candidateTfmsByPath[source.SourceFile] = byKey = new(StringComparer.Ordinal);
+            }
+
+            var key = CandidateTfmKey.Create(source.ItemType, source.PackageId, source.Version!);
+
+            if (!byKey.TryGetValue(key, out var tfmSet))
+            {
+                byKey[key] = tfmSet = [];
+            }
+
+            tfmSet.Add(tfm);
         }
     }
 

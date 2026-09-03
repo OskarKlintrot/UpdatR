@@ -465,6 +465,263 @@ public class CsprojTests : IDisposable
     }
 
     [Fact]
+    public void UpdatePackagesUpdatesConditionedPackageReferencesToDifferentVersionsPerTfm()
+    {
+        // Arrange - a multi-targeted (net6.0;net8.0) project referencing the same package at
+        // different versions for each framework, via a Condition on $(TargetFramework) on each
+        // ItemGroup. Each occurrence should be evaluated - and can be updated - independently,
+        // using only the target framework(s) it actually applies to (resolved via a real
+        // per-framework MSBuild evaluation), not every target framework of the whole project.
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net6.0'">
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net8.0'">
+                <PackageReference Include="Some.Package" Version="2.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net6.0"), NuGetFramework.Parse("net8.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.5.0"),
+                    [NuGetFramework.Parse("net6.0"), NuGetFramework.Parse("net8.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net8.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.5.0"),
+                    [NuGetFramework.Parse("net8.0")],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var result = csproj.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: new FakeLogger()
+        );
+
+        // Assert - the net6.0 branch can only reach 1.5.0 (2.0.0+ dropped net6.0 support), while
+        // the net8.0 branch, evaluated independently, reaches the actual latest, 2.5.0.
+        Assert.Equal(2, result!.UpdatedPackages.Count());
+
+        Assert.Contains(
+            result.UpdatedPackages,
+            x =>
+                x.PackageId == "Some.Package"
+                && x.From == NuGetVersion.Parse("1.0.0")
+                && x.To == NuGetVersion.Parse("1.5.0")
+        );
+
+        Assert.Contains(
+            result.UpdatedPackages,
+            x =>
+                x.PackageId == "Some.Package"
+                && x.From == NuGetVersion.Parse("2.0.0")
+                && x.To == NuGetVersion.Parse("2.5.0")
+        );
+
+        var content = File.ReadAllText(_csprojPath);
+
+        Assert.Contains("""Version="1.5.0" """.Trim(), content);
+        Assert.Contains("""Version="2.5.0" """.Trim(), content);
+    }
+
+    [Fact]
+    public void UpdatePackagesUpdatesConditionedPackageReferenceOnlyDeclaredForOneOfMultipleTfms()
+    {
+        // Arrange - a multi-targeted (net5.0;net6.0) project where a Condition on
+        // $(TargetFramework) means Some.Package is only ever referenced for net5.0 - net6.0 never
+        // gets it at all. Even though the package itself is only compatible with net5.0, the
+        // update should still go through, evaluated against just the net5.0 it actually applies
+        // to, rather than being blocked because net6.0 (which never uses it) doesn't support it.
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net5.0'">
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.0.0"),
+                    [NuGetFramework.Parse("net5.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.0.0"),
+                    [NuGetFramework.Parse("net5.0")],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var result = csproj.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: new FakeLogger()
+        );
+
+        // Assert - net6.0 never references the package at all, so it must not block the update.
+        Assert.NotNull(result);
+        Assert.Single(result.UpdatedPackages);
+
+        Assert.Contains(
+            result.UpdatedPackages,
+            x =>
+                x.PackageId == "Some.Package"
+                && x.From == NuGetVersion.Parse("1.0.0")
+                && x.To == NuGetVersion.Parse("2.0.0")
+        );
+
+        Assert.Contains("""Version="2.0.0" """.Trim(), File.ReadAllText(_csprojPath));
+    }
+
+    [Fact]
+    public void UpdatePackagesAppliesAlignWithTfmUsingEachConditionedCandidatesOwnTfm()
+    {
+        // Arrange - a multi-targeted (net6.0;net8.0) project where a Condition on
+        // $(TargetFramework) means Runtime.Aligned.Package is referenced at a different starting
+        // version per framework (mirroring a real Microsoft.Extensions.* upgrade). All available
+        // versions target netstandard2.0, so they're compatible with both net6.0 and net8.0 -
+        // alignWithTfm is the only thing capping the major version, and it must cap each
+        // conditioned occurrence to its own framework's major, not the lowest major across every
+        // target framework of the whole project.
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net6.0'">
+                <PackageReference Include="Runtime.Aligned.Package" Version="6.0.0" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)'=='net8.0'">
+                <PackageReference Include="Runtime.Aligned.Package" Version="8.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        var package = new NuGetPackage(
+            "Runtime.Aligned.Package",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("6.0.0"),
+                    [NuGetFramework.Parse("netstandard2.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("6.1.0"),
+                    [NuGetFramework.Parse("netstandard2.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("8.0.0"),
+                    [NuGetFramework.Parse("netstandard2.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("8.1.0"),
+                    [NuGetFramework.Parse("netstandard2.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("9.0.0"),
+                    [NuGetFramework.Parse("netstandard2.0")],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        var result = csproj.UpdatePackages(
+            new Dictionary<string, NuGetPackage?> { ["Runtime.Aligned.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: new FakeLogger(),
+            alignWithTfm: ["Runtime.Aligned.*"]
+        );
+
+        // Assert - the net6.0 branch is capped at major 6 (=> 6.1.0), the net8.0 branch is capped
+        // at major 8 (=> 8.1.0), neither reaching the overall latest, 9.0.0.
+        Assert.Equal(2, result!.UpdatedPackages.Count());
+
+        Assert.Contains(
+            result.UpdatedPackages,
+            x =>
+                x.PackageId == "Runtime.Aligned.Package"
+                && x.From == NuGetVersion.Parse("6.0.0")
+                && x.To == NuGetVersion.Parse("6.1.0")
+        );
+
+        Assert.Contains(
+            result.UpdatedPackages,
+            x =>
+                x.PackageId == "Runtime.Aligned.Package"
+                && x.From == NuGetVersion.Parse("8.0.0")
+                && x.To == NuGetVersion.Parse("8.1.0")
+        );
+
+        var content = File.ReadAllText(_csprojPath);
+
+        Assert.Contains("""Version="6.1.0" """.Trim(), content);
+        Assert.Contains("""Version="8.1.0" """.Trim(), content);
+        Assert.DoesNotContain("""Version="9.0.0" """.Trim(), content);
+    }
+
+    [Fact]
     public void UpdatePackagesSkipsFloatingVersionWithoutWarningWhenAlreadyLatest()
     {
         // Arrange - a floating version like "4.8.*" isn't a NuGetVersion, but NuGet already
