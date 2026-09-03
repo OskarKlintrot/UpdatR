@@ -1,7 +1,7 @@
 {
   "excludePackages": [],
   "allowedLicenses": [],
-  "defaultTarget": "UpdatR.slnx",
+  "path": "UpdatR.slnx",
   "excludeFiles": [],
   "alignWithTfm": []
 }

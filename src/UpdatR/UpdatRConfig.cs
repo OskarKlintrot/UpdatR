@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using SysPath = System.IO.Path;
 
 namespace UpdatR;
 
@@ -12,7 +13,7 @@ namespace UpdatR;
 /// <param name="AllowedLicenses">
 /// Only update to (and warn about) versions whose license contains one of these values.
 /// </param>
-/// <param name="DefaultTarget">
+/// <param name="Path">
 /// Path to a solution or project(s), relative to the directory this config file is in. Used
 /// instead of the current directory when no target path is explicitly given (i.e. the resolved
 /// target path is the current directory).
@@ -33,7 +34,7 @@ namespace UpdatR;
 public sealed record UpdatRConfig(
     [property: JsonPropertyName("excludePackages")] string[]? ExcludePackages,
     [property: JsonPropertyName("allowedLicenses")] string[]? AllowedLicenses,
-    [property: JsonPropertyName("defaultTarget")] string? DefaultTarget = null,
+    [property: JsonPropertyName("path")] string? Path = null,
     [property: JsonPropertyName("excludeFiles")] string[]? ExcludeFiles = null,
     [property: JsonPropertyName("alignWithTfm")] string[]? AlignWithTfm = null
 )
@@ -47,7 +48,7 @@ public sealed record UpdatRConfig(
     [
         "excludePackages",
         "allowedLicenses",
-        "defaultTarget",
+        "path",
         "excludeFiles",
         "alignWithTfm",
     ];
@@ -78,13 +79,13 @@ public sealed record UpdatRConfig(
 
     /// <summary>
     /// Same as <see cref="Load(string)"/>, but also returns the directory the config file, if
-    /// any, was found in - needed to resolve a relative <see cref="DefaultTarget"/>.
+    /// any, was found in - needed to resolve a relative <see cref="Path"/>.
     /// </summary>
     internal static UpdatRConfig? Load(string path, out string? configDirectory)
     {
         var filePath = FindConfigFile(path);
 
-        configDirectory = filePath is null ? null : Path.GetDirectoryName(filePath);
+        configDirectory = filePath is null ? null : SysPath.GetDirectoryName(filePath);
 
         if (filePath is null)
         {
@@ -99,7 +100,7 @@ public sealed record UpdatRConfig(
     private static string? FindConfigFile(string path)
     {
         var targetDirectory = ResolveDirectory(path);
-        var candidate = Path.Combine(targetDirectory, FileName);
+        var candidate = SysPath.Combine(targetDirectory, FileName);
 
         if (File.Exists(candidate))
         {
@@ -110,8 +111,8 @@ public sealed record UpdatRConfig(
 
         if (
             string.Equals(
-                Path.GetFullPath(targetDirectory),
-                Path.GetFullPath(currentDirectory),
+                SysPath.GetFullPath(targetDirectory),
+                SysPath.GetFullPath(currentDirectory),
                 StringComparison.OrdinalIgnoreCase
             )
         )
@@ -119,7 +120,7 @@ public sealed record UpdatRConfig(
             return null;
         }
 
-        candidate = Path.Combine(currentDirectory, FileName);
+        candidate = SysPath.Combine(currentDirectory, FileName);
 
         return File.Exists(candidate) ? candidate : null;
     }
@@ -135,17 +136,14 @@ public sealed record UpdatRConfig(
     }
 
     /// <summary>
-    /// Resolves <paramref name="defaultTarget"/> (from a <c>.updatrrc</c> file's
-    /// <c>defaultTarget</c>) relative to <paramref name="configDirectory"/>, unless it's already
-    /// rooted.
+    /// Resolves <paramref name="path"/> (from a <c>.updatrrc</c> file's <c>path</c>) relative to
+    /// <paramref name="configDirectory"/>, unless it's already rooted.
     /// </summary>
-    internal static string ResolveDefaultTarget(string configDirectory, string defaultTarget)
+    internal static string ResolvePath(string configDirectory, string path)
     {
-        var resolved = Path.IsPathRooted(defaultTarget)
-            ? defaultTarget
-            : Path.Combine(configDirectory, defaultTarget);
+        var resolved = SysPath.IsPathRooted(path) ? path : SysPath.Combine(configDirectory, path);
 
-        return Path.GetFullPath(resolved);
+        return SysPath.GetFullPath(resolved);
     }
 
     /// <summary>
@@ -190,7 +188,7 @@ public sealed record UpdatRConfig(
             throw new IOException($"'{filePath}' already exists.");
         }
 
-        var directory = Path.GetDirectoryName(filePath);
+        var directory = SysPath.GetDirectoryName(filePath);
 
         if (!string.IsNullOrEmpty(directory))
         {
@@ -201,7 +199,7 @@ public sealed record UpdatRConfig(
             new UpdatRConfig(
                 ExcludePackages: [],
                 AllowedLicenses: [],
-                DefaultTarget: null,
+                Path: null,
                 ExcludeFiles: [],
                 AlignWithTfm: []
             ),
@@ -217,7 +215,7 @@ public sealed record UpdatRConfig(
     {
         if (Directory.Exists(path))
         {
-            return Path.Combine(path, FileName);
+            return SysPath.Combine(path, FileName);
         }
 
         if (File.Exists(path))
@@ -226,14 +224,14 @@ public sealed record UpdatRConfig(
         }
 
         if (
-            Path.GetFileName(path).Equals(FileName, StringComparison.OrdinalIgnoreCase)
-            || !string.IsNullOrEmpty(Path.GetExtension(path))
+            SysPath.GetFileName(path).Equals(FileName, StringComparison.OrdinalIgnoreCase)
+            || !string.IsNullOrEmpty(SysPath.GetExtension(path))
         )
         {
             return path;
         }
 
-        return Path.Combine(path, FileName);
+        return SysPath.Combine(path, FileName);
     }
 
     /// <summary>
@@ -241,12 +239,12 @@ public sealed record UpdatRConfig(
     /// trailing commas are allowed) containing a JSON object, that it doesn't contain unknown
     /// option, that <c>excludePackages</c> / <c>allowedLicenses</c> / <c>excludeFiles</c> /
     /// <c>alignWithTfm</c> - if present - are arrays of non-empty strings, and that
-    /// <c>defaultTarget</c> - if present - is a non-empty string.
+    /// <c>path</c> - if present - is a non-empty string.
     /// </summary>
     /// <param name="json">The content of the <c>.updatrrc</c> file.</param>
     /// <param name="configDirectory">
-    /// If provided, and the config has a <c>defaultTarget</c>, it's resolved relative to this
-    /// directory and verified to exist on disk. Left out, <c>defaultTarget</c> is only checked
+    /// If provided, and the config has a <c>path</c>, it's resolved relative to this
+    /// directory and verified to exist on disk. Left out, <c>path</c> is only checked
     /// for being a non-empty string.
     /// </param>
     /// <returns>
@@ -291,23 +289,21 @@ public sealed record UpdatRConfig(
                     continue;
                 }
 
-                if (property.Name.Equals("defaultTarget", StringComparison.OrdinalIgnoreCase))
+                if (property.Name.Equals("path", StringComparison.OrdinalIgnoreCase))
                 {
                     ValidateString(property, errors);
 
                     if (
                         configDirectory is not null
                         && property.Value.ValueKind is JsonValueKind.String
-                        && property.Value.GetString() is { Length: > 0 } defaultTarget
+                        && property.Value.GetString() is { Length: > 0 } path
                     )
                     {
-                        var resolved = ResolveDefaultTarget(configDirectory, defaultTarget);
+                        var resolved = ResolvePath(configDirectory, path);
 
                         if (!Directory.Exists(resolved) && !File.Exists(resolved))
                         {
-                            errors.Add(
-                                $"'defaultTarget' resolved to '{resolved}', which does not exist."
-                            );
+                            errors.Add($"'path' resolved to '{resolved}', which does not exist.");
                         }
                     }
                 }

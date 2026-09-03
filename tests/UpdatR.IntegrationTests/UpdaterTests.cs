@@ -611,14 +611,12 @@ public class UpdaterTests
     }
 
     [Fact]
-    public async Task Given_UpdatRRcFileWithDefaultTarget_When_PathIsCurrentDirectory_Then_UseDefaultTarget()
+    public async Task Given_UpdatRRcFileWithPath_When_PathIsCurrentDirectory_Then_UseConfigPath()
     {
         // Arrange
         var temp = Path.Combine(
             Paths.Temporary.Root,
-            nameof(
-                Given_UpdatRRcFileWithDefaultTarget_When_PathIsCurrentDirectory_Then_UseDefaultTarget
-            )
+            nameof(Given_UpdatRRcFileWithPath_When_PathIsCurrentDirectory_Then_UseConfigPath)
         );
         var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
         var otherCsproj = Path.Combine(temp, "tests", "Dummy.App.csproj");
@@ -642,7 +640,7 @@ public class UpdaterTests
 
         await CreateUpdatRConfigAsync(
             Path.Combine(temp, ".updatrrc"),
-            """{ "defaultTarget": "src/Dummy.App.csproj" }"""
+            """{ "path": "src/Dummy.App.csproj" }"""
         );
 
         var update = new Updater();
@@ -676,13 +674,13 @@ public class UpdaterTests
     }
 
     [Fact]
-    public async Task Given_UpdatRRcFileWithNonExistentDefaultTarget_When_PathIsCurrentDirectory_Then_ThrowWithClearMessage()
+    public async Task Given_UpdatRRcFileWithNonExistentPath_When_PathIsCurrentDirectory_Then_ThrowWithClearMessage()
     {
         // Arrange
         var temp = Path.Combine(
             Paths.Temporary.Root,
             nameof(
-                Given_UpdatRRcFileWithNonExistentDefaultTarget_When_PathIsCurrentDirectory_Then_ThrowWithClearMessage
+                Given_UpdatRRcFileWithNonExistentPath_When_PathIsCurrentDirectory_Then_ThrowWithClearMessage
             )
         );
 
@@ -690,7 +688,7 @@ public class UpdaterTests
 
         await CreateUpdatRConfigAsync(
             Path.Combine(temp, ".updatrrc"),
-            """{ "defaultTarget": "does-not-exist" }"""
+            """{ "path": "does-not-exist" }"""
         );
 
         var update = new Updater();
@@ -704,7 +702,7 @@ public class UpdaterTests
             var exception = await Assert.ThrowsAsync<ArgumentException>(() => update.UpdateAsync());
 
             // Assert
-            Assert.Contains("defaultTarget", exception.Message);
+            Assert.Contains("path", exception.Message);
             Assert.Contains(".updatrrc", exception.Message);
             Assert.Contains("does not exist", exception.Message);
         }

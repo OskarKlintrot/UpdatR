@@ -57,7 +57,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// <paramref name="excludePackages"/>, <paramref name="allowedLicenses"/>,
     /// <paramref name="excludeFiles"/> and <paramref name="alignWithTfm"/> respectively. If
     /// <paramref name="path"/> is left out (i.e. it resolves to the current directory) and the
-    /// config file has a <c>defaultTarget</c>, that's used as the target path instead of the
+    /// config file has a <c>path</c>, that's used as the target path instead of the
     /// current directory.
     /// </remarks>
     /// <returns><see cref="Summary"/></returns>
@@ -87,17 +87,17 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         alignWithTfm = UpdatRConfig.Merge(alignWithTfm, updatRConfig?.AlignWithTfm);
 
         if (
-            !string.IsNullOrWhiteSpace(updatRConfig?.DefaultTarget)
+            !string.IsNullOrWhiteSpace(updatRConfig?.Path)
             && configDirectory is not null
             && PathsAreEqual(path, Directory.GetCurrentDirectory())
         )
         {
-            path = UpdatRConfig.ResolveDefaultTarget(configDirectory, updatRConfig.DefaultTarget);
+            path = UpdatRConfig.ResolvePath(configDirectory, updatRConfig.Path);
 
             if (!Directory.Exists(path) && !File.Exists(path))
             {
                 throw new ArgumentException(
-                    $"'{nameof(UpdatRConfig.DefaultTarget)}' (\"defaultTarget\") in '{Path.Combine(configDirectory, UpdatRConfig.FileName)}' resolved to '{path}', which does not exist.",
+                    $"'{nameof(UpdatRConfig.Path)}' (\"path\") in '{Path.Combine(configDirectory, UpdatRConfig.FileName)}' resolved to '{path}', which does not exist.",
                     nameof(path)
                 );
             }

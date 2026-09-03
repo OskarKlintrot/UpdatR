@@ -27,7 +27,7 @@ public class UpdatRConfigTests
             {
               "excludePackages": ["Foo.*"],
               "allowedLicenses": ["MIT", "Apache-2.0"],
-              "defaultTarget": "src/Foo.sln",
+              "path": "src/Foo.sln",
               "excludeFiles": ["tests/**/*"],
               "alignWithTfm": ["Microsoft.Extensions.*"]
             }
@@ -41,7 +41,7 @@ public class UpdatRConfigTests
         Assert.NotNull(config);
         Assert.Equal(["Foo.*"], config.ExcludePackages ?? []);
         Assert.Equal(["MIT", "Apache-2.0"], config.AllowedLicenses ?? []);
-        Assert.Equal("src/Foo.sln", config.DefaultTarget);
+        Assert.Equal("src/Foo.sln", config.Path);
         Assert.Equal(["tests/**/*"], config.ExcludeFiles ?? []);
         Assert.Equal(["Microsoft.Extensions.*"], config.AlignWithTfm ?? []);
     }
@@ -167,7 +167,7 @@ public class UpdatRConfigTests
         Assert.NotNull(config);
         Assert.Empty(config.ExcludePackages ?? []);
         Assert.Empty(config.AllowedLicenses ?? []);
-        Assert.Null(config.DefaultTarget);
+        Assert.Null(config.Path);
         Assert.Empty(config.ExcludeFiles ?? []);
         Assert.Empty(config.AlignWithTfm ?? []);
     }
@@ -206,11 +206,11 @@ public class UpdatRConfigTests
 
     [Theory]
     [InlineData(
-        """{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"], "defaultTarget": "src/Foo.sln", "excludeFiles": ["tests/*"], "alignWithTfm": ["Microsoft.Extensions.*"] }"""
+        """{ "excludePackages": ["Foo.*"], "allowedLicenses": ["MIT"], "path": "src/Foo.sln", "excludeFiles": ["tests/*"], "alignWithTfm": ["Microsoft.Extensions.*"] }"""
     )]
     [InlineData("{}")]
     [InlineData(
-        """{ "excludePackages": null, "allowedLicenses": null, "defaultTarget": null, "excludeFiles": null, "alignWithTfm": null }"""
+        """{ "excludePackages": null, "allowedLicenses": null, "path": null, "excludeFiles": null, "alignWithTfm": null }"""
     )]
     public void ValidateReturnsNoErrorsForValidJson(string json)
     {
@@ -288,10 +288,10 @@ public class UpdatRConfigTests
     }
 
     [Theory]
-    [InlineData("""{ "defaultTarget": [] }""")]
-    [InlineData("""{ "defaultTarget": "" }""")]
-    [InlineData("""{ "defaultTarget": "  " }""")]
-    public void ValidateReturnsErrorForInvalidDefaultTargetValue(string json)
+    [InlineData("""{ "path": [] }""")]
+    [InlineData("""{ "path": "" }""")]
+    [InlineData("""{ "path": "  " }""")]
+    public void ValidateReturnsErrorForInvalidPathValue(string json)
     {
         // Act
         var errors = UpdatRConfig.Validate(json);
@@ -301,7 +301,7 @@ public class UpdatRConfigTests
     }
 
     [Fact]
-    public void ValidateReturnsErrorWhenDefaultTargetDoesNotExist()
+    public void ValidateReturnsErrorWhenPathDoesNotExist()
     {
         // Arrange
         var configDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -311,14 +311,11 @@ public class UpdatRConfigTests
         try
         {
             // Act
-            var errors = UpdatRConfig.Validate(
-                """{ "defaultTarget": "does-not-exist" }""",
-                configDirectory
-            );
+            var errors = UpdatRConfig.Validate("""{ "path": "does-not-exist" }""", configDirectory);
 
             // Assert
             Assert.Single(errors);
-            Assert.Contains("defaultTarget", errors[0]);
+            Assert.Contains("path", errors[0]);
             Assert.Contains("does not exist", errors[0]);
         }
         finally
@@ -328,7 +325,7 @@ public class UpdatRConfigTests
     }
 
     [Fact]
-    public void ValidateReturnsNoErrorWhenDefaultTargetExists()
+    public void ValidateReturnsNoErrorWhenPathExists()
     {
         // Arrange
         var configDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -339,7 +336,7 @@ public class UpdatRConfigTests
         try
         {
             // Act
-            var errors = UpdatRConfig.Validate("""{ "defaultTarget": "src" }""", configDirectory);
+            var errors = UpdatRConfig.Validate("""{ "path": "src" }""", configDirectory);
 
             // Assert
             Assert.Empty(errors);

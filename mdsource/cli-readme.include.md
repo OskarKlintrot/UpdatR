@@ -93,13 +93,13 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
 {
   "excludePackages": ["Microsoft.*", "Newtonsoft.*"],
   "allowedLicenses": ["MIT", "Apache-2.0"],
-  "defaultTarget": "src/MySolution.sln",
+  "path": "src/MySolution.sln",
   "excludeFiles": ["tests/**/Resources/**"],
   "alignWithTfm": ["Microsoft.Extensions.*"]
 }
 ```
 
-All options are optional. `excludePackages`, `allowedLicenses`, `excludeFiles` and `alignWithTfm` are merged with the corresponding command line option, if given. `defaultTarget` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
+All options are optional. `excludePackages`, `allowedLicenses`, `excludeFiles` and `alignWithTfm` are merged with the corresponding command line option, if given. `path` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
 
 `//` line comments, `/* */` block comments and trailing commas are allowed in `.updatrrc`.
 
