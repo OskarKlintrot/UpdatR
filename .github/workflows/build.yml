@@ -13,7 +13,12 @@ on:
 jobs:
   run-tests:
 
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
 
     permissions:
       contents: read
@@ -31,10 +36,17 @@ jobs:
     - name: Run tests
       run: dotnet run Build.cs -- test --parallel
       working-directory: tools/Build
+    - name: Verify generated docs are up to date
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        if ! git diff --exit-code -- README.md mdsource/cli-usage.txt; then
+          echo "::error::README.md and/or mdsource/cli-usage.txt are out of date. Run 'dotnet run Build.cs -- generate-docs' from tools/Build and commit the result."
+          exit 1
+        fi
     - name: Upload code coverage (artifact)
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: code-coverage
+        name: code-coverage-${{ matrix.os }}
         path: Artifacts/coverage/**/*.cobertura.xml
         if-no-files-found: warn

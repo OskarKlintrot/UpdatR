@@ -1,1 +1,7 @@
 *.verified.txt text eol=lf working-tree-encoding=UTF-8
+
+# Written by `dotnet run Build.cs -- generate-docs`, which uses Environment.NewLine and therefore
+# produces CRLF on Windows and LF on Linux. Declared explicitly so the committed content is LF
+# either way - CI runs the docs-freshness check on both.
+README.md text eol=lf
+mdsource/** text eol=lf
