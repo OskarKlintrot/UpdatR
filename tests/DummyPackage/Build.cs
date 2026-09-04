@@ -36,61 +36,56 @@ foreach (var (aliases, description) in Options.Definitions)
     _ = app.Option(string.Join("|", aliases), description, CommandOptionType.NoValue);
 }
 
-app.OnExecuteAsync(
-    async _ =>
-    {
-        var msbuild = Assembly
-            .GetEntryAssembly()!
-            .GetCustomAttribute<MsBuildConfigurationAttribute>()!;
+app.OnExecuteAsync(async _ =>
+{
+    var msbuild = Assembly.GetEntryAssembly()!.GetCustomAttribute<MsBuildConfigurationAttribute>()!;
 
-        // translate from McMaster.Extensions.CommandLineUtils to Bullseye
-        var targets = app.Arguments[0].Values.OfType<string>();
-        var options = new Options(
-            Options.Definitions.Select(
-                d =>
-                    (
-                        d.Aliases[0],
-                        app.Options.Single(o => d.Aliases.Contains($"--{o.LongName}")).HasValue()
-                    )
+    // translate from McMaster.Extensions.CommandLineUtils to Bullseye
+    var targets = app.Arguments[0].Values.OfType<string>();
+    var options = new Options(
+        Options.Definitions.Select(d =>
+            (
+                d.Aliases[0],
+                app.Options.Single(o => d.Aliases.Contains($"--{o.LongName}")).HasValue()
             )
-        );
+        )
+    );
 
-        var nuGetVersion = NuGetVersion.Parse(version.Value());
-        var packageId = packageIdOption.Value();
-        var tfm = targetFrameworkOption.Value();
-        var isTool = isToolOption.HasValue();
+    var nuGetVersion = NuGetVersion.Parse(version.Value());
+    var packageId = packageIdOption.Value();
+    var tfm = targetFrameworkOption.Value();
+    var isTool = isToolOption.HasValue();
 
-        Target(
-            "default",
-            async () =>
-            {
-                await Console.Out.WriteLineAsync($"version:   {nuGetVersion}");
-                await Console.Out.WriteLineAsync($"packageId: {packageId}");
-                await Console.Out.WriteLineAsync($"tfm:       {tfm}");
-                await Console.Out.WriteLineAsync($"is tool:   {isTool}");
+    Target(
+        "default",
+        async () =>
+        {
+            await Console.Out.WriteLineAsync($"version:   {nuGetVersion}");
+            await Console.Out.WriteLineAsync($"packageId: {packageId}");
+            await Console.Out.WriteLineAsync($"tfm:       {tfm}");
+            await Console.Out.WriteLineAsync($"is tool:   {isTool}");
 
-                await RunAsync(
-                    "dotnet",
-                    $"pack --configuration Release -p:version=\"{nuGetVersion}\" -p:packageId=\"{packageId}\" -p:targetFramework=\"{tfm}\" -p:packAsTool=\"{isTool}\" {msbuild.ProjectDir} --output ."
-                );
-            }
-        );
+            await RunAsync(
+                "dotnet",
+                $"pack --configuration Release -p:version=\"{nuGetVersion}\" -p:packageId=\"{packageId}\" -p:targetFramework=\"{tfm}\" -p:packAsTool=\"{isTool}\" {msbuild.ProjectDir} --output ."
+            );
+        }
+    );
 
-        Target(
-            "push",
-            DependsOn("default"),
-            async () =>
-            {
-                await RunAsync(
-                    "dotnet",
-                    $"nuget push .\\{packageId}.{nuGetVersion}.nupkg --api-key AzureDevOps --source https://pkgs.dev.azure.com/curium/0329093f-bb7c-41c0-9e4c-893f37483900/_packaging/broken-parts/nuget/v3/index.json --interactive"
-                );
-            }
-        );
+    Target(
+        "push",
+        DependsOn("default"),
+        async () =>
+        {
+            await RunAsync(
+                "dotnet",
+                $"nuget push .\\{packageId}.{nuGetVersion}.nupkg --api-key AzureDevOps --source https://pkgs.dev.azure.com/curium/0329093f-bb7c-41c0-9e4c-893f37483900/_packaging/broken-parts/nuget/v3/index.json --interactive"
+            );
+        }
+    );
 
-        await RunTargetsAndExitAsync(targets, options);
-    }
-);
+    await RunTargetsAndExitAsync(targets, options);
+});
 
 return await app.ExecuteAsync(args);
 
