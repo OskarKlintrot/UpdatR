@@ -95,15 +95,36 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
   "allowedLicenses": ["MIT", "Apache-2.0"],
   "path": "src/MySolution.sln",
   "excludeFiles": ["tests/**/Resources/**"],
-  "alignWithTfm": ["Microsoft.Extensions.*"]
+  "alignWithTfm": ["Microsoft.Extensions.*"],
+  "toolPackagePins": [{ "tool": "dotnet-ef", "package": "Microsoft.EntityFrameworkCore" }],
+  "packagePolicies": [{ "package": "Serilog*", "maxMajor": 3 }],
+  "failOn": "outdated",
+  "failOnIncomplete": false
 }
 ```
 
-All options are optional. `excludePackages`, `allowedLicenses`, `excludeFiles` and `alignWithTfm` are merged with the corresponding command line option, if given. `path` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
+All options are optional. `excludePackages`, `allowedLicenses`, `excludeFiles`, `alignWithTfm` and `packagePolicies` are merged with the corresponding command line option (or, for `packagePolicies`, the corresponding SDK option), if given. `path` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
 
 `//` line comments, `/* */` block comments and trailing commas are allowed in `.updatrrc`.
 
 `alignWithTfm` supports `*` as wildcard and is matched against package ids. Some packages (e.g. `Microsoft.Extensions.*`) release versions that multi-target several TFMs, including newer ones than your project targets - which means UpdatR would normally update to that newer major even though it's not actually required, leading to mismatched majors across a package family. Packages matching `alignWithTfm` are instead capped to the major version of the project's target framework (the lowest, for multi-targeted projects), as long as the currently installed version isn't already ahead of it. It also applies to `dotnet-tools.json`, aligned with the target framework(s) of the project(s) the tool manifest applies to - e.g. keeping `dotnet-ef` in step with `Microsoft.EntityFrameworkCore`.
+
+`toolPackagePins` declares extra tool-to-package pin rules for `dotnet-tools.json` entries, on top of the built-in default that pins `dotnet-ef` to `Microsoft.EntityFrameworkCore` - a tool is only updated to a version compatible with the currently installed version of its pinned package prefix. An entry here for `dotnet-ef` overrides the built-in default instead of adding to it.
+
+`packagePolicies` caps a package (or wildcard-matched packages) to a fixed major version, independently of - and combinable with - `alignWithTfm`. Unlike `alignWithTfm`'s cap, which is derived dynamically from a project's target framework, `packagePolicies`' `maxMajor` is a fixed value you choose. If both apply to the same package, the more restrictive (lower) major wins. There's no CLI equivalent for `packagePolicies`; use `.updatrrc`.
+
+`failOn` sets a minimum severity that causes `update` to exit with a non-zero code (`2`). Levels are cumulative - each level also fails for every level below it in the table, e.g. `deprecated` also fails on vulnerable packages:
+
+| Level | Value | Fails when |
+| --- | --- | --- |
+| `None` | 0 | Never. Default. |
+| `Outdated` | 1 | Any package was updated, is deprecated, or is vulnerable. Most useful together with `--dry-run`, to fail a CI run when packages need updating without actually changing anything. |
+| `Deprecated` | 2 | Any package is deprecated or vulnerable. |
+| `Vulnerable` | 3 | Any package is vulnerable. |
+
+Equivalent to (and overridden by) the `--fail-on` command line option.
+
+`failOnIncomplete` is a separate, orthogonal switch: it fails the run when UpdatR couldn't fully check every package - i.e. a package source returned 401/403, or a package wasn't found on any source. Those cases mean "I couldn't tell", not "everything is fine", which is why they're not part of `failOn`'s severity ladder. Equivalent to (and overridden by) the `--fail-on-incomplete` command line option.
 
 Use `update config init` to create a `.updatrrc` file with all options present, but empty:
 
@@ -115,6 +136,32 @@ By default it's created in the current directory. Pass a path to create it elsew
 
 ```
 > update config init path/to/project --force
+```
+
+Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore` explicitly, and aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework:
+
+```
+> update config init --example
+```
+
+```json
+{
+  "excludePackages": [
+    "Microsoft.CodeAnalysis.*"
+  ],
+  "toolPackagePins": [
+    {
+      "tool": "dotnet-ef",
+      "package": "Microsoft.EntityFrameworkCore"
+    }
+  ],
+  "alignWithTfm": [
+    "Microsoft.EntityFrameworkCore",
+    "Microsoft.EntityFrameworkCore.*",
+    "Microsoft.Extensions.*",
+    "System.Net.Http.Json"
+  ]
+}
 ```
 
 Use `update config validate` to check that a `.updatrrc` file is valid:
@@ -144,6 +191,41 @@ It's possible to get the title and the rest of the output as separate .md-files 
 ```
 
 then you can use `title.md` as the title for your pull request and `description.md` as the body.
+
+If you'd rather consume the result programmatically, give `--output` a `.json` file instead of `.md`/`.txt` for a machine-readable summary:
+
+```
+> update --output path/to/output.json
+```
+
+The JSON uses camelCase property names and carries a `schemaVersion` field so scripts can detect format changes.
+
+To make a CI build fail when there's something to act on, use `--fail-on`:
+
+```
+> update --dry-run --fail-on outdated
+```
+
+`--fail-on` accepts `none` (default), `outdated`, `deprecated` or `vulnerable`, each including the severities after it in that list. Combined with `--dry-run` this fails the build whenever any package could be updated, without actually changing anything.
+
+Use `--fail-on-incomplete` to also fail when UpdatR couldn't check everything - an unauthorized package source, or a package that wasn't found on any source:
+
+```
+> update --dry-run --fail-on outdated --fail-on-incomplete
+```
+
+The two are independent: `--fail-on` is about what UpdatR found, `--fail-on-incomplete` is about what it couldn't look at.
+
+#### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | UpdatR couldn't run - e.g. the target path doesn't exist, contains nothing to update, or `--output` was given an unsupported file extension. A friendly error message is written to stderr. |
+| `2` | The run succeeded but `--fail-on`/`failOn` or `--fail-on-incomplete`/`failOnIncomplete` was tripped. |
+| `130` | Cancelled (Ctrl+C). |
+
+Any other non-zero exit code means an unexpected crash; the stack trace is also appended to `dotnet-updatr-crash.log` in your temp directory, and its path is printed to stderr.
 
 UpdatR is used to update it's own dependencies, have a look at [Build.cs](https://github.com/OskarKlintrot/UpdatR/blob/main/tools/Build/Build.cs) for an example that uses [Bullseye](https://www.nuget.org/packages/Bullseye) and [SimpleExec](https://www.nuget.org/packages/SimpleExec). However, if you are using C# in your CI/CD pipeline it's probably easier to just use [UpdatR](#updatr) directly instead. That's the package that powers `dotnet-updatr` under the hood.
 
