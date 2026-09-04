@@ -949,6 +949,151 @@ public class CsprojTests : IDisposable
         }
     }
 
+    [Fact]
+    public void GetPinnedVersionReturnsNullWhenNoPackageMatches()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Microsoft.EntityFrameworkCore*");
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionReturnsVersionOfSingleMatchingPackage()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Microsoft.EntityFrameworkCore*");
+
+        // Assert
+        Assert.Equal(NuGetVersion.Parse("9.0.0"), result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionReturnsVersionWhenAllMatchingPackagesShareTheSameVersion()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+                <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+                <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Microsoft.EntityFrameworkCore*");
+
+        // Assert
+        Assert.Equal(NuGetVersion.Parse("9.0.0"), result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionOnlyMatchesExactPackageIdWhenPatternHasNoWildcard()
+    {
+        // Arrange - without a "*" the pattern must match the whole package id, not just a prefix,
+        // e.g. "xunit" must not match "xunit.core".
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="xunit" Version="2.9.0" />
+                <PackageReference Include="xunit.core" Version="2.9.2" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("xunit");
+
+        // Assert
+        Assert.Equal(NuGetVersion.Parse("2.9.0"), result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionThrowsWhenMatchingPackagesHaveDifferentVersions()
+    {
+        // Arrange - a too-broad pattern like "xunit*" matches unrelated packages that don't share
+        // a version scheme, e.g. xunit.v3 and xunit.runner.visualstudio.
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="xunit.v3" Version="4.0.0" />
+                <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var exception = Assert.Throws<AmbiguousToolPackagePinException>(() =>
+            csproj.GetPinnedVersion("xunit*")
+        );
+
+        // Assert
+        Assert.Contains("xunit*", exception.Message);
+        Assert.Contains("xunit.v3 4.0.0", exception.Message);
+        Assert.Contains("xunit.runner.visualstudio 2.8.2", exception.Message);
+    }
+
     private sealed class FakeLogger : ILogger
     {
         public List<(LogLevel Level, string Message)> Logs { get; } = [];

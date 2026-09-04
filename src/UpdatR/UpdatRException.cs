@@ -31,3 +31,21 @@ public sealed class InvalidUpdateTargetException : UpdatRException
     public InvalidUpdateTargetException(string message, Exception innerException)
         : base(message, innerException) { }
 }
+
+/// <summary>
+/// Thrown when a <see cref="ToolPackagePin.PinnedPackageIdPattern"/> (e.g.
+/// <c>Microsoft.EntityFrameworkCore*</c>, or - a real-world footgun - <c>xunit*</c>, which also
+/// matches unrelated packages like <c>xunit.runner.visualstudio</c>) matches more than one
+/// package reference in the same project, and those matching packages are not all pinned to the
+/// same version. There would then be no single unambiguous version to pin the tool to. Narrow the
+/// pattern (e.g. an exact package id, with no <c>*</c>) so it only matches packages that are
+/// meant to move in lockstep, or align the conflicting packages' versions.
+/// </summary>
+public sealed class AmbiguousToolPackagePinException : UpdatRException
+{
+    public AmbiguousToolPackagePinException(string message)
+        : base(message) { }
+
+    public AmbiguousToolPackagePinException(string message, Exception innerException)
+        : base(message, innerException) { }
+}

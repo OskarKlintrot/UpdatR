@@ -33,7 +33,7 @@ namespace UpdatR;
 /// </param>
 /// <param name="ToolPackagePins">
 /// Extra tool-to-package pin rules for <c>dotnet-tools.json</c> entries, on top of the built-in
-/// default that pins <c>dotnet-ef</c> to <c>Microsoft.EntityFrameworkCore</c>. An entry here for
+/// default that pins <c>dotnet-ef</c> to <c>Microsoft.EntityFrameworkCore*</c>. An entry here for
 /// <c>dotnet-ef</c> overrides the default instead of adding to it.
 /// </param>
 /// <param name="PackagePolicies">
@@ -205,7 +205,7 @@ public sealed record UpdatRConfig(
     /// <summary>
     /// An example <c>.updatrrc</c>, meant as a realistic starting point rather than an
     /// exhaustive reference: it excludes the Roslyn compiler packages (which projects rarely
-    /// intend to update directly), pins <c>dotnet-ef</c> to <c>Microsoft.EntityFrameworkCore</c>
+    /// intend to update directly), pins <c>dotnet-ef</c> to <c>Microsoft.EntityFrameworkCore*</c>
     /// explicitly (redundant with the built-in default, but shown here for discoverability), and
     /// keeps Entity Framework Core and <c>Microsoft.Extensions.*</c> - both of which commonly
     /// ship versions that multi-target a newer TFM than the project actually targets - aligned
@@ -220,7 +220,7 @@ public sealed record UpdatRConfig(
           "toolPackagePins": [
             {
               "tool": "dotnet-ef",
-              "package": "Microsoft.EntityFrameworkCore"
+              "package": "Microsoft.EntityFrameworkCore*"
             }
           ],
           "alignWithTfm": [
@@ -624,8 +624,11 @@ public sealed record UpdatRConfig(
 /// </summary>
 /// <param name="Tool">The dotnet tool's package id, e.g. <c>dotnet-ef</c>.</param>
 /// <param name="Package">
-/// Prefix (case-insensitive) matched against package ids referenced by an affected project to
-/// find the package this tool is pinned to, e.g. <c>Microsoft.EntityFrameworkCore</c>.
+/// Package id pattern (case-insensitive) matched against package ids referenced by an affected
+/// project to find the package this tool is pinned to - the same <c>*</c>-wildcard matching used
+/// for e.g. <c>alignWithTfm</c>, matched against the whole package id, e.g.
+/// <c>Microsoft.EntityFrameworkCore*</c> to also match <c>Microsoft.EntityFrameworkCore.Sqlite</c>
+/// and other packages in the same family.
 /// </param>
 public sealed record ToolPackagePinConfig(
     [property: JsonPropertyName("tool")] string Tool,

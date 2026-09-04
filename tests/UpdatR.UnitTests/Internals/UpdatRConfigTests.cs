@@ -208,7 +208,7 @@ public class UpdatRConfigTests
         );
         Assert.Equal(["dotnet-ef"], config.ToolPackagePins?.Select(x => x.Tool).ToArray() ?? []);
         Assert.Equal(
-            ["Microsoft.EntityFrameworkCore"],
+            ["Microsoft.EntityFrameworkCore*"],
             config.ToolPackagePins?.Select(x => x.Package).ToArray() ?? []
         );
         Assert.Empty(UpdatRConfig.Validate(File.ReadAllText(filePath)));

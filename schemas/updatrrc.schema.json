@@ -70,10 +70,10 @@
             "$ref": "#/$defs/nonEmptyString"
           },
           "package": {
-            "title": "Referenced package ID prefix",
-            "description": "Package ID prefix matched against package references in the affected project.",
+            "title": "Referenced package ID pattern",
+            "description": "Package ID pattern matched against package references in the affected project. Supports * as a wildcard.",
             "examples": [
-              "Microsoft.EntityFrameworkCore"
+              "Microsoft.EntityFrameworkCore*"
             ],
             "$ref": "#/$defs/nonEmptyString"
           }

@@ -67,11 +67,12 @@ public sealed record UpdateOptions
 
     /// <summary>
     /// Rules pinning a dotnet tool (e.g. <c>dotnet-ef</c>) to the highest version of a package
-    /// (matched by id prefix, e.g. <c>Microsoft.EntityFrameworkCore</c>) referenced by the
-    /// project(s) a <c>dotnet-tools.json</c> manifest applies to, so the tool is never updated
-    /// past what those projects support. <see cref="ToolPackagePin.EntityFrameworkCore"/> is
-    /// always applied as a built-in default unless overridden - by <c>.updatrrc</c>'s
-    /// <c>toolPackagePins</c>, or by an entry here - for the same tool.
+    /// (matched by the same <c>*</c>-wildcard pattern used elsewhere, e.g.
+    /// <c>Microsoft.EntityFrameworkCore*</c>) referenced by the project(s) a
+    /// <c>dotnet-tools.json</c> manifest applies to, so the tool is never updated past what those
+    /// projects support. <see cref="ToolPackagePin.EntityFrameworkCore"/> is always applied as a
+    /// built-in default unless overridden - by <c>.updatrrc</c>'s <c>toolPackagePins</c>, or by an
+    /// entry here - for the same tool.
     /// </summary>
     public IReadOnlyCollection<ToolPackagePin>? ToolPackagePins { get; init; }
 

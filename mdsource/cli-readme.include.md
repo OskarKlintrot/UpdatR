@@ -97,7 +97,7 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
   "path": "src/MySolution.sln",
   "excludeFiles": ["tests/**/Resources/**"],
   "alignWithTfm": ["Microsoft.Extensions.*"],
-  "toolPackagePins": [{ "tool": "dotnet-ef", "package": "Microsoft.EntityFrameworkCore" }],
+  "toolPackagePins": [{ "tool": "dotnet-ef", "package": "Microsoft.EntityFrameworkCore*" }],
   "packagePolicies": [{ "package": "Serilog*", "maxMajor": 3 }],
   "failOn": "outdated",
   "failOnIncomplete": false
@@ -112,7 +112,7 @@ included by `update config init` and can be added to existing configuration file
 
 `alignWithTfm` supports `*` as wildcard and is matched against package ids. Some packages (e.g. `Microsoft.Extensions.*`) release versions that multi-target several TFMs, including newer ones than your project targets - which means UpdatR would normally update to that newer major even though it's not actually required, leading to mismatched majors across a package family. Packages matching `alignWithTfm` are instead capped to the major version of the project's target framework (the lowest, for multi-targeted projects), as long as the currently installed version isn't already ahead of it. It also applies to `dotnet-tools.json`, aligned with the target framework(s) of the project(s) the tool manifest applies to - e.g. keeping `dotnet-ef` in step with `Microsoft.EntityFrameworkCore`.
 
-`toolPackagePins` declares extra tool-to-package pin rules for `dotnet-tools.json` entries, on top of the built-in default that pins `dotnet-ef` to `Microsoft.EntityFrameworkCore` - a tool is only updated to a version compatible with the currently installed version of its pinned package prefix. An entry here for `dotnet-ef` overrides the built-in default instead of adding to it.
+`toolPackagePins` declares extra tool-to-package pin rules for `dotnet-tools.json` entries, on top of the built-in default that pins `dotnet-ef` to `Microsoft.EntityFrameworkCore*` - a tool is only updated to a version compatible with the currently installed version of its pinned package. The `package` value uses the same `*`-wildcard matching (against the whole package id) as `alignWithTfm`/`excludePackages`/etc. - an exact id with no `*` only matches that one package, so e.g. `"package": "Microsoft.EntityFrameworkCore"` alone would not match `Microsoft.EntityFrameworkCore.SqlServer`; use `Microsoft.EntityFrameworkCore*` to match the whole family. If the pattern matches more than one referenced package, they must all be pinned to the same version - otherwise `update` fails with an error, since there would be no single unambiguous version to pin the tool to (e.g. a too-broad pattern like `xunit*` would also match an unrelated, differently-versioned `xunit.runner.visualstudio`). An entry here for `dotnet-ef` overrides the built-in default instead of adding to it.
 
 `packagePolicies` caps a package (or wildcard-matched packages) to a fixed major version, independently of - and combinable with - `alignWithTfm`. Unlike `alignWithTfm`'s cap, which is derived dynamically from a project's target framework, `packagePolicies`' `maxMajor` is a fixed value you choose. If both apply to the same package, the more restrictive (lower) major wins. There's no CLI equivalent for `packagePolicies`; use `.updatrrc`.
 
@@ -141,7 +141,7 @@ By default it's created in the current directory. Pass a path to create it elsew
 > update config init path/to/project --force
 ```
 
-Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore` explicitly, and aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework:
+Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, and aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework:
 
 ```
 > update config init --example
@@ -156,7 +156,7 @@ Pass `--example` to instead create a populated, realistic starting point - exclu
   "toolPackagePins": [
     {
       "tool": "dotnet-ef",
-      "package": "Microsoft.EntityFrameworkCore"
+      "package": "Microsoft.EntityFrameworkCore*"
     }
   ],
   "alignWithTfm": [

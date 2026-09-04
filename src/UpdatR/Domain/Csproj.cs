@@ -55,24 +55,51 @@ internal sealed partial class Csproj : PackageContainer
         _targetFrameworks ??= GetTargetFrameworks();
 
     /// <summary>
-    /// The version of the first referenced package whose id starts with
-    /// <paramref name="packageIdPrefix"/> (case-insensitive), e.g. <c>Microsoft.EntityFrameworkCore</c>
-    /// - used by <see cref="ToolPackagePin"/> to keep a dotnet tool (e.g. <c>dotnet-ef</c>) from
-    /// moving ahead of the package version(s) it drives. <see langword="null"/> if no such
+    /// The version every referenced package whose id matches <paramref name="packageIdPattern"/>
+    /// is pinned to - the same <c>*</c>-wildcard matching used for e.g. <c>alignWithTfm</c>
+    /// (case-insensitive, matched against the whole package id) - e.g.
+    /// <c>Microsoft.EntityFrameworkCore*</c> to match the whole Entity Framework Core package
+    /// family. Used by <see cref="ToolPackagePin"/> to keep a dotnet tool (e.g. <c>dotnet-ef</c>)
+    /// from moving ahead of the package version(s) it drives. <see langword="null"/> if no such
     /// package is referenced. Always reflects the current, possibly already-updated,
     /// <see cref="Packages"/>.
     /// </summary>
-    public NuGetVersion? GetPinnedVersion(string packageIdPrefix)
+    /// <exception cref="AmbiguousToolPackagePinException">
+    /// More than one referenced package matches <paramref name="packageIdPattern"/>, and they are
+    /// not all pinned to the same version - e.g. a too-broad pattern like <c>xunit*</c> matching
+    /// both <c>xunit.v3</c> and an unrelated, differently-versioned <c>xunit.runner.visualstudio</c>.
+    /// There is then no single unambiguous version to pin a tool to.
+    /// </exception>
+    public NuGetVersion? GetPinnedVersion(string packageIdPattern)
     {
-        foreach (var (packageId, version) in Packages)
+        var isMatch = SearchPattern.ConvertToRegex(packageIdPattern);
+
+        var matches = Packages.Where(x => isMatch.IsMatch(x.Key)).ToArray();
+
+        if (matches.Length == 0)
         {
-            if (packageId.StartsWith(packageIdPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return version;
-            }
+            return null;
         }
 
-        return null;
+        var distinctVersions = matches.Select(x => x.Value).Distinct().ToArray();
+
+        if (distinctVersions.Length > 1)
+        {
+            throw new AmbiguousToolPackagePinException(
+                $"'{Path}' references multiple packages matching '{packageIdPattern}' pinned to "
+                    + "different versions: "
+                    + string.Join(
+                        ", ",
+                        matches
+                            .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                            .Select(x => $"{x.Key} {x.Value}")
+                    )
+                    + ". Narrow the pattern so it only matches packages meant to move in "
+                    + "lockstep, or align their versions."
+            );
+        }
+
+        return distinctVersions[0];
     }
 
     public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();

@@ -61,8 +61,8 @@ internal sealed partial class DotnetTools : PackageContainer
 
     public IEnumerable<string> PackageIds => _packageIds ??= GetPackageIds();
 
-    private NuGetVersion? HighestAllowedVersion(string pinnedPackageIdPrefix) =>
-        _affectedCsprojs.Min(x => x.GetPinnedVersion(pinnedPackageIdPrefix));
+    private NuGetVersion? HighestAllowedVersion(string pinnedPackageIdPattern) =>
+        _affectedCsprojs.Min(x => x.GetPinnedVersion(pinnedPackageIdPattern));
 
     public static DotnetTools Create(string path, IEnumerable<Csproj> affectedCsprojs)
     {
@@ -195,7 +195,7 @@ internal sealed partial class DotnetTools : PackageContainer
 
         if (
             pin is not null
-            && HighestAllowedVersion(pin.PinnedPackageIdPrefix) is { } highestAllowedVersion
+            && HighestAllowedVersion(pin.PinnedPackageIdPattern) is { } highestAllowedVersion
             && package.TryGet(highestAllowedVersion, out _)
             && highestAllowedVersion <= updateTo.Version
         )

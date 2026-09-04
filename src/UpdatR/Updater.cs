@@ -54,6 +54,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// </remarks>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="InvalidUpdateTargetException"></exception>
+    /// <exception cref="AmbiguousToolPackagePinException"></exception>
     public async Task<Summary> UpdateAsync(
         string? path = null,
         UpdateOptions? options = null,
