@@ -47,7 +47,7 @@ internal static partial class Program
         var outputPathOption = new Option<string?>("--output-path")
         {
             Description =
-                "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown, \".txt\" for plain text, or \".json\" for machine-readable JSON.",
+                "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown, \".txt\" for plain text, \".json\" for machine-readable JSON, or \".html\" for a standalone HTML page.",
         };
 
         var titleOption = new Option<string?>("--title") { Description = "Outputs title to path." };
@@ -410,18 +410,13 @@ internal static partial class Program
 
         if (browser)
         {
-            var outputMd = MarkdownFormatter.Generate(summary);
-
             var htmlPath = Paths.Temporary;
 
             Directory.CreateDirectory(htmlPath);
 
-            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-            var html = Markdown.ToHtml(outputMd, pipeline);
-
             var filePath = Path.Combine(htmlPath, "summary.html");
 
-            await File.WriteAllTextAsync(filePath, html, cancellationToken);
+            await File.WriteAllTextAsync(filePath, GenerateHtml(summary), cancellationToken);
 
             OpenFile(filePath);
         }
@@ -447,6 +442,7 @@ internal static partial class Program
                     [".md"] = () => MarkdownFormatter.Generate(summary),
                     [".txt"] = () => outputStr,
                     [".json"] = () => JsonFormatter.Generate(summary),
+                    [".html"] = () => GenerateHtml(summary),
                 },
                 cancellationToken
             );
@@ -555,6 +551,15 @@ internal static partial class Program
         }
 
         await File.WriteAllTextAsync(path, generate(), cancellationToken);
+    }
+
+    private static string GenerateHtml(Summary summary)
+    {
+        var markdown = MarkdownFormatter.Generate(summary);
+
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
+        return Markdown.ToHtml(markdown, pipeline);
     }
 
     private static void WriteSummaryToConsole(string summary)

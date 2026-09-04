@@ -167,6 +167,69 @@ public sealed class LiveTests : IDisposable
         Assert.Contains("info:", stdError, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Verifies <c>--output-path summary.html</c> writes a standalone HTML page, reusing the same
+    /// markdown-to-HTML rendering as <c>--browser</c>.
+    /// </summary>
+    [Fact]
+    public async Task UpdateDummyProjectOutputPathHtml()
+    {
+        var runsOnGitHubActions = !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("GITHUB_ACTIONS")
+        );
+
+        var root = await GetRepoRootDirectoryAsync();
+
+        Console.WriteLine("Root: " + root);
+
+        var dummyProjectSrc = Path.Combine(root.FullName, "tests", "UpdatR.E2eTests", "Dummy");
+
+        if (!Directory.Exists(dummyProjectSrc))
+        {
+            throw new InvalidOperationException($"Path {dummyProjectSrc} does not exist.");
+        }
+
+        var testTemp = Path.Combine(Path.GetTempPath(), "dotnet-updatr", "e2etests");
+
+        var dummyProject = Path.Combine(testTemp, "DummyHtml");
+
+        if (Directory.Exists(dummyProject))
+        {
+            Directory.Delete(dummyProject, true);
+        }
+
+        Directory.CreateDirectory(dummyProject);
+
+        CopyDirectory(dummyProjectSrc, dummyProject, recursive: true);
+
+        var cli = await BuildAndGetCliPathAsync(root, runsOnGitHubActions);
+
+        var htmlPath = Path.Combine(testTemp, "summary.html");
+
+        if (File.Exists(htmlPath))
+        {
+            File.Delete(htmlPath);
+        }
+
+        var (stdOutput, stdError) = await ReadAsync(
+            "dotnet",
+            $"exec {cli} --dry-run --output-path {htmlPath}",
+            workingDirectory: dummyProject,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Console.WriteLine("CLI stdout:");
+        Console.WriteLine(stdOutput);
+        Console.WriteLine("CLI stderr:");
+        Console.WriteLine(stdError);
+
+        Assert.True(File.Exists(htmlPath), $"CLI did not produce {htmlPath}.");
+
+        var html = await File.ReadAllTextAsync(htmlPath, TestContext.Current.CancellationToken);
+
+        Assert.Contains("<h1", html, StringComparison.Ordinal);
+    }
+
     private static async Task<string> BuildAndGetCliPathAsync(
         DirectoryInfo root,
         bool runsOnGitHubActions

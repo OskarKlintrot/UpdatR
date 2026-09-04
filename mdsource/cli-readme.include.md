@@ -200,6 +200,12 @@ If you'd rather consume the result programmatically, give `--output-path` a `.js
 
 The JSON uses camelCase property names and carries a `schemaVersion` field so scripts can detect format changes.
 
+Give `--output-path` a `.html` file instead to get a standalone HTML page - the same rendering used by `--browser`:
+
+```
+> update --output-path path/to/output.html
+```
+
 If you want the JSON on stdout instead - e.g. to pipe it straight into another program, or hand it to an AI agent, without writing a file - use `--output json`. Only the JSON is written to stdout; logs and any other diagnostic output are sent to stderr instead, so stdout stays valid JSON:
 
 ```
