@@ -5,8 +5,8 @@ using NuGet.Versioning;
 namespace UpdatR.Formatters;
 
 /// <summary>
-/// Renders a <see cref="Summary"/> as machine-readable JSON, e.g. for <c>--output out.json</c>
-/// consumption in CI.
+/// Renders a <see cref="Summary"/> as machine-readable JSON, e.g. for <c>--output json</c> or
+/// <c>--output-path out.json</c> consumption in CI.
 /// </summary>
 public static class JsonFormatter
 {

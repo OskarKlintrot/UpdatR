@@ -192,7 +192,7 @@ Like `init`, it defaults to looking for `.updatrrc` in the current directory, bu
 You can get the output as a markdown by setting a path for the output:
 
 ```
-> update --output path/to/output/folder
+> update --output-path path/to/output/folder
 ```
 
 It's possible to get the title and the rest of the output as separate .md-files which is helpful when creating a pull request:
@@ -203,13 +203,19 @@ It's possible to get the title and the rest of the output as separate .md-files 
 
 then you can use `title.md` as the title for your pull request and `description.md` as the body.
 
-If you'd rather consume the result programmatically, give `--output` a `.json` file instead of `.md`/`.txt` for a machine-readable summary:
+If you'd rather consume the result programmatically, give `--output-path` a `.json` file instead of `.md`/`.txt` for a machine-readable summary:
 
 ```
-> update --output path/to/output.json
+> update --output-path path/to/output.json
 ```
 
 The JSON uses camelCase property names and carries a `schemaVersion` field so scripts can detect format changes.
+
+If you want the JSON on stdout instead - e.g. to pipe it straight into another program, or hand it to an AI agent, without writing a file - use `--output json`. Only the JSON is written to stdout; logs and any other diagnostic output are sent to stderr instead, so stdout stays valid JSON:
+
+```
+> update --dry-run --output json | jq .updatedPackagesCount
+```
 
 To make a CI build fail when there's something to act on, use `--fail-on`:
 
@@ -232,7 +238,7 @@ The two are independent: `--fail-on` is about what UpdatR found, `--fail-on-inco
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | UpdatR couldn't run - e.g. the target path doesn't exist, contains nothing to update, or `--output` was given an unsupported file extension. A friendly error message is written to stderr. |
+| `1` | UpdatR couldn't run - e.g. the target path doesn't exist, contains nothing to update, or `--output-path` was given an unsupported file extension. A friendly error message is written to stderr. |
 | `2` | The run succeeded but `--fail-on`/`failOn` or `--fail-on-incomplete`/`failOnIncomplete` was tripped. |
 | `130` | Cancelled (Ctrl+C). |
 
@@ -253,7 +259,8 @@ Arguments:
 Options:
   --package <package>                                                Package to update. Supports * as wildcard. Will update all unless specified.
   --exclude-package <exclude-package>                                Package to exclude. Supports * as wildcard. Merged with "excludePackages" from a .updatrrc file, if present.
-  --output <output>                                                  Writes the summary to a file. If an existing directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown, ".txt" for plain text, or ".json" for machine-readable JSON.
+  --output <Json|Text>                                               Format of the summary written to stdout. "text" (default) writes the human-readable, colored summary. "json" writes only machine-readable JSON to stdout - logs and any other diagnostic output are sent to stderr instead, so stdout can be safely piped to or parsed by another program. [default: Text]
+  --output-path <output-path>                                        Writes the summary to a file. If an existing directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown, ".txt" for plain text, or ".json" for machine-readable JSON.
   --title <title>                                                    Outputs title to path.
   --description <description>                                        Outputs description to path.
   --verbosity <Critical|Debug|Error|Information|None|Trace|Warning>  Log level. [default: Warning]

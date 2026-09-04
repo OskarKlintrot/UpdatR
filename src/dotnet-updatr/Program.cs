@@ -37,7 +37,14 @@ internal static partial class Program
             DefaultValueFactory = _ => [],
         };
 
-        var outputOption = new Option<string?>("--output")
+        var outputOption = new Option<OutputFormat>("--output")
+        {
+            Description =
+                "Format of the summary written to stdout. \"text\" (default) writes the human-readable, colored summary. \"json\" writes only machine-readable JSON to stdout - logs and any other diagnostic output are sent to stderr instead, so stdout can be safely piped to or parsed by another program.",
+            DefaultValueFactory = _ => OutputFormat.Text,
+        };
+
+        var outputPathOption = new Option<string?>("--output-path")
         {
             Description =
                 "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown, \".txt\" for plain text, or \".json\" for machine-readable JSON.",
@@ -177,6 +184,7 @@ internal static partial class Program
             packageOption,
             excludePackageOption,
             outputOption,
+            outputPathOption,
             titleOption,
             descriptionOption,
             verbosityOption,
@@ -200,6 +208,7 @@ internal static partial class Program
                     package: parseResult.GetValue(packageOption),
                     excludePackage: parseResult.GetValue(excludePackageOption),
                     output: parseResult.GetValue(outputOption),
+                    outputPath: parseResult.GetValue(outputPathOption),
                     title: parseResult.GetValue(titleOption),
                     description: parseResult.GetValue(descriptionOption),
                     verbosity: parseResult.GetValue(verbosityOption),
@@ -286,7 +295,8 @@ internal static partial class Program
         string? path = ".",
         string[]? package = null,
         string[]? excludePackage = null,
-        string? output = null,
+        OutputFormat output = OutputFormat.Text,
+        string? outputPath = null,
         string? title = null,
         string? description = null,
         LogLevel verbosity = LogLevel.Warning,
@@ -337,7 +347,15 @@ internal static partial class Program
             .AddLogging(builder =>
             {
                 builder.SetMinimumLevel(verbosity);
-                builder.AddConsole();
+                builder.AddConsole(options =>
+                {
+                    // In JSON mode stdout is reserved for the JSON summary alone, so every log
+                    // line - regardless of level - is routed to stderr instead.
+                    if (output is OutputFormat.Json)
+                    {
+                        options.LogToStandardErrorThreshold = LogLevel.Trace;
+                    }
+                });
             })
             .BuildServiceProvider();
 
@@ -374,7 +392,7 @@ internal static partial class Program
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Cancelled.");
+            Console.Error.WriteLine("Cancelled.");
             Console.ResetColor();
 
             return 130;
@@ -382,7 +400,7 @@ internal static partial class Program
         catch (UpdatRException exception)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(exception.Message);
+            Console.Error.WriteLine(exception.Message);
             Console.ResetColor();
 
             return 1;
@@ -407,15 +425,22 @@ internal static partial class Program
 
             OpenFile(filePath);
         }
-        else
+
+        if (output is OutputFormat.Json)
+        {
+            // Only the JSON itself goes to stdout - logs and errors above are already routed to
+            // stderr so a pipe/script consuming this output only ever sees valid JSON.
+            Console.WriteLine(JsonFormatter.Generate(summary));
+        }
+        else if (!browser)
         {
             WriteSummaryToConsole(outputStr);
         }
 
-        if (output is not null)
+        if (outputPath is not null)
         {
             await WriteOutputAsync(
-                output,
+                outputPath,
                 "output.md",
                 new Dictionary<string, Func<string>>(StringComparer.OrdinalIgnoreCase)
                 {

@@ -1,4 +1,5 @@
-﻿using static SimpleExec.Command;
+﻿using System.Text.Json;
+using static SimpleExec.Command;
 
 namespace UpdatR.E2e;
 
@@ -52,28 +53,11 @@ public sealed class LiveTests : IDisposable
 
         CopyDirectory(dummyProjectSrc, dummyProject, recursive: true);
 
-        var cliProjectPath = Path.Combine(root.FullName, "src", "dotnet-updatr");
-
-        if (!runsOnGitHubActions)
-        {
-            await RunAsync(
-                "dotnet",
-                "build --configuration Release",
-                workingDirectory: cliProjectPath,
-                ct: TestContext.Current.CancellationToken
-            );
-        }
-
-        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net10.0", "dotnet-updatr.dll");
-
-        if (!File.Exists(cli))
-        {
-            throw new InvalidOperationException($"Could not find CLI assembly at {cli}.");
-        }
+        var cli = await BuildAndGetCliPathAsync(root, runsOnGitHubActions);
 
         var (stdOutput, stdError) = await ReadAsync(
             "dotnet",
-            $"exec {cli} --output {log} --title {title} --description {description}",
+            $"exec {cli} --output-path {log} --title {title} --description {description}",
             workingDirectory: dummyProject,
             ct: TestContext.Current.CancellationToken
         );
@@ -115,6 +99,99 @@ public sealed class LiveTests : IDisposable
             )!;
             yield return await File.ReadAllTextAsync(Path.Combine(dummyProject, "nuget.config"))!;
         }
+    }
+
+    /// <summary>
+    /// Verifies <c>--output json</c>: stdout must contain nothing but the JSON summary - no log
+    /// lines, no color codes, no plain-text summary - so it can be piped straight into another
+    /// program or parsed by an agent, while diagnostics still show up on stderr.
+    /// </summary>
+    [Fact]
+    public async Task UpdateDummyProjectOutputJson()
+    {
+        var runsOnGitHubActions = !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("GITHUB_ACTIONS")
+        );
+
+        var root = await GetRepoRootDirectoryAsync();
+
+        Console.WriteLine("Root: " + root);
+
+        var dummyProjectSrc = Path.Combine(root.FullName, "tests", "UpdatR.E2eTests", "Dummy");
+
+        if (!Directory.Exists(dummyProjectSrc))
+        {
+            throw new InvalidOperationException($"Path {dummyProjectSrc} does not exist.");
+        }
+
+        var testTemp = Path.Combine(Path.GetTempPath(), "dotnet-updatr", "e2etests");
+
+        var dummyProject = Path.Combine(testTemp, "DummyJson");
+
+        if (Directory.Exists(dummyProject))
+        {
+            Directory.Delete(dummyProject, true);
+        }
+
+        Directory.CreateDirectory(dummyProject);
+
+        CopyDirectory(dummyProjectSrc, dummyProject, recursive: true);
+
+        var cli = await BuildAndGetCliPathAsync(root, runsOnGitHubActions);
+
+        // --dry-run so the mutated Dummy project from UpdateDummyProject can't leak in via a
+        // shared NuGet http-cache race, and --verbosity Information so there's plenty of log
+        // output that would show up on stdout if it were misrouted there instead of stderr.
+        var (stdOutput, stdError) = await ReadAsync(
+            "dotnet",
+            $"exec {cli} --dry-run --output json --verbosity Information",
+            workingDirectory: dummyProject,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Console.WriteLine("CLI stdout:");
+        Console.WriteLine(stdOutput);
+        Console.WriteLine("CLI stderr:");
+        Console.WriteLine(stdError);
+
+        // Must be valid, parseable JSON with nothing else mixed in - no leading/trailing log
+        // lines, no ANSI color codes, no plain-text summary banner.
+        using var document = JsonDocument.Parse(stdOutput);
+
+        Assert.True(document.RootElement.TryGetProperty("schemaVersion", out _));
+        Assert.True(document.RootElement.TryGetProperty("updatedPackagesCount", out _));
+
+        // Logging is only enabled by --verbosity Information, so finding a log line on stderr
+        // (and not stdout) confirms it was actually redirected rather than merely absent.
+        Assert.DoesNotContain("info:", stdOutput, StringComparison.Ordinal);
+        Assert.Contains("info:", stdError, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> BuildAndGetCliPathAsync(
+        DirectoryInfo root,
+        bool runsOnGitHubActions
+    )
+    {
+        var cliProjectPath = Path.Combine(root.FullName, "src", "dotnet-updatr");
+
+        if (!runsOnGitHubActions)
+        {
+            await RunAsync(
+                "dotnet",
+                "build --configuration Release",
+                workingDirectory: cliProjectPath,
+                ct: TestContext.Current.CancellationToken
+            );
+        }
+
+        var cli = Path.Combine(cliProjectPath, "bin", "Release", "net10.0", "dotnet-updatr.dll");
+
+        if (!File.Exists(cli))
+        {
+            throw new InvalidOperationException($"Could not find CLI assembly at {cli}.");
+        }
+
+        return cli;
     }
 
     private static async Task<DirectoryInfo> GetRepoRootDirectoryAsync()
