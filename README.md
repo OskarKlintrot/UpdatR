@@ -211,6 +211,12 @@ If you'd rather consume the result programmatically, give `--output-path` a `.js
 
 The JSON uses camelCase property names and carries a `schemaVersion` field so scripts can detect format changes.
 
+Give `--output-path` a `.html` file instead to get a standalone HTML page - the same rendering used by `--browser`:
+
+```
+> update --output-path path/to/output.html
+```
+
 If you want the JSON on stdout instead - e.g. to pipe it straight into another program, or hand it to an AI agent, without writing a file - use `--output json`. Only the JSON is written to stdout; logs and any other diagnostic output are sent to stderr instead, so stdout stays valid JSON:
 
 ```
@@ -260,7 +266,7 @@ Options:
   --package <package>                                                Package to update. Supports * as wildcard. Will update all unless specified.
   --exclude-package <exclude-package>                                Package to exclude. Supports * as wildcard. Merged with "excludePackages" from a .updatrrc file, if present.
   --output <Json|Text>                                               Format of the summary written to stdout. "text" (default) writes the human-readable, colored summary. "json" writes only machine-readable JSON to stdout - logs and any other diagnostic output are sent to stderr instead, so stdout can be safely piped to or parsed by another program. [default: Text]
-  --output-path <output-path>                                        Writes the summary to a file. If an existing directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown, ".txt" for plain text, or ".json" for machine-readable JSON.
+  --output-path <output-path>                                        Writes the summary to a file. If an existing directory is given, an "output.md" file is created there. If a file path is given, its extension decides the format: ".md" for markdown, ".txt" for plain text, ".json" for machine-readable JSON, or ".html" for a standalone HTML page.
   --title <title>                                                    Outputs title to path.
   --description <description>                                        Outputs description to path.
   --verbosity <Critical|Debug|Error|Information|None|Trace|Warning>  Log level. [default: Warning]
