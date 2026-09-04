@@ -65,7 +65,7 @@ public sealed record UpdatRConfig(
     [property: JsonPropertyName("packagePolicies")] PackagePolicyConfig[]? PackagePolicies = null,
     [property: JsonPropertyName("failOn")] string? FailOn = null,
     [property: JsonPropertyName("failOnIncomplete")] bool? FailOnIncomplete = null,
-    [property: JsonPropertyName("$schema")] string? Schema = null
+    [property: JsonPropertyName("$schema"), JsonPropertyOrder(-1)] string? Schema = null
 )
 {
     /// <summary>

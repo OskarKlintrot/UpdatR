@@ -161,6 +161,10 @@ public class UpdatRConfigTests
 
         // Assert
         Assert.Equal(Path.Combine(temp, UpdatRConfig.FileName), filePath);
+        Assert.StartsWith(
+            "{" + Environment.NewLine + "  \"$schema\": ",
+            File.ReadAllText(filePath)
+        );
 
         var config = UpdatRConfig.Load(temp);
 
