@@ -7,26 +7,54 @@
   "additionalProperties": false,
   "properties": {
     "$schema": {
+      "title": "JSON Schema",
       "description": "JSON Schema URI used by editors for completion and validation.",
       "type": "string",
       "format": "uri"
     },
     "excludePackages": {
+      "title": "Excluded packages",
+      "description": "Package ID patterns to never update. Supports * as a wildcard.",
+      "examples": [
+        ["Microsoft.CodeAnalysis.*"]
+      ],
       "$ref": "#/$defs/nonEmptyStringArray"
     },
     "allowedLicenses": {
+      "title": "Allowed licenses",
+      "description": "Only update to versions whose license expression contains one of these values. Packages without license metadata are always allowed.",
+      "examples": [
+        ["MIT", "Apache-2.0"]
+      ],
       "$ref": "#/$defs/nonEmptyStringArray"
     },
     "path": {
+      "title": "Default target path",
+      "description": "Relative path to a solution, project, or directory to update when no target is supplied on the command line. Resolved relative to this file.",
+      "examples": [
+        "src/MySolution.sln"
+      ],
       "$ref": "#/$defs/nonEmptyString"
     },
     "excludeFiles": {
+      "title": "Excluded files",
+      "description": "File path patterns to never update, relative to the resolved target. Supports * as a wildcard.",
+      "examples": [
+        ["tests/**/Resources/**"]
+      ],
       "$ref": "#/$defs/nonEmptyStringArray"
     },
     "alignWithTfm": {
+      "title": "Align with target framework",
+      "description": "Package ID patterns whose major version is capped at the project's target framework major version. Supports * as a wildcard.",
+      "examples": [
+        ["Microsoft.Extensions.*"]
+      ],
       "$ref": "#/$defs/nonEmptyStringArray"
     },
     "toolPackagePins": {
+      "title": "Tool package pins",
+      "description": "Rules that keep a .NET tool compatible with a package used by the affected project.",
       "type": "array",
       "items": {
         "type": "object",
@@ -34,15 +62,27 @@
         "required": ["tool", "package"],
         "properties": {
           "tool": {
+            "title": ".NET tool package ID",
+            "description": "Package ID of the .NET tool to constrain.",
+            "examples": [
+              "dotnet-ef"
+            ],
             "$ref": "#/$defs/nonEmptyString"
           },
           "package": {
+            "title": "Referenced package ID prefix",
+            "description": "Package ID prefix matched against package references in the affected project.",
+            "examples": [
+              "Microsoft.EntityFrameworkCore"
+            ],
             "$ref": "#/$defs/nonEmptyString"
           }
         }
       }
     },
     "packagePolicies": {
+      "title": "Package version policies",
+      "description": "Rules that cap matching packages at a fixed major version.",
       "type": "array",
       "items": {
         "type": "object",
@@ -50,9 +90,19 @@
         "required": ["package", "maxMajor"],
         "properties": {
           "package": {
+            "title": "Package ID pattern",
+            "description": "Package ID pattern to cap. Supports * as a wildcard.",
+            "examples": [
+              "Duende.IdentityServer*"
+            ],
             "$ref": "#/$defs/nonEmptyString"
           },
           "maxMajor": {
+            "title": "Maximum major version",
+            "description": "Highest major version UpdatR may install for this package.",
+            "examples": [
+              7
+            ],
             "type": "integer",
             "minimum": 0
           }
@@ -60,10 +110,15 @@
       }
     },
     "failOn": {
+      "title": "Failure severity",
+      "description": "Exit with code 2 when a finding at or above this severity is found.",
       "type": "string",
+      "default": "none",
       "enum": ["none", "outdated", "deprecated", "vulnerable"]
     },
     "failOnIncomplete": {
+      "title": "Fail on incomplete checks",
+      "description": "Exit with code 2 when a package source is unauthorized or a package cannot be resolved from any source.",
       "type": "boolean"
     }
   },

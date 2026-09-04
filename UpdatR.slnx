@@ -40,6 +40,7 @@
   </Folder>
   <Folder Name="/.Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="schemas/updatrrc.schema.json" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/UpdatR.E2eTests/UpdatR.E2eTests.csproj" />
