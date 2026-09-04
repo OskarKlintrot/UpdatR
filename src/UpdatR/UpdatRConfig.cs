@@ -51,6 +51,10 @@ namespace UpdatR;
 /// unauthorized package source, or couldn't resolve a package on any source. Overridden by
 /// <see cref="UpdateOptions.FailOnIncomplete"/> if given. Defaults to <see langword="false"/>.
 /// </param>
+/// <param name="Schema">
+/// Optional JSON Schema URI used by editors to provide completion and validation. It does not
+/// affect UpdatR's behavior.
+/// </param>
 public sealed record UpdatRConfig(
     [property: JsonPropertyName("excludePackages")] string[]? ExcludePackages,
     [property: JsonPropertyName("allowedLicenses")] string[]? AllowedLicenses,
@@ -60,13 +64,17 @@ public sealed record UpdatRConfig(
     [property: JsonPropertyName("toolPackagePins")] ToolPackagePinConfig[]? ToolPackagePins = null,
     [property: JsonPropertyName("packagePolicies")] PackagePolicyConfig[]? PackagePolicies = null,
     [property: JsonPropertyName("failOn")] string? FailOn = null,
-    [property: JsonPropertyName("failOnIncomplete")] bool? FailOnIncomplete = null
+    [property: JsonPropertyName("failOnIncomplete")] bool? FailOnIncomplete = null,
+    [property: JsonPropertyName("$schema")] string? Schema = null
 )
 {
     /// <summary>
     /// File name of the config file, <c>.updatrrc</c>.
     /// </summary>
     public const string FileName = ".updatrrc";
+
+    internal const string SchemaUrl =
+        "https://raw.githubusercontent.com/OskarKlintrot/UpdatR/main/schemas/updatrrc.schema.json";
 
     private static readonly string[] KnownProperties =
     [
@@ -79,6 +87,7 @@ public sealed record UpdatRConfig(
         "packagePolicies",
         "failOn",
         "failOnIncomplete",
+        "$schema",
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -204,6 +213,7 @@ public sealed record UpdatRConfig(
     /// </summary>
     private const string ExampleJson = """
         {
+          "$schema": "https://raw.githubusercontent.com/OskarKlintrot/UpdatR/main/schemas/updatrrc.schema.json",
           "excludePackages": [
             "Microsoft.CodeAnalysis.*"
           ],
@@ -268,7 +278,8 @@ public sealed record UpdatRConfig(
                     ToolPackagePins: [],
                     PackagePolicies: [],
                     FailOn: null,
-                    FailOnIncomplete: null
+                    FailOnIncomplete: null,
+                    Schema: SchemaUrl
                 ),
                 WriteJsonOptions
             );
@@ -306,7 +317,7 @@ public sealed record UpdatRConfig(
     /// trailing commas are allowed) containing a JSON object, that it doesn't contain unknown
     /// option, that <c>excludePackages</c> / <c>allowedLicenses</c> / <c>excludeFiles</c> /
     /// <c>alignWithTfm</c> - if present - are arrays of non-empty strings, and that
-    /// <c>path</c> - if present - is a non-empty string.
+    /// <c>path</c> and <c>$schema</c> - if present - are non-empty strings.
     /// </summary>
     /// <param name="json">The content of the <c>.updatrrc</c> file.</param>
     /// <param name="configDirectory">
@@ -356,12 +367,16 @@ public sealed record UpdatRConfig(
                     continue;
                 }
 
-                if (property.Name.Equals("path", StringComparison.OrdinalIgnoreCase))
+                if (
+                    property.Name.Equals("path", StringComparison.OrdinalIgnoreCase)
+                    || property.Name.Equals("$schema", StringComparison.OrdinalIgnoreCase)
+                )
                 {
                     ValidateString(property, errors);
 
                     if (
-                        configDirectory is not null
+                        property.Name.Equals("path", StringComparison.OrdinalIgnoreCase)
+                        && configDirectory is not null
                         && property.Value.ValueKind is JsonValueKind.String
                         && property.Value.GetString() is { Length: > 0 } path
                     )

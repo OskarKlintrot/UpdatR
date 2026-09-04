@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/OskarKlintrot/UpdatR/main/schemas/updatrrc.schema.json",
+  "title": "UpdatR configuration",
+  "description": "Configuration for the .updatrrc file.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "JSON Schema URI used by editors for completion and validation.",
+      "type": "string",
+      "format": "uri"
+    },
+    "excludePackages": {
+      "$ref": "#/$defs/nonEmptyStringArray"
+    },
+    "allowedLicenses": {
+      "$ref": "#/$defs/nonEmptyStringArray"
+    },
+    "path": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "excludeFiles": {
+      "$ref": "#/$defs/nonEmptyStringArray"
+    },
+    "alignWithTfm": {
+      "$ref": "#/$defs/nonEmptyStringArray"
+    },
+    "toolPackagePins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool", "package"],
+        "properties": {
+          "tool": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "package": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "packagePolicies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["package", "maxMajor"],
+        "properties": {
+          "package": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "maxMajor": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "failOn": {
+      "type": "string",
+      "enum": ["none", "outdated", "deprecated", "vulnerable"]
+    },
+    "failOnIncomplete": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    }
+  }
+}

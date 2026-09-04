@@ -165,6 +165,7 @@ public class UpdatRConfigTests
         var config = UpdatRConfig.Load(temp);
 
         Assert.NotNull(config);
+        Assert.Equal(UpdatRConfig.SchemaUrl, config.Schema);
         Assert.Empty(config.ExcludePackages ?? []);
         Assert.Empty(config.AllowedLicenses ?? []);
         Assert.Null(config.Path);
@@ -190,6 +191,7 @@ public class UpdatRConfigTests
         var config = UpdatRConfig.Load(temp);
 
         Assert.NotNull(config);
+        Assert.Equal(UpdatRConfig.SchemaUrl, config.Schema);
         Assert.Equal(["Microsoft.CodeAnalysis.*"], config.ExcludePackages ?? []);
         Assert.Equal(
             [
@@ -307,6 +309,53 @@ public class UpdatRConfigTests
         // Assert
         Assert.Single(errors);
         Assert.Contains("Unknown option 'unknownProperty'", errors[0]);
+    }
+
+    [Theory]
+    [InlineData("""{ "$schema": "https://example.com/schema.json" }""")]
+    [InlineData("""{ "$schema": null }""")]
+    public void ValidateReturnsNoErrorsForValidSchemaValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "$schema": "" }""")]
+    [InlineData("""{ "$schema": [] }""")]
+    public void ValidateReturnsErrorForInvalidSchemaValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
+
+    [Fact]
+    public void ValidateReturnsNoErrorForSchemaWithConfigDirectory()
+    {
+        // Arrange
+        var configDirectory = CreateTempDirectory();
+
+        try
+        {
+            // Act
+            var errors = UpdatRConfig.Validate(
+                """{ "$schema": "https://example.com/schema.json" }""",
+                configDirectory
+            );
+
+            // Assert
+            Assert.Empty(errors);
+        }
+        finally
+        {
+            Directory.Delete(configDirectory, recursive: true);
+        }
     }
 
     [Theory]

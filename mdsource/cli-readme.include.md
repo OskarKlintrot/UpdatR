@@ -91,6 +91,7 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/OskarKlintrot/UpdatR/main/schemas/updatrrc.schema.json",
   "excludePackages": ["Microsoft.*", "Newtonsoft.*"],
   "allowedLicenses": ["MIT", "Apache-2.0"],
   "path": "src/MySolution.sln",
@@ -106,6 +107,8 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
 All options are optional. `excludePackages`, `allowedLicenses`, `excludeFiles`, `alignWithTfm` and `packagePolicies` are merged with the corresponding command line option (or, for `packagePolicies`, the corresponding SDK option), if given. `path` is only used when no target path is given on the command line (i.e. it resolves to the current directory) - it's resolved relative to the directory the `.updatrrc` file is in, and lets you point `update` at, say, a solution file by default instead of recursively scanning every `*.csproj`, `dotnet-tools.json` and file-based app under the current directory. `excludeFiles` supports `*` as wildcard and is matched against each file's path relative to the resolved target - use it to permanently exclude files (e.g. test fixtures) that would otherwise be picked up.
 
 `//` line comments, `/* */` block comments and trailing commas are allowed in `.updatrrc`.
+The `$schema` entry enables completion and validation in editors that support JSON Schema; it is
+included by `update config init` and can be added to existing configuration files.
 
 `alignWithTfm` supports `*` as wildcard and is matched against package ids. Some packages (e.g. `Microsoft.Extensions.*`) release versions that multi-target several TFMs, including newer ones than your project targets - which means UpdatR would normally update to that newer major even though it's not actually required, leading to mismatched majors across a package family. Packages matching `alignWithTfm` are instead capped to the major version of the project's target framework (the lowest, for multi-targeted projects), as long as the currently installed version isn't already ahead of it. It also applies to `dotnet-tools.json`, aligned with the target framework(s) of the project(s) the tool manifest applies to - e.g. keeping `dotnet-ef` in step with `Microsoft.EntityFrameworkCore`.
 
@@ -146,6 +149,7 @@ Pass `--example` to instead create a populated, realistic starting point - exclu
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/OskarKlintrot/UpdatR/main/schemas/updatrrc.schema.json",
   "excludePackages": [
     "Microsoft.CodeAnalysis.*"
   ],
