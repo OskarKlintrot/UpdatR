@@ -10,12 +10,25 @@ namespace UpdatR.Domain;
 
 internal sealed partial class Csproj : PackageContainer
 {
+    /// <summary>
+    /// File extensions recognized as MSBuild "project files" that use the same SDK-style
+    /// <c>&lt;PackageReference&gt;</c> item shape - <c>.csproj</c>, <c>.fsproj</c>, and
+    /// <c>.vbproj</c>. UpdatR's project handling has no C#-specific logic, so all three share this
+    /// one implementation.
+    /// </summary>
+    public static readonly IReadOnlyCollection<string> SupportedExtensions =
+    [
+        ".csproj",
+        ".fsproj",
+        ".vbproj",
+    ];
+
     private readonly FileInfo _path;
     private readonly XmlDocument _doc;
     private IReadOnlyList<NuGetFramework>? _targetFrameworks;
-    private NuGetVersion? _entityFrameworkVersion;
-    private bool _entityFrameworkVersionLoaded;
     private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? _candidateTfmsByKey;
+    private Dictionary<string, NuGetVersion>? _packages;
+    private IReadOnlyDictionary<string, IReadOnlyList<PackageItemSource>>? _injectedTfmSources;
 
     private Csproj(FileInfo path, XmlDocument doc)
     {
@@ -41,12 +54,40 @@ internal sealed partial class Csproj : PackageContainer
     public IReadOnlyList<NuGetFramework> TargetFrameworks =>
         _targetFrameworks ??= GetTargetFrameworks();
 
-    public NuGetVersion? EntityFrameworkVersion =>
-        _entityFrameworkVersionLoaded
-            ? _entityFrameworkVersion
-            : _entityFrameworkVersion ??= GetEntityFrameworkVersion();
+    /// <summary>
+    /// The version of the first referenced package whose id starts with
+    /// <paramref name="packageIdPrefix"/> (case-insensitive), e.g. <c>Microsoft.EntityFrameworkCore</c>
+    /// - used by <see cref="ToolPackagePin"/> to keep a dotnet tool (e.g. <c>dotnet-ef</c>) from
+    /// moving ahead of the package version(s) it drives. <see langword="null"/> if no such
+    /// package is referenced. Always reflects the current, possibly already-updated,
+    /// <see cref="Packages"/>.
+    /// </summary>
+    public NuGetVersion? GetPinnedVersion(string packageIdPrefix)
+    {
+        foreach (var (packageId, version) in Packages)
+        {
+            if (packageId.StartsWith(packageIdPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return version;
+            }
+        }
 
-    public IDictionary<string, NuGetVersion> Packages => GetPackages();
+        return null;
+    }
+
+    public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();
+
+    /// <summary>
+    /// Lets <see cref="RootDir"/> pass in the per-TFM MSBuild evaluation it already performed for
+    /// this project while discovering shared props/targets files, so <see
+    /// cref="GetCandidateTfmsByKey"/> doesn't need to run the same (expensive) evaluation again.
+    /// Only relevant for a genuinely multi-targeted project; harmless to call otherwise.
+    /// </summary>
+    internal void SetTfmSources(IReadOnlyDictionary<string, IReadOnlyList<PackageItemSource>> byTfm)
+    {
+        _injectedTfmSources = byTfm;
+        _candidateTfmsByKey = null;
+    }
 
     public static Csproj Create(string path)
     {
@@ -65,7 +106,7 @@ internal sealed partial class Csproj : PackageContainer
             throw new ArgumentException($"'{nameof(path)}' does not exist.", nameof(path));
         }
 
-        if (!file.Extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase))
+        if (!SupportedExtensions.Contains(file.Extension, StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"'{nameof(path)}' does not have the correct file extension.",
@@ -80,26 +121,26 @@ internal sealed partial class Csproj : PackageContainer
         return new Csproj(file, doc);
     }
 
-    public ProjectWithPackages? UpdatePackages(
+    public Task<ProjectWithPackages?> UpdatePackagesAsync(
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
         bool usePrerelease,
         ILogger logger,
         NuGetFramework? tfm = null,
         IReadOnlyCollection<string>? allowedLicenses = null,
-        IReadOnlyCollection<string>? alignWithTfm = null
+        IReadOnlyCollection<string>? alignWithTfm = null,
+        IReadOnlyCollection<PackageVersionPolicy>? packagePolicies = null
     ) =>
         UpdatePackagesCoreAsync(
-                packages,
-                dryRun,
-                usePrerelease,
-                logger,
-                tfm,
-                allowedLicenses,
-                alignWithTfm
-            )
-            .GetAwaiter()
-            .GetResult();
+            packages,
+            dryRun,
+            usePrerelease,
+            logger,
+            tfm,
+            allowedLicenses,
+            alignWithTfm,
+            packagePolicies
+        );
 
     protected override IReadOnlyCollection<NuGetFramework> ResolveTfms(
         NuGetFramework? tfmOverride
@@ -157,6 +198,11 @@ internal sealed partial class Csproj : PackageContainer
         var csprojCandidate = (CsprojCandidate)candidate;
 
         csprojCandidate.Element.SetAttribute(csprojCandidate.AttributeName, newVersionString);
+
+        // The XML was just mutated - the cached Packages snapshot (read by
+        // UpdateEntityFrameworkVersion via OnChangesApplied, among others) must be recomputed
+        // from the updated document rather than keep serving pre-update data.
+        _packages = null;
     }
 
     protected override Task PersistAsync(bool dryRun)
@@ -168,8 +214,6 @@ internal sealed partial class Csproj : PackageContainer
 
         return Task.CompletedTask;
     }
-
-    protected override void OnChangesApplied() => UpdateEntityFrameworkVersion();
 
     protected override void OnUnparseableVersion(Candidate candidate, ILogger logger) =>
         LogParseError(logger, candidate.VersionString, ReferenceKind, candidate.SiteText);
@@ -203,10 +247,17 @@ internal sealed partial class Csproj : PackageContainer
         {
             try
             {
-                var byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
-                    Path,
-                    [.. TargetFrameworks.Select(x => x.GetShortFolderName())]
-                );
+                // RootDir already runs this exact per-framework evaluation while discovering
+                // shared props/targets files; reuse its result instead of evaluating the project
+                // a second time when available (e.g. when this Csproj was created standalone by
+                // a caller that never went through RootDir.Create, fall back to evaluating it
+                // ourselves).
+                var byTfm =
+                    _injectedTfmSources
+                    ?? MsBuildProjectInspector.GetPackageItemSourcesByTfm(
+                        Path,
+                        [.. TargetFrameworks.Select(x => x.GetShortFolderName())]
+                    );
 
                 foreach (var (tfmString, sources) in byTfm)
                 {
@@ -215,7 +266,7 @@ internal sealed partial class Csproj : PackageContainer
                     foreach (
                         var source in sources.Where(x =>
                             x.Version is not null
-                            && string.Equals(x.SourceFile, Path, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(x.SourceFile, Path, PathComparer.Comparison)
                         )
                     )
                     {
@@ -258,44 +309,6 @@ internal sealed partial class Csproj : PackageContainer
         return targetFrameworks is null
             ? [NuGetFramework.AnyFramework]
             : targetFrameworks.Select(NuGetFramework.Parse).ToArray();
-    }
-
-    private void UpdateEntityFrameworkVersion()
-    {
-        foreach (var (packageId, version) in Packages)
-        {
-            if (
-                packageId.StartsWith(
-                    "Microsoft.EntityFrameworkCore",
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
-            {
-                _entityFrameworkVersion = version;
-            }
-        }
-    }
-
-    private NuGetVersion? GetEntityFrameworkVersion()
-    {
-        foreach (var (packageId, version) in Packages)
-        {
-            if (
-                packageId.StartsWith(
-                    "Microsoft.EntityFrameworkCore",
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
-            {
-                _entityFrameworkVersionLoaded = true;
-
-                return version;
-            }
-        }
-
-        _entityFrameworkVersionLoaded = true;
-
-        return null;
     }
 
     private Dictionary<string, NuGetVersion> GetPackages() =>

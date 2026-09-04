@@ -6,12 +6,12 @@
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
-          Item3: src\Dummy.App.csproj
+          Item3: src/Dummy.App.csproj
         },
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
-          Item3: tools\Build.cs
+          Item3: tools/Build.cs
         }
       ]
     },
@@ -21,7 +21,7 @@
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
-          Item3: tools\.config\dotnet-tools.json
+          Item3: tools/.config/dotnet-tools.json
         }
       ]
     }

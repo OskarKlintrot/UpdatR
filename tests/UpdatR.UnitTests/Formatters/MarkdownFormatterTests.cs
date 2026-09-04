@@ -311,6 +311,36 @@ public class MarkdownFormatterTests
 
     [Theory]
     [MemberData(nameof(GetMethods))]
+    public Task SkippedUpdatePackage(string method)
+    {
+        // Arrange
+        var methodInfo = typeof(MarkdownFormatter).GetMethod(
+            method,
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public
+        )!;
+        var root = Path.GetTempPath();
+
+        var project = new ProjectBuilder(root)
+            .WithSkippedUpdatePackage(
+                "Skipped.Package",
+                "2.0.0",
+                SkippedUpdateReason.IncompatibleTargetFramework
+            )
+            .Build();
+
+        var result = new ResultBuilder(root).WithProject(project).Build();
+
+        var summary = Summary.Create(result);
+
+        // Act
+        var md = methodInfo.Invoke(null, [summary]);
+
+        // Assert
+        return Verify(md).UseParameters(method);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetMethods))]
     public Task UnauthorizedSource(string method)
     {
         // Arrange
@@ -352,6 +382,11 @@ public class MarkdownFormatterTests
                 "Vulnerable.Package",
                 "1.2.3",
                 new PackageVulnerabilityMetadata(new Uri("https://google.com"), 1)
+            )
+            .WithSkippedUpdatePackage(
+                "Skipped.Package",
+                "2.0.0",
+                SkippedUpdateReason.AlignedWithTfm
             )
             .Build();
 
@@ -441,6 +476,17 @@ internal sealed class ProjectBuilder
     public ProjectBuilder WithUnknownPackages(string packageId)
     {
         _project.AddUnknownPackage(packageId);
+
+        return this;
+    }
+
+    public ProjectBuilder WithSkippedUpdatePackage(
+        string packageId,
+        string version,
+        SkippedUpdateReason reason
+    )
+    {
+        _project.AddSkippedUpdatePackage(new(packageId, NuGetVersion.Parse(version), reason));
 
         return this;
     }

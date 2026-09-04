@@ -25,6 +25,7 @@ internal sealed partial class PropsFile : PackageContainer
         string,
         IReadOnlyCollection<NuGetFramework>
     > _candidateTfmsByKey;
+    private Dictionary<string, NuGetVersion>? _packages;
 
     private PropsFile(
         FileInfo path,
@@ -53,7 +54,7 @@ internal sealed partial class PropsFile : PackageContainer
     /// </summary>
     public IReadOnlyCollection<NuGetFramework> TargetFrameworks { get; }
 
-    public IDictionary<string, NuGetVersion> Packages => GetPackages();
+    public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();
 
     /// <summary>
     /// Creates a <see cref="PropsFile"/> for <paramref name="path"/>.
@@ -107,26 +108,26 @@ internal sealed partial class PropsFile : PackageContainer
     /// updated to a version compatible with every framework in <see cref="TargetFrameworks"/>,
     /// i.e. the update is skipped if any importing project can't use a newer version.
     /// </param>
-    public ProjectWithPackages? UpdatePackages(
+    public Task<ProjectWithPackages?> UpdatePackagesAsync(
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
         bool usePrerelease,
         ILogger logger,
         NuGetFramework? tfm = null,
         IReadOnlyCollection<string>? allowedLicenses = null,
-        IReadOnlyCollection<string>? alignWithTfm = null
+        IReadOnlyCollection<string>? alignWithTfm = null,
+        IReadOnlyCollection<PackageVersionPolicy>? packagePolicies = null
     ) =>
         UpdatePackagesCoreAsync(
-                packages,
-                dryRun,
-                usePrerelease,
-                logger,
-                tfm,
-                allowedLicenses,
-                alignWithTfm
-            )
-            .GetAwaiter()
-            .GetResult();
+            packages,
+            dryRun,
+            usePrerelease,
+            logger,
+            tfm,
+            allowedLicenses,
+            alignWithTfm,
+            packagePolicies
+        );
 
     protected override IReadOnlyCollection<NuGetFramework> ResolveTfms(
         NuGetFramework? tfmOverride
@@ -170,8 +171,12 @@ internal sealed partial class PropsFile : PackageContainer
         }
     }
 
-    protected override void ApplyVersionUpdate(Candidate candidate, string newVersionString) =>
+    protected override void ApplyVersionUpdate(Candidate candidate, string newVersionString)
+    {
         ((PropsFileCandidate)candidate).Element.SetAttribute("Version", newVersionString);
+
+        _packages = null;
+    }
 
     protected override Task PersistAsync(bool dryRun)
     {

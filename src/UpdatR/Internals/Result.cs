@@ -1,4 +1,5 @@
 ﻿using NuGet.Versioning;
+using UpdatR.Domain.Utils;
 
 namespace UpdatR.Internals;
 
@@ -10,8 +11,7 @@ internal sealed class Result
     );
     private readonly string _rootPath;
 
-    private Dictionary<string, ProjectWithPackages> _projects { get; } =
-        new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ProjectWithPackages> _projects { get; } = new(PathComparer.Comparer);
 
     internal Result(string rootPath)
     {
@@ -38,10 +38,14 @@ internal sealed class Result
 
     internal bool TryAddProject(ProjectWithPackages project)
     {
+        // Reported paths are normalized to '/' regardless of OS so that summaries/markdown output
+        // is deterministic across platforms - previously this always hardcoded '\', which meant
+        // Linux/macOS runs incorrectly reported Windows-style paths.
         project = project with
         {
             Path = Path.GetRelativePath(_rootPath, project.Path)
-                .Replace(Path.DirectorySeparatorChar, '\\'),
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/'),
         };
 
         foreach (var unknown in project.UnknownPackages)
@@ -97,6 +101,7 @@ internal sealed record ProjectWithPackages
     private readonly List<VulnerablePackage> _vulnerablePackages = [];
     private readonly List<LicenseMismatchPackage> _licenseMismatchPackages = [];
     private readonly List<UnsupportedRangePackage> _unsupportedRangePackages = [];
+    private readonly List<SkippedUpdatePackage> _skippedUpdatePackages = [];
 
     public string Path { get; init; }
     public IEnumerable<string> UnknownPackages => _unknownPackages;
@@ -106,6 +111,7 @@ internal sealed record ProjectWithPackages
     public IEnumerable<LicenseMismatchPackage> LicenseMismatchPackages => _licenseMismatchPackages;
     public IEnumerable<UnsupportedRangePackage> UnsupportedRangePackages =>
         _unsupportedRangePackages;
+    public IEnumerable<SkippedUpdatePackage> SkippedUpdatePackages => _skippedUpdatePackages;
 
     public ProjectWithPackages(string path)
     {
@@ -142,12 +148,18 @@ internal sealed record ProjectWithPackages
         _unsupportedRangePackages.Add(package);
     }
 
+    public void AddSkippedUpdatePackage(SkippedUpdatePackage package)
+    {
+        _skippedUpdatePackages.Add(package);
+    }
+
     public bool AnyPackages() =>
         _updatedPackages.Count > 0
         || _deprecatedPackages.Count > 0
         || _vulnerablePackages.Count > 0
         || _licenseMismatchPackages.Count > 0
-        || _unsupportedRangePackages.Count > 0;
+        || _unsupportedRangePackages.Count > 0
+        || _skippedUpdatePackages.Count > 0;
 }
 
 internal sealed class UpdatedPackage(string packageId, NuGetVersion from, NuGetVersion to)
@@ -207,6 +219,19 @@ internal sealed class UnsupportedRangePackage(string packageId, string versionRa
     /// project, e.g. "[1.0,2.0)" or "1.0.*-*".
     /// </summary>
     public string VersionRange { get; } = versionRange;
+}
+
+internal sealed class SkippedUpdatePackage(
+    string packageId,
+    NuGetVersion version,
+    SkippedUpdateReason reason
+)
+{
+    public string PackageId { get; } = packageId;
+
+    /// <summary>The newer version that exists but wasn't applied.</summary>
+    public NuGetVersion Version { get; } = version;
+    public SkippedUpdateReason Reason { get; } = reason;
 }
 
 internal record PackageMetadata(

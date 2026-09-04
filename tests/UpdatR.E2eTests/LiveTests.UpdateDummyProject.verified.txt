@@ -17,7 +17,7 @@ Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-hxrm-9w7p-39cc
 Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-f8qx-mjcq-wfgx
 
 #### Used in:
-- Dummy.App\Dummy.App.csproj
+- Dummy.App/Dummy.App.csproj
 
 
 ## Deprecated packages
@@ -31,7 +31,7 @@ Package used in:
 
 | Project | Version |
 |:--------|:--------|
-| Dummy.App\Dummy.App.csproj | 2.2.8 |
+| Dummy.App/Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
 > Please note, this package is obsolete and will no longer be maintained after 9/30/2026. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
@@ -46,8 +46,8 @@ Package used in:
 
 | Project | Version |
 |:--------|:--------|
-| Dummy.App\Dummy.App.csproj | 5.2.0 |
-| Dummy.App\Dummy.App.csproj | 5.2.0 |
+| Dummy.App/Dummy.App.csproj | 5.2.0 |
+| Dummy.App/Dummy.App.csproj | 5.2.0 |
 
 
 ## Updated packages
@@ -55,12 +55,12 @@ Package used in:
 ### Deprecated.Dummy
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Dummy.App\Dummy.App.csproj | 0.0.1 | 0.0.2 |
+| Dummy.App/Dummy.App.csproj | 0.0.1 | 0.0.2 |
 
 ### Microsoft.AspNetCore.App
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Dummy.App\Dummy.App.csproj | 2.1.3 | 2.2.8 |
+| Dummy.App/Dummy.App.csproj | 2.1.3 | 2.2.8 |
 
 
 ## Unauthorized sources
@@ -88,7 +88,7 @@ Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-hxrm-9w7p-39cc
 Version 2.1.3 with severity 2: https://github.com/advisories/GHSA-f8qx-mjcq-wfgx
 
 #### Used in:
-- Dummy.App\Dummy.App.csproj
+- Dummy.App/Dummy.App.csproj
 
 
 ## Deprecated packages
@@ -102,7 +102,7 @@ Package used in:
 
 | Project | Version |
 |:--------|:--------|
-| Dummy.App\Dummy.App.csproj | 2.2.8 |
+| Dummy.App/Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
 > Please note, this package is obsolete and will no longer be maintained after 9/30/2026. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
@@ -117,8 +117,8 @@ Package used in:
 
 | Project | Version |
 |:--------|:--------|
-| Dummy.App\Dummy.App.csproj | 5.2.0 |
-| Dummy.App\Dummy.App.csproj | 5.2.0 |
+| Dummy.App/Dummy.App.csproj | 5.2.0 |
+| Dummy.App/Dummy.App.csproj | 5.2.0 |
 
 
 ## Updated packages
@@ -126,12 +126,12 @@ Package used in:
 ### Deprecated.Dummy
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Dummy.App\Dummy.App.csproj | 0.0.1 | 0.0.2 |
+| Dummy.App/Dummy.App.csproj | 0.0.1 | 0.0.2 |
 
 ### Microsoft.AspNetCore.App
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Dummy.App\Dummy.App.csproj | 2.1.3 | 2.2.8 |
+| Dummy.App/Dummy.App.csproj | 2.1.3 | 2.2.8 |
 
 
 ## Unauthorized sources

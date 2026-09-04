@@ -1,4 +1,4 @@
-# 📦 Update Updated.Package
+﻿# 📦 Update Updated.Package
 
 1 package(s) were updated in 2 projects:
 
@@ -9,7 +9,7 @@
 ### Updated.Package
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Bar\Bar.csproj | 1.0.0 | 2.0.0 |
-| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
+| Bar/Bar.csproj | 1.0.0 | 2.0.0 |
+| Foo/Foo.csproj | 1.0.0 | 2.0.0 |
 
 

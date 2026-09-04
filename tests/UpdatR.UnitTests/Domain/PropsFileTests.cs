@@ -24,7 +24,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesUpdatesPackageReference()
+    public async Task UpdatePackagesUpdatesPackageReference()
     {
         // Arrange
         File.WriteAllText(
@@ -42,7 +42,7 @@ public class PropsFileTests : IDisposable
         var packages = CreatePackages("Some.Package", "1.0.0", "2.0.0");
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             packages,
             dryRun: false,
             usePrerelease: false,
@@ -60,7 +60,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesUpdatesPackageReferenceUsingUpdateAttribute()
+    public async Task UpdatePackagesUpdatesPackageReferenceUsingUpdateAttribute()
     {
         // Arrange - PackageReference using Update (instead of Include) only overrides the
         // version of a package already referenced elsewhere, e.g. via Directory.Build.props.
@@ -80,7 +80,7 @@ public class PropsFileTests : IDisposable
         var logger = new FakeLogger();
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             packages,
             dryRun: false,
             usePrerelease: false,
@@ -99,7 +99,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesUpdatesPackageVersionForCentralPackageManagement()
+    public async Task UpdatePackagesUpdatesPackageVersionForCentralPackageManagement()
     {
         // Arrange
         File.WriteAllText(
@@ -117,7 +117,7 @@ public class PropsFileTests : IDisposable
         var packages = CreatePackages("Some.Package", "1.0.0", "2.0.0");
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             packages,
             dryRun: false,
             usePrerelease: false,
@@ -137,7 +137,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesUpdatesGlobalPackageReference()
+    public async Task UpdatePackagesUpdatesGlobalPackageReference()
     {
         // Arrange - GlobalPackageReference is typically used for analyzers/source generators
         // that should apply to every project, and unlike PackageVersion it carries its own
@@ -157,7 +157,7 @@ public class PropsFileTests : IDisposable
         var packages = CreatePackages("Some.Analyzer", "1.0.0", "2.0.0");
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             packages,
             dryRun: false,
             usePrerelease: false,
@@ -178,7 +178,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesDoesNotSaveFileWhenDryRun()
+    public async Task UpdatePackagesDoesNotSaveFileWhenDryRun()
     {
         // Arrange
         var original = """
@@ -195,7 +195,7 @@ public class PropsFileTests : IDisposable
         var packages = CreatePackages("Some.Package", "1.0.0", "2.0.0");
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             packages,
             dryRun: true,
             usePrerelease: false,
@@ -209,7 +209,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesSkipsPackageReferenceWithoutVersionAttributeWithoutWarning()
+    public async Task UpdatePackagesSkipsPackageReferenceWithoutVersionAttributeWithoutWarning()
     {
         // Arrange
         File.WriteAllText(
@@ -229,7 +229,7 @@ public class PropsFileTests : IDisposable
         var logger = new FakeLogger();
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?>(),
             dryRun: true,
             usePrerelease: false,
@@ -242,7 +242,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesLogsPackageReferenceXmlForInvalidVersion()
+    public async Task UpdatePackagesLogsPackageReferenceXmlForInvalidVersion()
     {
         // Arrange
         File.WriteAllText(
@@ -260,7 +260,7 @@ public class PropsFileTests : IDisposable
         var logger = new FakeLogger();
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?>(),
             dryRun: true,
             usePrerelease: false,
@@ -280,7 +280,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesSkipsFloatingVersionWithoutWarningWhenAlreadyLatest()
+    public async Task UpdatePackagesSkipsFloatingVersionWithoutWarningWhenAlreadyLatest()
     {
         // Arrange - a floating version like "4.8.*" isn't a NuGetVersion, but NuGet already
         // resolves it to the latest matching version on restore. If nothing newer than that is
@@ -305,7 +305,7 @@ public class PropsFileTests : IDisposable
         );
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,
@@ -327,7 +327,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesReportsDeprecationForFloatingVersionWithoutBumpingIt()
+    public async Task UpdatePackagesReportsDeprecationForFloatingVersionWithoutBumpingIt()
     {
         // Arrange - 1.5.0 is both deprecated and the highest version matching "1.*" (no newer
         // version at all exists), so nothing should be rewritten, but the deprecation should
@@ -360,7 +360,7 @@ public class PropsFileTests : IDisposable
         );
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,
@@ -379,7 +379,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesWarnsAndReportsFixedVersionRangeThatCannotBeRewritten()
+    public async Task UpdatePackagesWarnsAndReportsFixedVersionRangeThatCannotBeRewritten()
     {
         // Arrange - "[1.0,2.0)" has no floating segment, so UpdatR doesn't know how to safely
         // rewrite it even though a newer, non-matching version (2.5.0) is available. This should
@@ -407,7 +407,7 @@ public class PropsFileTests : IDisposable
         );
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,
@@ -436,7 +436,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesTracksUnknownPackage()
+    public async Task UpdatePackagesTracksUnknownPackage()
     {
         // Arrange
         File.WriteAllText(
@@ -454,7 +454,7 @@ public class PropsFileTests : IDisposable
         var logger = new FakeLogger();
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?>(),
             dryRun: true,
             usePrerelease: false,
@@ -469,7 +469,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesOnlyUpdatesToVersionCompatibleWithAllContributingTargetFrameworks()
+    public async Task UpdatePackagesOnlyUpdatesToVersionCompatibleWithAllContributingTargetFrameworks()
     {
         // Arrange - net6.0 can only go to 1.5.0 (2.0.0 only supports net8.0), so the
         // conservative/common update across both frameworks is 1.5.0, not 2.0.0.
@@ -514,7 +514,7 @@ public class PropsFileTests : IDisposable
         );
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,
@@ -528,7 +528,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesSkipsUpdateWhenAnyContributingTargetFrameworkHasNoNewerVersion()
+    public async Task UpdatePackagesSkipsUpdateWhenAnyContributingTargetFrameworkHasNoNewerVersion()
     {
         // Arrange - version 2.0.0 only targets net8.0, so the net472 project (a different
         // framework family entirely) can't use it and stays on 1.0.0. Since this file is
@@ -569,7 +569,7 @@ public class PropsFileTests : IDisposable
         );
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,
@@ -577,7 +577,11 @@ public class PropsFileTests : IDisposable
         );
 
         // Assert
-        Assert.Null(result);
+        Assert.NotNull(result);
+        var skipped = Assert.Single(result.SkippedUpdatePackages);
+        Assert.Equal("Some.Package", skipped.PackageId);
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), skipped.Version);
+        Assert.Equal(SkippedUpdateReason.IncompatibleTargetFramework, skipped.Reason);
         Assert.Equal(
             "1.0.0",
             NuGetVersion.Parse(propsFile.Packages["Some.Package"].ToString()).ToString()
@@ -586,7 +590,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesLogsLicenseMismatchForInstalledVersion()
+    public async Task UpdatePackagesLogsLicenseMismatchForInstalledVersion()
     {
         // Arrange
         File.WriteAllText(
@@ -617,7 +621,7 @@ public class PropsFileTests : IDisposable
         var logger = new FakeLogger();
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,
@@ -637,7 +641,7 @@ public class PropsFileTests : IDisposable
     }
 
     [Fact]
-    public void UpdatePackagesLogsLicenseMismatchForSkippedUpdateSharedAcrossTfms()
+    public async Task UpdatePackagesLogsLicenseMismatchForSkippedUpdateSharedAcrossTfms()
     {
         // Arrange - shared by both net6.0 and net8.0. Version 2.0.0 is compatible with both
         // frameworks, but its license isn't allowed, so the update is skipped and reported.
@@ -679,7 +683,7 @@ public class PropsFileTests : IDisposable
         var logger = new FakeLogger();
 
         // Act
-        var result = propsFile.UpdatePackages(
+        var result = await propsFile.UpdatePackagesAsync(
             new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
             dryRun: true,
             usePrerelease: false,

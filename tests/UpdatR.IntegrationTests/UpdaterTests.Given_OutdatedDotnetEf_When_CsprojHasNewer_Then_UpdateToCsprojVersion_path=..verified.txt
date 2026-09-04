@@ -16,7 +16,7 @@
         {
           Item1: 5.0.5,
           Item2: 5.0.16,
-          Item3: .config\dotnet-tools.json
+          Item3: .config/dotnet-tools.json
         }
       ]
     }

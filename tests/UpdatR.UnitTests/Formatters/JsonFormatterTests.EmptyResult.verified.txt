@@ -1,0 +1,15 @@
+﻿{
+  "schemaVersion": 1,
+  "shouldFail": false,
+  "failOn": "none",
+  "failOnIncomplete": false,
+  "updatedPackagesCount": 0,
+  "updatedPackages": [],
+  "deprecatedPackages": [],
+  "vulnerablePackages": [],
+  "licenseMismatchPackages": [],
+  "unsupportedRangePackages": [],
+  "skippedUpdatePackages": [],
+  "unknownPackages": {},
+  "unauthorizedSources": []
+}

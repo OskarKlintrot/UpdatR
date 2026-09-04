@@ -1,4 +1,4 @@
-using BuildingBlocks;
+﻿using BuildingBlocks;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Credentials;
@@ -17,74 +17,108 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         logger ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<Updater>();
 
     /// <summary>
+    /// Upper bound on the number of concurrent NuGet metadata requests issued against a single
+    /// source, so a large solution doesn't fire off hundreds of simultaneous requests against the
+    /// same feed.
+    /// </summary>
+    private const int MaxConcurrentNuGetRequests = 8;
+
+    /// <summary>
     /// Update all packages in solution or project(s).
     /// </summary>
     /// <param name="path">Path to solution or project(s). Leave out if solution or project(s) is in current folder or if project(s) is in subfolders.</param>
-    /// <param name="excludePackages">Packages to exlude. Supports * as wildcard.</param>
-    /// <param name="packages">Packages to update. Supports * as wildcard. If <see langword="null"/> or empty then all packages, except <paramref name="excludePackages"/>, will be updated.</param>
-    /// <param name="dryRun">Do not save any changes.</param>
-    /// <param name="prerelease">Allow prerelease packages to be installed.</param>
-    /// <param name="interactive">Interaction with user is possible.</param>
-    /// <param name="targetFrameworkMoniker">Lowest Target Framework Moniker to support.</param>
-    /// <param name="allowedLicenses">
-    /// If specified, a package is only updated to a version whose license expression contains one
-    /// of these values (case-insensitive substring match). A warning is logged - and included in
-    /// the <see cref="Summary"/> - both when the currently installed version's license isn't
-    /// allowed, and when a newer version exists but was skipped because its license isn't
-    /// allowed. Packages without any license metadata are always allowed. Leave out or empty to
-    /// disable license checking.
+    /// <param name="options">
+    /// Options controlling what to update and how. Leave out to update every package to the
+    /// latest stable version compatible with each project's target framework(s).
     /// </param>
-    /// <param name="excludeFiles">
-    /// Csproj-, dotnet-tools.json-, props/targets- and file-based app files to exclude from being
-    /// processed altogether, matched against each file's path relative to the resolved
-    /// <paramref name="path"/>. Supports * as wildcard.
-    /// </param>
-    /// <param name="alignWithTfm">
-    /// Packages to keep aligned with a project's target framework's major version, instead of
-    /// updating to a newer version whose major just happens to also be compatible (e.g. a package
-    /// that multi-targets both <c>net9.0</c> and <c>net10.0</c> in the same, higher-major,
-    /// release). Supports * as wildcard. Only applies to modern (<c>net5.0</c>+) target
-    /// frameworks, and only if the currently installed version's major isn't already ahead of the
-    /// target framework's - if it is, updates are left unrestricted. Also applies to
-    /// <c>dotnet-tools.json</c> entries, aligned with the target framework(s) of the csproj(s)
-    /// the manifest applies to (e.g. keeping <c>dotnet-ef</c> in step with
-    /// <c>Microsoft.EntityFrameworkCore</c>).
+    /// <param name="cancellationToken">
+    /// Propagated to every NuGet metadata request and to solution/project file parsing. Does not
+    /// interrupt a project's changes from being persisted to disk once an update has already
+    /// been decided upon, so a cancelled run cannot leave a file half-written.
     /// </param>
     /// <remarks>
     /// If a <c>.updatrrc</c> JSON file is found - first next to <paramref name="path"/>, then in
     /// the current working directory - its <c>excludePackages</c>, <c>allowedLicenses</c>,
-    /// <c>excludeFiles</c> and <c>alignWithTfm</c> values are merged (union) with
-    /// <paramref name="excludePackages"/>, <paramref name="allowedLicenses"/>,
-    /// <paramref name="excludeFiles"/> and <paramref name="alignWithTfm"/> respectively. If
-    /// <paramref name="path"/> is left out (i.e. it resolves to the current directory) and the
-    /// config file has a <c>path</c>, that's used as the target path instead of the
-    /// current directory.
+    /// <c>excludeFiles</c>, <c>alignWithTfm</c>, <c>toolPackagePins</c> and
+    /// <c>packagePolicies</c> values are merged with <see cref="UpdateOptions.ExcludePackages"/>,
+    /// <see cref="UpdateOptions.AllowedLicenses"/>, <see cref="UpdateOptions.ExcludeFiles"/>,
+    /// <see cref="UpdateOptions.AlignWithTfm"/>, <see cref="UpdateOptions.ToolPackagePins"/> and
+    /// <see cref="UpdateOptions.PackagePolicies"/> respectively - a union for the first four,
+    /// per-tool override (config, then caller-supplied entries win over the built-in default) for
+    /// <c>toolPackagePins</c>, and a concatenation (caller-supplied entries checked first) for
+    /// <c>packagePolicies</c>. Its <c>failOn</c> and <c>failOnIncomplete</c> are used only if
+    /// <see cref="UpdateOptions.FailOn"/> and <see cref="UpdateOptions.FailOnIncomplete"/> aren't
+    /// given. If <paramref name="path"/> is left out (i.e. it resolves to the
+    /// current directory) and the config file has a <c>path</c>, that's used as the target path
+    /// instead of the current directory.
     /// </remarks>
     /// <returns><see cref="Summary"/></returns>
-    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="InvalidUpdateTargetException"></exception>
     public async Task<Summary> UpdateAsync(
         string? path = null,
-        string[]? excludePackages = null,
-        string[]? packages = null,
-        bool dryRun = false,
-        bool prerelease = false,
-        bool interactive = false,
-        string? targetFrameworkMoniker = null,
-        string[]? allowedLicenses = null,
-        string[]? excludeFiles = null,
-        string[]? alignWithTfm = null
+        UpdateOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
-        var tfm = ParseTFM(targetFrameworkMoniker);
+        options ??= new UpdateOptions();
+
+        var tfm = ParseTFM(options.TargetFrameworkMoniker);
 
         path ??= Directory.GetCurrentDirectory();
 
         var updatRConfig = UpdatRConfig.Load(path, out var configDirectory);
 
-        excludePackages = UpdatRConfig.Merge(excludePackages, updatRConfig?.ExcludePackages);
-        allowedLicenses = UpdatRConfig.Merge(allowedLicenses, updatRConfig?.AllowedLicenses);
-        excludeFiles = UpdatRConfig.Merge(excludeFiles, updatRConfig?.ExcludeFiles);
-        alignWithTfm = UpdatRConfig.Merge(alignWithTfm, updatRConfig?.AlignWithTfm);
+        var excludePackages = UpdatRConfig.Merge(
+            options.ExcludePackages,
+            updatRConfig?.ExcludePackages
+        );
+        var allowedLicenses = UpdatRConfig.Merge(
+            options.AllowedLicenses,
+            updatRConfig?.AllowedLicenses
+        );
+        var excludeFiles = UpdatRConfig.Merge(options.ExcludeFiles, updatRConfig?.ExcludeFiles);
+        var alignWithTfm = UpdatRConfig.Merge(options.AlignWithTfm, updatRConfig?.AlignWithTfm);
+        var failOn =
+            options.FailOn ?? UpdatRConfig.ParseFailOn(updatRConfig?.FailOn) ?? FailOn.None;
+        var failOnIncomplete = options.FailOnIncomplete ?? updatRConfig?.FailOnIncomplete ?? false;
+
+        // Options-supplied policies are checked first, so they take priority when more than one
+        // pattern matches the same package id (see PackageContainer.ResolvePackagePolicyMaxMajor).
+        var packagePolicies = (options.PackagePolicies ?? [])
+            .Concat(
+                updatRConfig?.PackagePolicies?.Select(x => new PackageVersionPolicy(
+                    x.Package,
+                    x.MaxMajor
+                )) ?? []
+            )
+            .ToArray();
+
+        // dotnet-ef is pinned to Microsoft.EntityFrameworkCore by default; a config file entry
+        // for the same tool overrides the default, and a caller-supplied entry overrides both.
+        var toolPackagePinsByToolId = new Dictionary<string, ToolPackagePin>(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            [ToolPackagePin.EntityFrameworkCore.ToolPackageId] = ToolPackagePin.EntityFrameworkCore,
+        };
+
+        if (updatRConfig?.ToolPackagePins is { } toolPackagePinsFromConfig)
+        {
+            foreach (var pin in toolPackagePinsFromConfig)
+            {
+                toolPackagePinsByToolId[pin.Tool] = new ToolPackagePin(pin.Tool, pin.Package);
+            }
+        }
+
+        if (options.ToolPackagePins is not null)
+        {
+            foreach (var pin in options.ToolPackagePins)
+            {
+                toolPackagePinsByToolId[pin.ToolPackageId] = pin;
+            }
+        }
+
+        var effectiveToolPackagePins = toolPackagePinsByToolId.Values.ToArray();
 
         if (
             !string.IsNullOrWhiteSpace(updatRConfig?.Path)
@@ -96,39 +130,41 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
             if (!Directory.Exists(path) && !File.Exists(path))
             {
-                throw new ArgumentException(
-                    $"'{nameof(UpdatRConfig.Path)}' (\"path\") in '{Path.Combine(configDirectory, UpdatRConfig.FileName)}' resolved to '{path}', which does not exist.",
-                    nameof(path)
+                throw new InvalidUpdateTargetException(
+                    $"'{nameof(UpdatRConfig.Path)}' (\"path\") in '{Path.Combine(configDirectory, UpdatRConfig.FileName)}' resolved to '{path}', which does not exist."
                 );
             }
         }
 
-        var shouldIncludePackage = CreateSearch(packages, treatNullOrEmptyAs: true);
+        var shouldIncludePackage = CreateSearch(options.Packages, treatNullOrEmptyAs: true);
         var shouldExcludePackage = CreateSearch(excludePackages, treatNullOrEmptyAs: false);
 
-        var dir = RootDir.Create(path);
+        // Root used to resolve excludeFiles' patterns to a relative path - mirrors how RootDir
+        // itself derives its Path (the target directory itself, or the containing directory of a
+        // single-file target), computed up front so exclusion can be applied while RootDir.Create
+        // is still discovering files, instead of after the fact.
+        var exclusionRoot = Directory.Exists(path)
+            ? Path.GetFullPath(path)
+            : new FileInfo(path).DirectoryName!;
 
-        if (excludeFiles is { Length: > 0 })
-        {
-            var shouldExcludeFile = CreateFileExclusionSearch(dir.Path, excludeFiles);
+        var shouldExcludeFile = CreateFileExclusionSearch(exclusionRoot, excludeFiles);
 
-            RemoveExcludedFiles(dir.Csprojs, x => x.Path, shouldExcludeFile);
-            RemoveExcludedFiles(dir.DotnetTools, x => x.Path, shouldExcludeFile);
-            RemoveExcludedFiles(dir.FileBasedApps, x => x.Path, shouldExcludeFile);
-            RemoveExcludedFiles(dir.PropsFiles, x => x.Path, shouldExcludeFile);
-        }
+        var dir = await RootDir
+            .CreateAsync(path, shouldExcludeFile, _logger, cancellationToken)
+            .ConfigureAwait(false);
 
         var result = new Result(path);
 
         var (nugetPackages, unauthorizedSources) = await GetPackageVersions(
-            dir.Csprojs ?? Array.Empty<Csproj>(),
-            dir.DotnetTools ?? Array.Empty<DotnetTools>(),
-            dir.FileBasedApps ?? Array.Empty<FileBasedApp>(),
-            dir.PropsFiles ?? Array.Empty<PropsFile>(),
+            dir.Csprojs,
+            dir.DotnetTools,
+            dir.FileBasedApps,
+            dir.PropsFiles,
             shouldIncludePackage,
             shouldExcludePackage,
-            interactive,
-            new NuGetLogger(_logger)
+            options.Interactive,
+            new NuGetLogger(_logger),
+            cancellationToken
         );
 
         foreach (var unauthorizedSource in unauthorizedSources)
@@ -136,77 +172,81 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             result.TryAddUnauthorizedSource(unauthorizedSource.Key, unauthorizedSource.Value);
         }
 
-        foreach (var csproj in dir.Csprojs ?? Array.Empty<Csproj>())
+        foreach (var csproj in dir.Csprojs)
         {
-            var project = csproj.UpdatePackages(
-                nugetPackages,
-                dryRun,
-                prerelease,
-                _logger,
-                tfm,
-                allowedLicenses,
-                alignWithTfm
+            await UpdateAndCollectAsync(
+                csproj.UpdatePackagesAsync(
+                    nugetPackages,
+                    options.DryRun,
+                    options.Prerelease,
+                    _logger,
+                    tfm,
+                    allowedLicenses,
+                    alignWithTfm,
+                    packagePolicies
+                )
             );
+        }
+
+        foreach (var propsFile in dir.PropsFiles)
+        {
+            await UpdateAndCollectAsync(
+                propsFile.UpdatePackagesAsync(
+                    nugetPackages,
+                    options.DryRun,
+                    options.Prerelease,
+                    _logger,
+                    tfm,
+                    allowedLicenses,
+                    alignWithTfm,
+                    packagePolicies
+                )
+            );
+        }
+
+        foreach (var config in dir.DotnetTools)
+        {
+            await UpdateAndCollectAsync(
+                config.UpdatePackagesAsync(
+                    nugetPackages,
+                    options.DryRun,
+                    options.Prerelease,
+                    _logger,
+                    allowedLicenses,
+                    alignWithTfm,
+                    effectiveToolPackagePins,
+                    packagePolicies
+                )
+            );
+        }
+
+        foreach (var fileBasedApp in dir.FileBasedApps)
+        {
+            await UpdateAndCollectAsync(
+                fileBasedApp.UpdatePackagesAsync(
+                    nugetPackages,
+                    options.DryRun,
+                    options.Prerelease,
+                    _logger,
+                    tfm,
+                    allowedLicenses,
+                    alignWithTfm,
+                    packagePolicies
+                )
+            );
+        }
+
+        return Summary.Create(result, failOn, failOnIncomplete);
+
+        async Task UpdateAndCollectAsync(Task<ProjectWithPackages?> updateTask)
+        {
+            var project = await updateTask;
 
             if (project is not null)
             {
                 result.TryAddProject(project);
             }
         }
-
-        foreach (var propsFile in dir.PropsFiles ?? Array.Empty<PropsFile>())
-        {
-            var project = propsFile.UpdatePackages(
-                nugetPackages,
-                dryRun,
-                prerelease,
-                _logger,
-                tfm,
-                allowedLicenses,
-                alignWithTfm
-            );
-
-            if (project is not null)
-            {
-                result.TryAddProject(project);
-            }
-        }
-
-        foreach (var config in dir.DotnetTools ?? Array.Empty<DotnetTools>())
-        {
-            var project = await config.UpdatePackagesAsync(
-                nugetPackages,
-                dryRun,
-                prerelease,
-                _logger,
-                alignWithTfm
-            );
-
-            if (project is not null)
-            {
-                result.TryAddProject(project);
-            }
-        }
-
-        foreach (var fileBasedApp in dir.FileBasedApps ?? Array.Empty<FileBasedApp>())
-        {
-            var project = await fileBasedApp.UpdatePackagesAsync(
-                nugetPackages,
-                dryRun,
-                prerelease,
-                _logger,
-                tfm,
-                allowedLicenses,
-                alignWithTfm
-            );
-
-            if (project is not null)
-            {
-                result.TryAddProject(project);
-            }
-        }
-
-        return Summary.Create(result);
     }
 
     private static NuGetFramework? ParseTFM(string? targetFrameworkMoniker)
@@ -253,30 +293,13 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         };
     }
 
-    private static void RemoveExcludedFiles<T>(
-        ICollection<T>? items,
-        Func<T, string> pathSelector,
-        Func<string, bool> shouldExcludeFile
-    )
-    {
-        if (items is null)
-        {
-            return;
-        }
-
-        foreach (var item in items.Where(x => shouldExcludeFile(pathSelector(x))).ToList())
-        {
-            items.Remove(item);
-        }
-    }
-
     private static bool PathsAreEqual(string left, string right) =>
         string.Equals(
             Path.GetFullPath(left)
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             Path.GetFullPath(right)
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-            StringComparison.OrdinalIgnoreCase
+            PathComparer.Comparison
         );
 
     private async Task<(
@@ -290,7 +313,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         Func<string, bool> shouldIncludePackage,
         Func<string, bool> shouldExcludePackage,
         bool interactive,
-        NuGet.Common.ILogger nuGetLogger
+        NuGet.Common.ILogger nuGetLogger,
+        CancellationToken cancellationToken
     )
     {
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(nuGetLogger, !interactive);
@@ -309,35 +333,128 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             .Union(fileBasedApps.Select(x => (x.Path, x.Packages.Keys.AsEnumerable())))
             .Union(propsFiles.Select(x => (x.Path, x.Packages.Keys.AsEnumerable())));
 
+        // Settings.LoadDefaultSettings walks up the directory tree from its root argument
+        // looking for nuget.config files, so every project under the same directory resolves to
+        // the exact same sources - caching the resulting provider per directory avoids repeating
+        // that walk (and rebuilding the NuGet plumbing on top of it) for every single project.
+        Dictionary<string, SourceRepositoryProvider> sourceRepositoryProvidersByDir = new(
+            PathComparer.Comparer
+        );
+
+        // Package Source Mapping (nuget.config's <packageSourceMapping>) restricts which
+        // source(s) a given packageId may be resolved from. Cached alongside the
+        // SourceRepositoryProvider per directory for the same reason - it comes from the same
+        // Settings and is expensive to rebuild per project.
+        Dictionary<string, PackageSourceMapping> packageSourceMappingsByDir = new(
+            PathComparer.Comparer
+        );
+
+        // A distinct (source, packageId) work set, built up front across every project, so a
+        // packageId referenced by many projects that all resolve to the same source is only
+        // queried once instead of once per referencing project - the source of the original
+        // O(projects x sources x packages) cost. Keyed by the source's URL (rather than the
+        // SourceRepositoryProvider it came from) so the same source configured for two different
+        // directories - e.g. nuget.org showing up in two independent nuget.config chains - is
+        // still only queried once.
+        Dictionary<string, SourceRepository> reposBySourceUrl = new(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        Dictionary<string, HashSet<string>> packageIdsBySourceUrl = new(
+            StringComparer.OrdinalIgnoreCase
+        );
+
         foreach (var (path, packageIds) in projectsWithPackages)
         {
-            var settings = Settings.LoadDefaultSettings(path);
+            var configDir = System.IO.Path.GetDirectoryName(path) ?? path;
 
-            var packageSourceProvider = new PackageSourceProvider(settings);
+            if (
+                !sourceRepositoryProvidersByDir.TryGetValue(
+                    configDir,
+                    out var sourceRepositoryProvider
+                )
+            )
+            {
+                var settings = Settings.LoadDefaultSettings(path);
 
-            var sourceRepositoryProvider = new SourceRepositoryProvider(
-                packageSourceProvider,
-                Repository.Provider.GetCoreV3()
-            );
+                var packageSourceProvider = new PackageSourceProvider(settings);
+
+                sourceRepositoryProvider = new SourceRepositoryProvider(
+                    packageSourceProvider,
+                    Repository.Provider.GetCoreV3()
+                );
+
+                sourceRepositoryProvidersByDir[configDir] = sourceRepositoryProvider;
+                packageSourceMappingsByDir[configDir] =
+                    PackageSourceMapping.GetPackageSourceMapping(settings);
+            }
+
+            var packageSourceMapping = packageSourceMappingsByDir[configDir];
 
             foreach (
                 var repo in sourceRepositoryProvider
                     .GetRepositories()
                     .Where(x => x.PackageSource.IsEnabled)
-                    .Where(x => !unauthorizedSources.ContainsKey(x.PackageSource.Name))
             )
             {
-                try
+                var sourceUrl = repo.PackageSource.Source;
+
+                reposBySourceUrl.TryAdd(sourceUrl, repo);
+
+                if (!packageIdsBySourceUrl.TryGetValue(sourceUrl, out var packageIdSet))
                 {
-                    foreach (var packageId in packageIds)
+                    packageIdsBySourceUrl[sourceUrl] = packageIdSet = new HashSet<string>(
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                }
+
+                foreach (var packageId in packageIds)
+                {
+                    if (!shouldIncludePackage(packageId) || shouldExcludePackage(packageId))
                     {
-                        if (!shouldIncludePackage(packageId) || shouldExcludePackage(packageId))
-                        {
-                            packageSearchMetadata[packageId] = null;
+                        packageSearchMetadata[packageId] = null;
 
-                            continue;
-                        }
+                        continue;
+                    }
 
+                    // packageSourceMapping.IsEnabled is false when nuget.config has no
+                    // <packageSourceMapping> section at all, in which case every source applies
+                    // to every package - matching NuGet's own restore/install behaviour.
+                    if (
+                        packageSourceMapping.IsEnabled
+                        && !packageSourceMapping
+                            .GetConfiguredPackageSources(packageId)
+                            .Contains(repo.PackageSource.Name, StringComparer.OrdinalIgnoreCase)
+                    )
+                    {
+                        continue;
+                    }
+
+                    packageIdSet.Add(packageId);
+                }
+            }
+        }
+
+        var packageSearchMetadataLock = new Lock();
+
+        foreach (var (sourceUrl, repo) in reposBySourceUrl)
+        {
+            if (unauthorizedSources.ContainsKey(repo.PackageSource.Name))
+            {
+                continue;
+            }
+
+            try
+            {
+                await Parallel.ForEachAsync(
+                    packageIdsBySourceUrl[sourceUrl],
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = MaxConcurrentNuGetRequests,
+                        CancellationToken = cancellationToken,
+                    },
+                    async (packageId, nugetCancellationToken) =>
+                    {
                         var packageMetadataResource = repo.GetResource<PackageMetadataResource>()!;
 
                         var searchMetadata = await packageMetadataResource.GetMetadataAsync(
@@ -346,7 +463,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                             includeUnlisted: false,
                             cacheContext,
                             nuGetLogger,
-                            CancellationToken.None
+                            nugetCancellationToken
                         );
 
                         var metadata = searchMetadata
@@ -378,53 +495,46 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
                         if (!metadata.Any())
                         {
-                            continue;
+                            return;
                         }
 
-                        if (
-                            packageSearchMetadata.TryGetValue(packageId, out var package)
-                            && package is not null
-                        )
+                        lock (packageSearchMetadataLock)
                         {
-                            packageSearchMetadata[packageId] = package with
+                            if (
+                                packageSearchMetadata.TryGetValue(packageId, out var package)
+                                && package is not null
+                            )
                             {
-                                PackageMetadatas = package
-                                    .PackageMetadatas.Union(metadata)
-                                    .DistinctBy(x => x.Version)
-                                    .OrderByDescending(x => x.Version),
-                            };
-                        }
-                        else
-                        {
-                            packageSearchMetadata[packageId] = new(packageId, metadata);
+                                packageSearchMetadata[packageId] = package.Merge(metadata);
+                            }
+                            else
+                            {
+                                packageSearchMetadata[packageId] = new(packageId, metadata);
+                            }
                         }
                     }
-                }
-                catch (AggregateException exception)
-                    when (exception.InnerException?.InnerException
-                            is HttpRequestException httpRequestException
-                        && httpRequestException.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    )
-                {
-                    LogSourceFailure(repo.PackageSource.Name, repo.PackageSource.Source);
+                );
+            }
+            catch (AggregateException exception)
+                when (exception.InnerException?.InnerException
+                        is HttpRequestException httpRequestException
+                    && httpRequestException.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                )
+            {
+                LogSourceFailure(repo.PackageSource.Name, repo.PackageSource.Source);
 
-                    unauthorizedSources.Add(repo.PackageSource.Name, repo.PackageSource.Source);
+                unauthorizedSources.Add(repo.PackageSource.Name, repo.PackageSource.Source);
 
-                    continue;
-                }
-                catch (HttpRequestException exception)
-                    when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    LogSourceFailure(repo.PackageSource.Name, repo.PackageSource.Source);
+                continue;
+            }
+            catch (HttpRequestException exception)
+                when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                LogSourceFailure(repo.PackageSource.Name, repo.PackageSource.Source);
 
-                    unauthorizedSources.Add(repo.PackageSource.Name, repo.PackageSource.Source);
+                unauthorizedSources.Add(repo.PackageSource.Name, repo.PackageSource.Source);
 
-                    continue;
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
+                continue;
             }
         }
 

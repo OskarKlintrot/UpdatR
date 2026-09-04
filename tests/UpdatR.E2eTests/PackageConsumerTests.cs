@@ -135,9 +135,10 @@ public sealed class PackageConsumerTests : IDisposable
         // not) a full rebuild.
         await File.WriteAllTextAsync(
             Path.Combine(consumerDir, "Program.cs"),
-            $"""
+            $$"""
             var updater = new UpdatR.Updater();
-            var summary = await updater.UpdateAsync(@"{consumerDir}", dryRun: true);
+            var options = new UpdatR.UpdateOptions { DryRun = true };
+            var summary = await updater.UpdateAsync(@"{{consumerDir}}", options);
             Console.WriteLine("UpdatR ran successfully. Updated packages: " + summary.UpdatedPackagesCount);
             """,
             TestContext.Current.CancellationToken

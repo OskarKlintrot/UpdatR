@@ -1,4 +1,4 @@
-# 📦 Update no packages
+﻿# 📦 Update no packages
 
 ## Deprecated packages
 
@@ -11,7 +11,7 @@ Package used in:
 
 | Project | Version |
 |:--------|:--------|
-| Foo\Foo.csproj | 1.2.3 |
-| Bar\Bar.csproj | 1.2.3 |
+| Foo/Foo.csproj | 1.2.3 |
+| Bar/Bar.csproj | 1.2.3 |
 
 

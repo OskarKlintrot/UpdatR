@@ -19,7 +19,7 @@ internal static partial class Program
         var pathArgument = new Argument<string>("args")
         {
             Description =
-                "Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj-files, dotnet-tools.json-files and file-based apps will be processed.",
+                "Path to solution or project(s). Defaults to current folder. Target can be a specific file or folder. If target is a folder then all *.csproj/*.fsproj/*.vbproj files, dotnet-tools.json-files and file-based apps will be processed.",
             DefaultValueFactory = _ => ".",
         };
 
@@ -40,7 +40,7 @@ internal static partial class Program
         var outputOption = new Option<string?>("--output")
         {
             Description =
-                "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown or \".txt\" for plain text.",
+                "Writes the summary to a file. If an existing directory is given, an \"output.md\" file is created there. If a file path is given, its extension decides the format: \".md\" for markdown, \".txt\" for plain text, or \".json\" for machine-readable JSON.",
         };
 
         var titleOption = new Option<string?>("--title") { Description = "Outputs title to path." };
@@ -99,6 +99,18 @@ internal static partial class Program
             DefaultValueFactory = _ => [],
         };
 
+        var failOnOption = new Option<FailOn?>("--fail-on")
+        {
+            Description =
+                "Exit with a non-zero code if a finding of this severity or higher is found: \"outdated\" (any package was updated, is deprecated, or is vulnerable - most useful together with --dry-run), \"deprecated\" (deprecated or vulnerable) or \"vulnerable\". Defaults to \"none\", or \"failOn\" from a .updatrrc file, if present.",
+        };
+
+        var failOnIncompleteOption = new Option<bool>("--fail-on-incomplete")
+        {
+            Description =
+                "Exit with a non-zero code if the run was incomplete, i.e. a package source returned 401 or a package couldn't be resolved on any source. Independent of --fail-on. Can also be set via \"failOnIncomplete\" in a .updatrrc file.",
+        };
+
         var configPathArgument = new Argument<string>("path")
         {
             Description =
@@ -111,6 +123,12 @@ internal static partial class Program
             Description = "Overwrite the file if it already exists.",
         };
 
+        var exampleOption = new Option<bool>("--example")
+        {
+            Description =
+                "Write a populated, realistic example instead of all options present but empty.",
+        };
+
         var initCommand = new Command(
             "init",
             "Create a .updatrrc file with all options present, but empty."
@@ -118,13 +136,15 @@ internal static partial class Program
         {
             configPathArgument,
             forceOption,
+            exampleOption,
         };
 
         initCommand.SetAction(
             (parseResult, cancellationToken) =>
                 InitConfigAsync(
                     path: parseResult.GetValue(configPathArgument) ?? ".",
-                    force: parseResult.GetValue(forceOption)
+                    force: parseResult.GetValue(forceOption),
+                    example: parseResult.GetValue(exampleOption)
                 )
         );
 
@@ -168,6 +188,8 @@ internal static partial class Program
             allowedLicensesOption,
             excludeFileOption,
             alignWithTfmOption,
+            failOnOption,
+            failOnIncompleteOption,
             configCommand,
         };
 
@@ -188,18 +210,21 @@ internal static partial class Program
                     tfm: parseResult.GetValue(tfmOption),
                     allowedLicenses: parseResult.GetValue(allowedLicensesOption),
                     excludeFile: parseResult.GetValue(excludeFileOption),
-                    alignWithTfm: parseResult.GetValue(alignWithTfmOption)
+                    alignWithTfm: parseResult.GetValue(alignWithTfmOption),
+                    failOn: parseResult.GetValue(failOnOption),
+                    failOnIncomplete: parseResult.GetValue(failOnIncompleteOption),
+                    cancellationToken: cancellationToken
                 )
         );
 
         return rootCommand.Parse(args).InvokeAsync();
     }
 
-    private static Task<int> InitConfigAsync(string path, bool force)
+    private static Task<int> InitConfigAsync(string path, bool force, bool example)
     {
         try
         {
-            var filePath = UpdatRConfig.CreateFile(path, overwrite: force);
+            var filePath = UpdatRConfig.CreateFile(path, overwrite: force, example: example);
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Created '{filePath}'.");
@@ -272,7 +297,10 @@ internal static partial class Program
         string? tfm = null,
         string[]? allowedLicenses = null,
         string[]? excludeFile = null,
-        string[]? alignWithTfm = null
+        string[]? alignWithTfm = null,
+        FailOn? failOn = null,
+        bool failOnIncomplete = false,
+        CancellationToken cancellationToken = default
     )
     {
         var crashLog = Path.Combine(Path.GetTempPath(), "dotnet-updatr-crash.log");
@@ -283,6 +311,10 @@ internal static partial class Program
                 crashLog,
                 $"{DateTime.UtcNow:o}: Unhandled: {e.ExceptionObject}{Environment.NewLine}"
             );
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine($"A crash log has been written to '{crashLog}'.");
+            Console.ResetColor();
         };
 
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -292,6 +324,10 @@ internal static partial class Program
                 $"{DateTime.UtcNow:o}: Unobserved: {e.Exception}{Environment.NewLine}"
             );
             e.SetObserved();
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine($"A crash log has been written to '{crashLog}'.");
+            Console.ResetColor();
         };
 
         var sw = Stopwatch.StartNew();
@@ -309,18 +345,48 @@ internal static partial class Program
 
         var update = services.GetRequiredService<Updater>();
 
-        var summary = await update.UpdateAsync(
-            path: path,
-            excludePackages: excludePackage,
-            packages: package,
-            dryRun: dryRun,
-            prerelease: prerelease,
-            interactive: interactive,
-            targetFrameworkMoniker: tfm,
-            allowedLicenses: allowedLicenses,
-            excludeFiles: excludeFile,
-            alignWithTfm: alignWithTfm
-        );
+        Summary summary;
+
+        try
+        {
+            summary = await update.UpdateAsync(
+                path,
+                new UpdateOptions
+                {
+                    ExcludePackages = excludePackage,
+                    Packages = package,
+                    DryRun = dryRun,
+                    Prerelease = prerelease,
+                    Interactive = interactive,
+                    TargetFrameworkMoniker = tfm,
+                    AllowedLicenses = allowedLicenses,
+                    ExcludeFiles = excludeFile,
+                    AlignWithTfm = alignWithTfm,
+                    FailOn = failOn,
+
+                    // Only override .updatrrc when the flag was actually passed - there's no way
+                    // to turn it back off from the command line, same as every other bool flag.
+                    FailOnIncomplete = failOnIncomplete ? true : null,
+                },
+                cancellationToken
+            );
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Cancelled.");
+            Console.ResetColor();
+
+            return 130;
+        }
+        catch (UpdatRException exception)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(exception.Message);
+            Console.ResetColor();
+
+            return 1;
+        }
 
         var outputStr = TextFormatter.PlainText(summary);
 
@@ -337,7 +403,7 @@ internal static partial class Program
 
             var filePath = Path.Combine(htmlPath, "summary.html");
 
-            await File.WriteAllTextAsync(filePath, html);
+            await File.WriteAllTextAsync(filePath, html, cancellationToken);
 
             OpenFile(filePath);
         }
@@ -348,76 +414,43 @@ internal static partial class Program
 
         if (output is not null)
         {
-            if (string.IsNullOrWhiteSpace(new FileInfo(output).Extension))
-            {
-                await File.WriteAllTextAsync(
-                    Path.Combine(output, "output.md"),
-                    MarkdownFormatter.Generate(summary)
-                );
-            }
-            else
-            {
-                outputStr = new FileInfo(output).Extension switch
+            await WriteOutputAsync(
+                output,
+                "output.md",
+                new Dictionary<string, Func<string>>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ".txt" => outputStr,
-                    ".md" => MarkdownFormatter.Generate(summary),
-                    _ => throw new NotImplementedException(),
-                };
-
-                await File.WriteAllTextAsync(output, outputStr);
-            }
+                    [".md"] = () => MarkdownFormatter.Generate(summary),
+                    [".txt"] = () => outputStr,
+                    [".json"] = () => JsonFormatter.Generate(summary),
+                },
+                cancellationToken
+            );
         }
 
         if (title is not null)
         {
-            if (string.IsNullOrWhiteSpace(new FileInfo(title).Extension))
-            {
-                await File.WriteAllTextAsync(
-                    Path.Combine(title, "title.md"),
-                    MarkdownFormatter.GenerateTitle(summary)
-                );
-            }
-            else if (
-                new FileInfo(title).Extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
-            )
-            {
-                await File.WriteAllTextAsync(title, MarkdownFormatter.GenerateTitle(summary));
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    "Unsupported file extension. Only .md is supported."
-                );
-            }
+            await WriteOutputAsync(
+                title,
+                "title.md",
+                new Dictionary<string, Func<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [".md"] = () => MarkdownFormatter.GenerateTitle(summary),
+                },
+                cancellationToken
+            );
         }
 
         if (description is not null)
         {
-            if (string.IsNullOrWhiteSpace(new FileInfo(description).Extension))
-            {
-                await File.WriteAllTextAsync(
-                    Path.Combine(description, "description.md"),
-                    MarkdownFormatter.GenerateDescription(summary)
-                );
-            }
-            else if (
-                new FileInfo(description).Extension.Equals(
-                    ".md",
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
-            {
-                await File.WriteAllTextAsync(
-                    description,
-                    MarkdownFormatter.GenerateDescription(summary)
-                );
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    "Unsupported file extension. Only .md is supported."
-                );
-            }
+            await WriteOutputAsync(
+                description,
+                "description.md",
+                new Dictionary<string, Func<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [".md"] = () => MarkdownFormatter.GenerateDescription(summary),
+                },
+                cancellationToken
+            );
         }
 
         if (_logger.IsEnabled(LogLevel.Information))
@@ -427,7 +460,76 @@ internal static partial class Program
             LogFinished(_logger, elapsedTime);
         }
 
+        if (summary.ShouldFail)
+        {
+            var incomplete =
+                summary.FailOnIncomplete
+                && (summary.UnauthorizedSources.Any() || summary.UnknownPackages.Count > 0);
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine(
+                incomplete
+                    ? "Failing because \"--fail-on-incomplete\" was set and the run was incomplete (an unauthorized package source, or a package that couldn't be resolved on any source)."
+                    : $"Failing because \"--fail-on {summary.FailOn.ToString().ToLowerInvariant()}\" was set and a matching finding was found."
+            );
+            Console.ResetColor();
+
+            return 2;
+        }
+
         return 0;
+    }
+
+    /// <summary>
+    /// Writes generated content to <paramref name="path"/>. If <paramref name="path"/> is an
+    /// existing directory, or has no extension at all, <paramref name="defaultFileName"/> is
+    /// created inside it. Otherwise, <paramref name="path"/>'s extension picks the generator to
+    /// use from <paramref name="generatorsByExtension"/>; an unsupported extension throws a
+    /// friendly <see cref="UpdatRException"/> instead of writing anything.
+    /// </summary>
+    /// <exception cref="UpdatRException"></exception>
+    private static async Task WriteOutputAsync(
+        string path,
+        string defaultFileName,
+        IReadOnlyDictionary<string, Func<string>> generatorsByExtension,
+        CancellationToken cancellationToken
+    )
+    {
+        if (Directory.Exists(path) || string.IsNullOrWhiteSpace(new FileInfo(path).Extension))
+        {
+            Directory.CreateDirectory(path);
+
+            var defaultExtension = Path.GetExtension(defaultFileName);
+            var content = generatorsByExtension[defaultExtension]();
+
+            await File.WriteAllTextAsync(
+                Path.Combine(path, defaultFileName),
+                content,
+                cancellationToken
+            );
+
+            return;
+        }
+
+        var extension = new FileInfo(path).Extension;
+
+        if (!generatorsByExtension.TryGetValue(extension, out var generate))
+        {
+            throw new UpdatRException(
+                $"Unsupported file extension '{extension}' for '{path}'. Supported extensions: "
+                    + string.Join(", ", generatorsByExtension.Keys)
+                    + "."
+            );
+        }
+
+        // Path.GetDirectoryName is null for a bare file name in the current directory, and empty
+        // for a rooted path's root - neither needs creating.
+        if (Path.GetDirectoryName(Path.GetFullPath(path)) is { Length: > 0 } directory)
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await File.WriteAllTextAsync(path, generate(), cancellationToken);
     }
 
     private static void WriteSummaryToConsole(string summary)
@@ -453,7 +555,7 @@ internal static partial class Program
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Process.Start("cmd.exe ", "/c " + path);
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {

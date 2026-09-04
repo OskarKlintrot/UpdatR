@@ -6,7 +6,7 @@
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
-          Item3: src\Dummy.App.csproj
+          Item3: src/Dummy.App.csproj
         }
       ]
     },
@@ -16,7 +16,7 @@
         {
           Item1: 0.0.1,
           Item2: 0.0.2,
-          Item3: src\Dummy.App.csproj
+          Item3: src/Dummy.App.csproj
         }
       ]
     }

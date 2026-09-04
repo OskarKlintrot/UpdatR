@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 namespace UpdatR.Domain.Utils;
 
@@ -8,6 +9,12 @@ namespace UpdatR.Domain.Utils;
 /// </summary>
 internal static class SearchPattern
 {
+    // Compiling the same pattern (e.g. "Microsoft.*", reused across every project/package
+    // combination) is comparatively expensive, so a process-wide cache avoids repeating it.
+    private static readonly ConcurrentDictionary<string, Regex> s_regexCache = new(
+        StringComparer.Ordinal
+    );
+
     /// <summary>
     /// Builds a predicate that's <see langword="true"/> if the input matches any of
     /// <paramref name="patterns"/>. Returns a predicate always returning
@@ -29,12 +36,26 @@ internal static class SearchPattern
         return str => regexes.Any(x => x.IsMatch(str));
     }
 
-    public static Regex ConvertToRegex(string matchAgainst)
-    {
-        var pattern = "^" + string.Join(".*", matchAgainst.Split('*').Select(x => $"({x})")) + "$";
+    /// <summary>
+    /// Converts <paramref name="matchAgainst"/> - a literal string using <c>*</c> as a wildcard
+    /// for "any sequence of characters" - into a <see cref="Regex"/> matching the whole input.
+    /// Every non-<c>*</c> segment is treated as a literal (via <see cref="Regex.Escape(string)"/>),
+    /// so characters with special meaning in a regex (e.g. <c>.</c>, <c>(</c>, <c>+</c>) match
+    /// themselves instead of being interpreted as regex syntax or throwing a
+    /// <see cref="RegexParseException"/>.
+    /// </summary>
+    public static Regex ConvertToRegex(string matchAgainst) =>
+        s_regexCache.GetOrAdd(
+            matchAgainst,
+            static pattern =>
+            {
+                var regexPattern =
+                    "^" + string.Join(".*", pattern.Split('*').Select(Regex.Escape)) + "$";
 
-        pattern = pattern.Replace("()$", "$");
-
-        return new Regex(pattern, RegexOptions.IgnoreCase);
-    }
+                return new Regex(
+                    regexPattern,
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
+                );
+            }
+        );
 }

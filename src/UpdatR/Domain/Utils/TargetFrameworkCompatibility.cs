@@ -60,4 +60,67 @@ internal static class TargetFrameworkCompatibility
 
         return updateTo is not null;
     }
+
+    /// <summary>
+    /// Finds the latest version of <paramref name="package"/>, newer than <paramref name="from"/>,
+    /// ignoring target framework compatibility entirely - only <paramref name="allowedLicenses"/>
+    /// and <paramref name="maxMajor"/> are honoured. Used to tell whether a version that
+    /// <see cref="TryGetLatestCompatibleWithAllTfms"/> skipped exists at all (and would've been
+    /// picked if it weren't incompatible with one of the target frameworks), as opposed to no
+    /// newer version existing in the first place.
+    /// </summary>
+    public static bool TryGetLatestIgnoringTfmCompatibility(
+        NuGetPackage package,
+        NuGetVersion from,
+        bool usePrerelease,
+        IReadOnlyCollection<string>? allowedLicenses,
+        int? maxMajor,
+        [NotNullWhen(returnValue: true)] out PackageMetadata? updateTo
+    )
+    {
+        bool MatchesConstraints(PackageMetadata x) =>
+            (maxMajor is null || x.Version.Major <= maxMajor)
+            && NuGetPackage.IsLicenseAllowed(x, allowedLicenses);
+
+        if (usePrerelease)
+        {
+            updateTo = package
+                .PackageMetadatas.Where(MatchesConstraints)
+                .OrderByDescending(x => x.Version)
+                .FirstOrDefault();
+
+            return updateTo is not null && updateTo.Version > from;
+        }
+
+        var latestStable = package
+            .PackageMetadatas.Where(x => !x.Version.IsPrerelease && MatchesConstraints(x))
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefault();
+
+        if (latestStable is not null && latestStable.Version > from)
+        {
+            updateTo = latestStable;
+
+            return true;
+        }
+
+        if (from.IsPrerelease)
+        {
+            var latestPrerelease = package
+                .PackageMetadatas.Where(x => x.Version.IsPrerelease && MatchesConstraints(x))
+                .OrderByDescending(x => x.Version)
+                .FirstOrDefault();
+
+            if (latestPrerelease is not null && latestPrerelease.Version > from)
+            {
+                updateTo = latestPrerelease;
+
+                return true;
+            }
+        }
+
+        updateTo = null;
+
+        return false;
+    }
 }

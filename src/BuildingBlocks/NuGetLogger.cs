@@ -20,17 +20,23 @@ internal sealed partial class NuGetLogger(ILogger logger) : NuGet.Common.LoggerB
         return Task.CompletedTask;
     }
 
-    private static LogLevel TranslateVerbosity(NuGet.Common.LogLevel verbosity) => verbosity switch
-    {
-        NuGet.Common.LogLevel.Debug => LogLevel.Trace,
-        NuGet.Common.LogLevel.Verbose => LogLevel.Debug,
-        NuGet.Common.LogLevel.Information => LogLevel.Information,
-        NuGet.Common.LogLevel.Minimal => LogLevel.Warning,
-        NuGet.Common.LogLevel.Warning => LogLevel.Warning,
-        NuGet.Common.LogLevel.Error => LogLevel.Error,
-        _ => throw new NotImplementedException("Unknown verbosity."),
-    };
+    private static LogLevel TranslateVerbosity(NuGet.Common.LogLevel verbosity) =>
+        verbosity switch
+        {
+            NuGet.Common.LogLevel.Debug => LogLevel.Trace,
+            NuGet.Common.LogLevel.Verbose => LogLevel.Debug,
+            NuGet.Common.LogLevel.Information => LogLevel.Information,
+            NuGet.Common.LogLevel.Minimal => LogLevel.Warning,
+            NuGet.Common.LogLevel.Warning => LogLevel.Warning,
+            NuGet.Common.LogLevel.Error => LogLevel.Error,
+            _ => throw new NotImplementedException("Unknown verbosity."),
+        };
 
     [LoggerMessage(EventId = 0, Message = "nuget: ({NuGetLogLevel}): {Message}")]
-    static partial void Log(ILogger logger, LogLevel level, NuGet.Common.LogLevel nuGetLogLevel, string message);
+    static partial void Log(
+        ILogger logger,
+        LogLevel level,
+        NuGet.Common.LogLevel nuGetLogLevel,
+        string message
+    );
 }

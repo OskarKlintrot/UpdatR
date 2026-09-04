@@ -6,7 +6,7 @@
         {
           Item1: 5.0.12,
           Item2: 5.0.16,
-          Item3: ProjectA\A.csproj
+          Item3: ProjectA/A.csproj
         }
       ]
     },
@@ -16,7 +16,7 @@
         {
           Item1: 5.0.5,
           Item2: 5.0.16,
-          Item3: ProjectA\.config\dotnet-tools.json
+          Item3: ProjectA/.config/dotnet-tools.json
         }
       ]
     }

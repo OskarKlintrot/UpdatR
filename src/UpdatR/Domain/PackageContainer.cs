@@ -106,6 +106,33 @@ internal abstract partial class PackageContainer
     /// </summary>
     protected virtual void OnUnparseableVersion(Candidate candidate, ILogger logger) { }
 
+    /// <summary>
+    /// Lets a subclass override the version this algorithm would otherwise resolve
+    /// <paramref name="candidate"/> to, e.g. so <see cref="DotnetTools"/> can pin
+    /// <c>dotnet-ef</c> to the highest version still compatible with every referenced project's
+    /// <c>EntityFrameworkVersion</c>. Called only once an update target has already been found -
+    /// not for a candidate that's already up to date. Returns <paramref name="updateTo"/>
+    /// unchanged by default.
+    /// </summary>
+    protected virtual PackageMetadata AdjustUpdateTarget(
+        Candidate candidate,
+        NuGetPackage package,
+        NuGetVersion currentVersion,
+        PackageMetadata updateTo
+    ) => updateTo;
+
+    /// <summary>
+    /// Resolves the target framework(s) used to compute the current major version an
+    /// <c>alignWithTfm</c> update must not move past. Given <paramref name="candidateTfms"/> (the
+    /// same set <see cref="ResolveTfms"/> and compatibility checks use) by default; overridden by
+    /// <see cref="DotnetTools"/>, which - unlike <see cref="Csproj"/>/<see cref="PropsFile"/>/
+    /// <see cref="FileBasedApp"/> - doesn't itself target a framework, so it aligns against every
+    /// affected project's target framework(s) instead.
+    /// </summary>
+    protected virtual IReadOnlyCollection<NuGetFramework> ResolveAlignmentTfms(
+        IReadOnlyCollection<NuGetFramework> candidateTfms
+    ) => candidateTfms;
+
     protected async Task<ProjectWithPackages?> UpdatePackagesCoreAsync(
         IDictionary<string, NuGetPackage?> packages,
         bool dryRun,
@@ -113,7 +140,8 @@ internal abstract partial class PackageContainer
         ILogger logger,
         NuGetFramework? tfm,
         IReadOnlyCollection<string>? allowedLicenses,
-        IReadOnlyCollection<string>? alignWithTfm = null
+        IReadOnlyCollection<string>? alignWithTfm = null,
+        IReadOnlyCollection<PackageVersionPolicy>? packagePolicies = null
     )
     {
         var tfms = ResolveTfms(tfm);
@@ -224,11 +252,15 @@ internal abstract partial class PackageContainer
                 );
             }
 
-            var alignMajor = TfmAlignment.ResolveAlignMajor(candidateTfms);
+            var alignMajor = TfmAlignment.ResolveAlignMajor(ResolveAlignmentTfms(candidateTfms));
 
-            var maxMajor = shouldAlignWithTfm(packageId)
+            var alignWithTfmMaxMajor = shouldAlignWithTfm(packageId)
                 ? TfmAlignment.ResolveMaxMajor(alignMajor, version!)
                 : null;
+
+            var policyMaxMajor = ResolvePackagePolicyMaxMajor(packagePolicies, packageId);
+
+            var maxMajor = CombineMaxMajor(alignWithTfmMaxMajor, policyMaxMajor);
 
             if (
                 !TargetFrameworkCompatibility.TryGetLatestCompatibleWithAllTfms(
@@ -259,7 +291,7 @@ internal abstract partial class PackageContainer
                     logger,
                     project,
                     packageId,
-                    package.PackageMetadatas.SingleOrDefault(x => x.Version == version)
+                    package.PackageMetadatas.FirstOrDefault(x => x.Version == version)
                 );
 
                 CheckForSkippedLicenseMismatch(
@@ -274,6 +306,42 @@ internal abstract partial class PackageContainer
                     maxMajor
                 );
 
+                CheckForSkippedUpdate(
+                    logger,
+                    project,
+                    package,
+                    packageId,
+                    version!,
+                    usePrerelease,
+                    allowedLicenses,
+                    alignWithTfmMaxMajor,
+                    policyMaxMajor
+                );
+
+                continue;
+            }
+
+            updateTo = AdjustUpdateTarget(candidate, package, version!, updateTo);
+
+            CheckForSkippedUpdate(
+                logger,
+                project,
+                package,
+                packageId,
+                updateTo.Version,
+                usePrerelease,
+                allowedLicenses,
+                alignWithTfmMaxMajor,
+                policyMaxMajor
+            );
+
+            if (updateTo.Version <= version!)
+            {
+                // AdjustUpdateTarget capped the target back to - or below - the installed
+                // version, e.g. a dotnet tool that's already in step with the package it's
+                // pinned to. Applying it would needlessly rewrite the file, report a bogus
+                // "updated X from V to V" (tripping --fail-on outdated), and in the "tool is
+                // ahead of its pin" case actually downgrade it.
                 continue;
             }
 
@@ -442,6 +510,103 @@ internal abstract partial class PackageContainer
     }
 
     /// <summary>
+    /// Reports an update that was skipped for a reason other than a license mismatch (see
+    /// <see cref="CheckForSkippedLicenseMismatch"/>) or an unsupported version range/floating
+    /// version - i.e. a newer version was capped by <c>alignWithTfm</c> or a matching
+    /// <see cref="PackageVersionPolicy"/>, or is incompatible with one of the project's target
+    /// framework(s). Compares <paramref name="version"/> (the currently installed version, or the
+    /// version an update was already applied to) against the absolute latest version available,
+    /// ignoring target framework compatibility entirely - if that's newer, whatever's left
+    /// blocking it (<paramref name="policyMaxMajor"/> or <paramref name="alignWithTfmMaxMajor"/>,
+    /// whichever's major is what's in the way, or else target framework compatibility) is
+    /// reported.
+    /// </summary>
+    private static void CheckForSkippedUpdate(
+        ILogger logger,
+        ProjectWithPackages project,
+        NuGetPackage package,
+        string packageId,
+        NuGetVersion version,
+        bool usePrerelease,
+        IReadOnlyCollection<string>? allowedLicenses,
+        int? alignWithTfmMaxMajor,
+        int? policyMaxMajor
+    )
+    {
+        if (
+            !TargetFrameworkCompatibility.TryGetLatestIgnoringTfmCompatibility(
+                package,
+                version,
+                usePrerelease,
+                allowedLicenses,
+                maxMajor: null,
+                out var latest
+            )
+        )
+        {
+            return;
+        }
+
+        var reason =
+            policyMaxMajor is not null && latest.Version.Major > policyMaxMajor
+                ? SkippedUpdateReason.PackageVersionPolicy
+            : alignWithTfmMaxMajor is not null && latest.Version.Major > alignWithTfmMaxMajor
+                ? SkippedUpdateReason.AlignedWithTfm
+            : SkippedUpdateReason.IncompatibleTargetFramework;
+
+        project.AddSkippedUpdatePackage(new(packageId, latest.Version, reason));
+
+        LogSkippedUpdate(logger, packageId, latest.Version, reason);
+    }
+
+    /// <summary>
+    /// Finds the first <see cref="PackageVersionPolicy"/> (in order) whose
+    /// <see cref="PackageVersionPolicy.PackageIdPattern"/> matches <paramref name="packageId"/>,
+    /// and returns its <see cref="PackageVersionPolicy.MaxMajor"/>, or <see langword="null"/> if
+    /// none match.
+    /// </summary>
+    private static int? ResolvePackagePolicyMaxMajor(
+        IReadOnlyCollection<PackageVersionPolicy>? packagePolicies,
+        string packageId
+    )
+    {
+        if (packagePolicies is null || packagePolicies.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var policy in packagePolicies)
+        {
+            if (SearchPattern.ConvertToRegex(policy.PackageIdPattern).IsMatch(packageId))
+            {
+                return policy.MaxMajor;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Combines an <c>alignWithTfm</c>-derived cap with a <see cref="PackageVersionPolicy"/>
+    /// cap - both may apply to the same package - by taking the more restrictive (lower) of the
+    /// two, non-null values.
+    /// </summary>
+    private static int? CombineMaxMajor(int? alignWithTfmMaxMajor, int? policyMaxMajor)
+    {
+        if (alignWithTfmMaxMajor is null)
+        {
+            return policyMaxMajor;
+        }
+
+        if (policyMaxMajor is null)
+        {
+            return alignWithTfmMaxMajor;
+        }
+
+        return Math.Min(alignWithTfmMaxMajor.Value, policyMaxMajor.Value);
+    }
+
+    /// <summary>
     /// Resolves a <see cref="NuGetVersion"/> that represents <paramref name="versionStr"/> well
     /// enough to be used as a lookup key, i.e. to ensure the package is queried for on NuGet even
     /// though it can't be parsed as an exact version. Returns the lower bound of the version
@@ -586,6 +751,18 @@ internal abstract partial class PackageContainer
         string packageId,
         NuGetVersion version,
         string license
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        EventId = 10,
+        Message = "Package {PackageId} has a newer version {Version} available, but it was skipped: {Reason}"
+    )]
+    private static partial void LogSkippedUpdate(
+        ILogger logger,
+        string packageId,
+        NuGetVersion version,
+        SkippedUpdateReason reason
     );
     #endregion
 }

@@ -170,6 +170,42 @@ public class UpdatRConfigTests
         Assert.Null(config.Path);
         Assert.Empty(config.ExcludeFiles ?? []);
         Assert.Empty(config.AlignWithTfm ?? []);
+        Assert.Null(config.FailOn);
+        Assert.Empty(config.ToolPackagePins ?? []);
+        Assert.Empty(config.PackagePolicies ?? []);
+    }
+
+    [Fact]
+    public void CreateFileWithExampleCreatesFileWithPopulatedValues()
+    {
+        // Arrange
+        var temp = CreateTempDirectory();
+
+        // Act
+        var filePath = UpdatRConfig.CreateFile(temp, example: true);
+
+        // Assert
+        Assert.Equal(Path.Combine(temp, UpdatRConfig.FileName), filePath);
+
+        var config = UpdatRConfig.Load(temp);
+
+        Assert.NotNull(config);
+        Assert.Equal(["Microsoft.CodeAnalysis.*"], config.ExcludePackages ?? []);
+        Assert.Equal(
+            [
+                "Microsoft.EntityFrameworkCore",
+                "Microsoft.EntityFrameworkCore.*",
+                "Microsoft.Extensions.*",
+                "System.Net.Http.Json",
+            ],
+            config.AlignWithTfm ?? []
+        );
+        Assert.Equal(["dotnet-ef"], config.ToolPackagePins?.Select(x => x.Tool).ToArray() ?? []);
+        Assert.Equal(
+            ["Microsoft.EntityFrameworkCore"],
+            config.ToolPackagePins?.Select(x => x.Package).ToArray() ?? []
+        );
+        Assert.Empty(UpdatRConfig.Validate(File.ReadAllText(filePath)));
     }
 
     [Fact]
@@ -373,6 +409,133 @@ public class UpdatRConfigTests
 
         // Assert
         Assert.Single(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "packagePolicies": [] }""")]
+    [InlineData("""{ "packagePolicies": null }""")]
+    [InlineData("""{ "packagePolicies": [{ "package": "Serilog*", "maxMajor": 3 }] }""")]
+    [InlineData(
+        """
+            {
+              "packagePolicies": [
+                { "package": "Serilog*", "maxMajor": 3 },
+                { "package": "Foo", "maxMajor": 0 }
+              ]
+            }
+            """
+    )]
+    public void ValidateReturnsNoErrorsForValidPackagePoliciesValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "packagePolicies": "not-an-array" }""")]
+    [InlineData("""{ "packagePolicies": ["not-an-object"] }""")]
+    [InlineData("""{ "packagePolicies": [{ "maxMajor": 3 }] }""")]
+    [InlineData("""{ "packagePolicies": [{ "package": "" , "maxMajor": 3 }] }""")]
+    [InlineData("""{ "packagePolicies": [{ "package": "Serilog*" }] }""")]
+    [InlineData(
+        """{ "packagePolicies": [{ "package": "Serilog*", "maxMajor": "not-a-number" }] }"""
+    )]
+    [InlineData("""{ "packagePolicies": [{ "package": "Serilog*", "maxMajor": -1 }] }""")]
+    public void ValidateReturnsErrorForInvalidPackagePoliciesValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.NotEmpty(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "failOn": "outdated" }""")]
+    [InlineData("""{ "failOn": "Outdated" }""")]
+    [InlineData("""{ "failOn": "deprecated" }""")]
+    [InlineData("""{ "failOn": "vulnerable" }""")]
+    [InlineData("""{ "failOn": "none" }""")]
+    [InlineData("""{ "failOn": null }""")]
+    public void ValidateReturnsNoErrorsForValidFailOnValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "failOn": "not-a-real-value" }""")]
+    [InlineData("""{ "failOn": 1 }""")]
+    [InlineData("""{ "failOn": [] }""")]
+    public void ValidateReturnsErrorForInvalidFailOnValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "failOnIncomplete": true }""")]
+    [InlineData("""{ "failOnIncomplete": false }""")]
+    [InlineData("""{ "failOnIncomplete": null }""")]
+    public void ValidateReturnsNoErrorsForValidFailOnIncompleteValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "failOnIncomplete": "true" }""")]
+    [InlineData("""{ "failOnIncomplete": 1 }""")]
+    [InlineData("""{ "failOnIncomplete": [] }""")]
+    public void ValidateReturnsErrorForInvalidFailOnIncompleteValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Single(errors);
+    }
+
+    [Fact]
+    public void ParseFailOnReturnsNullForNullOrEmpty()
+    {
+        // Act & Assert
+        Assert.Null(UpdatRConfig.ParseFailOn(null));
+        Assert.Null(UpdatRConfig.ParseFailOn(""));
+        Assert.Null(UpdatRConfig.ParseFailOn("  "));
+    }
+
+    [Theory]
+    [InlineData("outdated", FailOn.Outdated)]
+    [InlineData("Deprecated", FailOn.Deprecated)]
+    [InlineData("VULNERABLE", FailOn.Vulnerable)]
+    [InlineData("none", FailOn.None)]
+    public void ParseFailOnParsesCaseInsensitively(string value, FailOn expected)
+    {
+        // Act
+        var result = UpdatRConfig.ParseFailOn(value);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ParseFailOnThrowsForUnknownValue()
+    {
+        // Act & Assert
+        Assert.Throws<UpdatRException>(() => UpdatRConfig.ParseFailOn("not-a-real-value"));
     }
 
     private static string CreateTempDirectory()

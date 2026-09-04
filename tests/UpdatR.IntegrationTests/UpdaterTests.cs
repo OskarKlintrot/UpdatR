@@ -41,7 +41,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempCsproj);
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(version);
@@ -77,7 +80,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempCsproj);
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -116,7 +122,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempCsproj, targetFrameworkMoniker: tfm);
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { TargetFrameworkMoniker = tfm },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(tfm);
@@ -157,7 +167,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempDotnetConfig);
+        var summary = await update.UpdateAsync(
+            tempDotnetConfig,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(version);
@@ -196,7 +209,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempDotnetConfig);
+        var summary = await update.UpdateAsync(
+            tempDotnetConfig,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -235,7 +251,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempDotnetConfig);
+        var summary = await update.UpdateAsync(
+            tempDotnetConfig,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         var updated = await File.ReadAllTextAsync(
@@ -289,7 +308,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(target, dryRun: true);
+        var summary = await update.UpdateAsync(
+            target,
+            new UpdateOptions { DryRun = true },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(
@@ -349,7 +372,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(target);
+        var summary = await update.UpdateAsync(
+            target,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(
@@ -402,7 +428,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp, null, packages);
+        var summary = await update.UpdateAsync(
+            temp,
+            new UpdateOptions { Packages = packages },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(string.Join('/', packages ?? []));
@@ -448,7 +478,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp, excludedPackages);
+        var summary = await update.UpdateAsync(
+            temp,
+            new UpdateOptions { ExcludePackages = excludedPackages },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(string.Join('/', excludedPackages ?? []));
@@ -492,7 +526,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -537,7 +574,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp, ["Has.*"]);
+        var summary = await update.UpdateAsync(
+            temp,
+            new UpdateOptions { ExcludePackages = ["Has.*"] },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -593,7 +634,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -651,7 +695,9 @@ public class UpdaterTests
             Directory.SetCurrentDirectory(temp);
 
             // Act
-            var summary = await update.UpdateAsync();
+            var summary = await update.UpdateAsync(
+                cancellationToken: TestContext.Current.CancellationToken
+            );
 
             // Assert
             await Verify(GetVerifyObjects());
@@ -699,7 +745,9 @@ public class UpdaterTests
             Directory.SetCurrentDirectory(temp);
 
             // Act
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => update.UpdateAsync());
+            var exception = await Assert.ThrowsAsync<InvalidUpdateTargetException>(() =>
+                update.UpdateAsync(cancellationToken: TestContext.Current.CancellationToken)
+            );
 
             // Assert
             Assert.Contains("path", exception.Message);
@@ -744,8 +792,12 @@ public class UpdaterTests
         // Act
         var summary = await update.UpdateAsync(
             temp,
-            excludedPackages is null ? null : [excludedPackages],
-            [packages]
+            new UpdateOptions
+            {
+                ExcludePackages = excludedPackages is null ? null : [excludedPackages],
+                Packages = [packages],
+            },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         // Assert
@@ -803,7 +855,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(Path.Combine(temp, target));
+        var summary = await update.UpdateAsync(
+            Path.Combine(temp, target),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(
@@ -864,7 +919,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(version);
@@ -920,7 +978,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(hasNugetConfig);
@@ -935,6 +996,271 @@ public class UpdaterTests
             yield return csprojOriginal;
             yield return await File.ReadAllTextAsync(tempCsproj);
         }
+    }
+
+    [Fact]
+    public async Task Given_PackageSourceMappingExcludesSource_When_Update_Then_DoNotUpdate()
+    {
+        // Arrange - the "local" source (the only one with a newer version of "Dummy") is mapped
+        // to a pattern that doesn't match "Dummy", so the package must be left untouched even
+        // though a newer version exists on disk.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_PackageSourceMappingExcludesSource_When_Update_Then_DoNotUpdate)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1")
+        );
+
+        CreateNuGetConfig(
+            tempNuget,
+            packageSourceMappingPatternsBySource: new Dictionary<string, string[]>
+            {
+                ["local"] = ["DoesNotMatch.*"],
+            }
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Empty(summary.UpdatedPackages);
+        Assert.Equal(
+            csprojOriginal,
+            await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Given_PackageSourceMappingIncludesSource_When_Update_Then_Update()
+    {
+        // Arrange - same setup as
+        // Given_PackageSourceMappingExcludesSource_When_Update_Then_DoNotUpdate, but the pattern
+        // does match "Dummy", so the update should proceed as if mapping wasn't configured at
+        // all.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_PackageSourceMappingIncludesSource_When_Update_Then_Update)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+
+        CreateNuGetConfig(
+            tempNuget,
+            packageSourceMappingPatternsBySource: new Dictionary<string, string[]>
+            {
+                ["local"] = ["Dummy*"],
+            }
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.NotEmpty(summary.UpdatedPackages);
+    }
+
+    [Fact]
+    public async Task Given_UpdatedPackage_When_FailOnOutdated_Then_ShouldFail()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatedPackage_When_FailOnOutdated_Then_ShouldFail)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { FailOn = FailOn.Outdated },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.NotEmpty(summary.UpdatedPackages);
+        Assert.True(summary.ShouldFail);
+    }
+
+    [Fact]
+    public async Task Given_UpdatedPackage_When_FailOnVulnerable_Then_ShouldNotFail()
+    {
+        // Arrange - an update happened, but nothing is deprecated or vulnerable, so
+        // FailOn.Vulnerable (and FailOn.Deprecated) should not trigger.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatedPackage_When_FailOnVulnerable_Then_ShouldNotFail)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { FailOn = FailOn.Vulnerable },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.NotEmpty(summary.UpdatedPackages);
+        Assert.False(summary.ShouldFail);
+    }
+
+    [Theory]
+    [InlineData(FailOn.Outdated)]
+    [InlineData(null)]
+    public async Task Given_UpToDate_When_FailOnOutdated_Then_ShouldNotFail(FailOn? failOn)
+    {
+        // Arrange - default FailOn.None never fails (null case); an up-to-date package doesn't
+        // trip FailOn.Outdated either.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpToDate_When_FailOnOutdated_Then_ShouldNotFail),
+            failOn?.ToString() ?? "none"
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.2"));
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { FailOn = failOn },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Empty(summary.UpdatedPackages);
+        Assert.False(summary.ShouldFail);
+    }
+
+    [Fact]
+    public async Task Given_UpdatRRcFileWithFailOn_When_Update_Then_UsesConfigValue()
+    {
+        // Arrange - FailOn isn't given via UpdateOptions, so the .updatrrc value is used.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatRRcFileWithFailOn_When_Update_Then_UsesConfigValue)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+        var tempUpdatRRc = Path.Combine(temp, UpdatRConfig.FileName);
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+
+        CreateNuGetConfig(tempNuget);
+
+        await CreateUpdatRConfigAsync(tempUpdatRRc, """{ "failOn": "outdated" }""");
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.NotEmpty(summary.UpdatedPackages);
+        Assert.Equal(FailOn.Outdated, summary.FailOn);
+        Assert.True(summary.ShouldFail);
+    }
+
+    [Fact]
+    public async Task Given_UpdatRRcFileWithPackagePolicies_When_Update_Then_CapsToConfigValue()
+    {
+        // Arrange - PackagePolicies isn't given via UpdateOptions, so the .updatrrc value is
+        // used: it caps Has.Newer.Tfm at major 5, so the net5.0 project updates to 5.0.0 (not
+        // 6.0.0) and the skip is reported for 6.0.0 with reason PackageVersionPolicy.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UpdatRRcFileWithPackagePolicies_When_Update_Then_CapsToConfigValue)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+        var tempUpdatRRc = Path.Combine(temp, UpdatRConfig.FileName);
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Has.Newer.Tfm", "3.1.0")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        await CreateUpdatRConfigAsync(
+            tempUpdatRRc,
+            """{ "packagePolicies": [{ "package": "Has.Newer.Tfm", "maxMajor": 5 }] }"""
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var updated = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("5.0.0", updated.To.ToString());
+
+        var skippedPackage = Assert.Single(summary.SkippedUpdatePackages);
+        var skippedVersion = Assert.Single(skippedPackage.Versions);
+
+        Assert.Equal("Has.Newer.Tfm", skippedPackage.PackageId);
+        Assert.Equal("6.0.0", skippedVersion.Version.NuGetVersion.ToString());
+        Assert.Equal(SkippedUpdateReason.PackageVersionPolicy, skippedVersion.Version.Reason);
     }
 
     [Fact]
@@ -961,7 +1287,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempCsproj);
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -972,6 +1301,208 @@ public class UpdaterTests
             yield return csprojOriginal;
             yield return await File.ReadAllTextAsync(tempCsproj);
         }
+    }
+
+    [Fact]
+    public async Task Given_LatestPackageHasUnsupportedTfm_When_Update_Then_ReportSkippedUpdate()
+    {
+        // Arrange - same fixture as Given_LatestPackageHasUnsupportedTfm_When_Update_Then_PickLatestSupportedTfm:
+        // Has.Newer.Tfm 6.0.0 only targets net6.0, so a net5.0 project updates to 5.0.0 instead,
+        // but 6.0.0 existing (and being TFM-incompatible) should now be visible in the summary.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_LatestPackageHasUnsupportedTfm_When_Update_Then_ReportSkippedUpdate)
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Has.Newer.Tfm", "3.1.0")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var updated = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("5.0.0", updated.To.ToString());
+
+        var skippedPackage = Assert.Single(summary.SkippedUpdatePackages);
+        var skippedVersion = Assert.Single(skippedPackage.Versions);
+
+        Assert.Equal("Has.Newer.Tfm", skippedPackage.PackageId);
+        Assert.Equal("6.0.0", skippedVersion.Version.NuGetVersion.ToString());
+        Assert.Equal(
+            SkippedUpdateReason.IncompatibleTargetFramework,
+            skippedVersion.Version.Reason
+        );
+        Assert.Equal("Dummy.App.csproj", Assert.Single(skippedVersion.Projects));
+    }
+
+    [Fact]
+    public async Task Given_AlignWithTfmCapsBelowIncompatibleVersion_When_Update_Then_ReportSkippedUpdateAsAlignedWithTfm()
+    {
+        // Arrange - Has.Newer.Tfm 6.0.0 is the absolute latest, but it's both incompatible with
+        // net5.0 *and* has a major (6) beyond what alignWithTfm allows for a net5.0 project (5).
+        // Since alignWithTfm is what's configured here, the skip should be attributed to it.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_AlignWithTfmCapsBelowIncompatibleVersion_When_Update_Then_ReportSkippedUpdateAsAlignedWithTfm
+            )
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Has.Newer.Tfm", "3.1.0")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { AlignWithTfm = ["Has.Newer.Tfm"] },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var updated = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("5.0.0", updated.To.ToString());
+
+        var skippedPackage = Assert.Single(summary.SkippedUpdatePackages);
+        var skippedVersion = Assert.Single(skippedPackage.Versions);
+
+        Assert.Equal("Has.Newer.Tfm", skippedPackage.PackageId);
+        Assert.Equal("6.0.0", skippedVersion.Version.NuGetVersion.ToString());
+        Assert.Equal(SkippedUpdateReason.AlignedWithTfm, skippedVersion.Version.Reason);
+    }
+
+    [Fact]
+    public async Task Given_PackagePolicyCapsBelowAvailableUpdate_When_Update_Then_UpdateToCapAndReportSkippedUpdate()
+    {
+        // Arrange - Has.Newer.Tfm 5.0.0 and 6.0.0 are both compatible with net5.0 (6.0.0 only
+        // targets net6.0 so it's excluded by TFM anyway), but a PackageVersionPolicy capping the
+        // package at maxMajor 5 should still let the 5.0.0 update through while reporting 6.0.0
+        // as skipped for the new PackageVersionPolicy reason (not AlignedWithTfm, since
+        // alignWithTfm isn't configured here).
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_PackagePolicyCapsBelowAvailableUpdate_When_Update_Then_UpdateToCapAndReportSkippedUpdate
+            )
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Has.Newer.Tfm", "3.1.0")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { PackagePolicies = [new PackageVersionPolicy("Has.Newer.Tfm", 5)] },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var updatedPackage = Assert.Single(summary.UpdatedPackages);
+        var updated = Assert.Single(updatedPackage.Updates);
+
+        Assert.Equal("5.0.0", updated.To.ToString());
+
+        var skippedPackage = Assert.Single(summary.SkippedUpdatePackages);
+        var skippedVersion = Assert.Single(skippedPackage.Versions);
+
+        Assert.Equal("Has.Newer.Tfm", skippedPackage.PackageId);
+        Assert.Equal("6.0.0", skippedVersion.Version.NuGetVersion.ToString());
+        Assert.Equal(SkippedUpdateReason.PackageVersionPolicy, skippedVersion.Version.Reason);
+    }
+
+    [Fact]
+    public async Task Given_PackagePolicyAndAlignWithTfmBothApply_When_Update_Then_MoreRestrictiveCapWins()
+    {
+        // Arrange - alignWithTfm allows up to major 5 for this net5.0 project, but a
+        // PackageVersionPolicy further restricts the same package to major 3. The more
+        // restrictive of the two (3) must win, so no update happens at all (the installed 3.1.0
+        // is already at the cap), and the skip for 6.0.0 is attributed to PackageVersionPolicy
+        // since that's the cap actually exceeded.
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_PackagePolicyAndAlignWithTfmBothApply_When_Update_Then_MoreRestrictiveCapWins
+            )
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        var csprojOriginal = await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Has.Newer.Tfm", "3.1.0")
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            tempCsproj,
+            new UpdateOptions
+            {
+                AlignWithTfm = ["Has.Newer.Tfm"],
+                PackagePolicies = [new PackageVersionPolicy("Has.Newer.Tfm", 3)],
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Empty(summary.UpdatedPackages);
+        Assert.Equal(
+            csprojOriginal,
+            await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken)
+        );
+
+        var skippedPackage = Assert.Single(summary.SkippedUpdatePackages);
+        var skippedVersion = Assert.Single(skippedPackage.Versions);
+
+        Assert.Equal("Has.Newer.Tfm", skippedPackage.PackageId);
+        Assert.Equal("6.0.0", skippedVersion.Version.NuGetVersion.ToString());
+        Assert.Equal(SkippedUpdateReason.PackageVersionPolicy, skippedVersion.Version.Reason);
     }
 
     [Theory]
@@ -1013,7 +1544,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(target);
+        var summary = await update.UpdateAsync(
+            target,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(
@@ -1071,7 +1605,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(target);
+        var summary = await update.UpdateAsync(
+            target,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(targetPath);
@@ -1140,7 +1677,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(Path.Combine(temp, "src"));
+        var summary = await update.UpdateAsync(
+            Path.Combine(temp, "src"),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -1199,7 +1739,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(target);
+        var summary = await update.UpdateAsync(
+            target,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(targetPath);
@@ -1214,6 +1757,115 @@ public class UpdaterTests
             yield return csprojOriginal;
             yield return await File.ReadAllTextAsync(tempCsproj);
         }
+    }
+
+    [Fact]
+    public async Task Given_DotnetEfAlreadyAtPinnedVersion_When_Update_Then_DoNotReportAnUpdate()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DotnetEfAlreadyAtPinnedVersion_When_Update_Then_DoNotReportAnUpdate)
+        );
+        var target = Path.Combine(temp, "src", ".config");
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        // The feed's newest dotnet-ef is 5.0.17, but the project pins it to 5.0.16 - which is
+        // exactly where the tool already is. There is nothing to do.
+        await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.16")
+        );
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.16",
+            command: "dotnet"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            target,
+            new UpdateOptions { FailOn = FailOn.Outdated },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Empty(
+            summary.UpdatedPackages.SelectMany(x =>
+                x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To} in {u.Project}")
+            )
+        );
+        Assert.Equal(
+            toolsOriginal,
+            await File.ReadAllTextAsync(tempDotnetConfig, TestContext.Current.CancellationToken)
+        );
+        Assert.False(summary.ShouldFail);
+    }
+
+    [Fact]
+    public async Task Given_DotnetEfAheadOfPinnedVersion_When_Update_Then_DoNotDowngrade()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_DotnetEfAheadOfPinnedVersion_When_Update_Then_DoNotDowngrade)
+        );
+        var target = Path.Combine(temp, "src", ".config");
+        var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(new FileInfo(tempDotnetConfig).DirectoryName!);
+
+        // Microsoft.EntityFrameworkCore is held at 5.0.12 while the tool is already at 5.0.16 and
+        // the feed's newest dotnet-ef is 5.0.17. The pin must not drag the tool back to 5.0.12.
+        await CreateTempCsprojAsync(
+            tempCsproj,
+            "net5.0",
+            new KeyValuePair<string, string>("Microsoft.EntityFrameworkCore", "5.0.12")
+        );
+
+        var toolsOriginal = await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.16",
+            command: "dotnet"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            target,
+            new UpdateOptions { ExcludePackages = ["Microsoft.EntityFrameworkCore"] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Empty(
+            summary.UpdatedPackages.SelectMany(x =>
+                x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To} in {u.Project}")
+            )
+        );
+        Assert.Equal(
+            toolsOriginal,
+            await File.ReadAllTextAsync(tempDotnetConfig, TestContext.Current.CancellationToken)
+        );
     }
 
     [Theory]
@@ -1241,7 +1893,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempApp);
+        var summary = await update.UpdateAsync(
+            tempApp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects()).UseParameters(version);
@@ -1277,7 +1932,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempApp);
+        var summary = await update.UpdateAsync(
+            tempApp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -1313,7 +1971,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -1349,7 +2010,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempApp, dryRun: true);
+        var summary = await update.UpdateAsync(
+            tempApp,
+            new UpdateOptions { DryRun = true },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(
@@ -1384,7 +2049,7 @@ public class UpdaterTests
     }
 
     [Fact]
-    public void Given_CsFileWithoutPackageDirective_When_CreateRootDir_Then_ThrowWithPath()
+    public async Task Given_CsFileWithoutPackageDirective_When_CreateRootDir_Then_ThrowWithPath()
     {
         // Arrange
         var temp = Path.Combine(
@@ -1397,7 +2062,9 @@ public class UpdaterTests
         File.WriteAllText(tempApp, "Console.WriteLine(\"Hello, world!\");");
 
         // Act
-        var ex = Assert.Throws<ArgumentException>(() => RootDir.Create(tempApp));
+        var ex = await Assert.ThrowsAsync<InvalidUpdateTargetException>(() =>
+            RootDir.CreateAsync(tempApp, cancellationToken: TestContext.Current.CancellationToken)
+        );
 
         // Assert
         Assert.Contains(tempApp, ex.Message, StringComparison.Ordinal);
@@ -1422,11 +2089,50 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempApp);
+        var summary = await update.UpdateAsync(
+            tempApp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.True(summary.UnknownPackages.TryGetValue("Unknown.Package", out var projects));
         Assert.Contains("Build.cs", projects.Single(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Given_UnknownPackage_When_FailOnIncomplete_Then_ShouldFail()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_UnknownPackage_When_FailOnIncomplete_Then_ShouldFail)
+        );
+        var tempApp = Path.Combine(temp, "Build.cs");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(temp);
+
+        await CreateTempFileBasedAppAsync(tempApp, packages: [new("Unknown.Package", "1.0.0")]);
+        CreateNuGetConfig(tempNuget);
+
+        var update = new Updater();
+
+        // Act
+        var withFlag = await update.UpdateAsync(
+            tempApp,
+            new UpdateOptions { FailOnIncomplete = true },
+            TestContext.Current.CancellationToken
+        );
+
+        var withoutFlag = await update.UpdateAsync(
+            tempApp,
+            new UpdateOptions { FailOn = FailOn.Vulnerable },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.True(withFlag.ShouldFail);
+        Assert.False(withoutFlag.ShouldFail);
     }
 
     [Fact]
@@ -1483,7 +2189,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(tempSlnx);
+        var summary = await update.UpdateAsync(
+            tempSlnx,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -1539,7 +2248,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -1613,7 +2325,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         await Verify(GetVerifyObjects());
@@ -1670,7 +2385,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         var updatedPackage = Assert.Single(summary.UpdatedPackages);
@@ -1739,7 +2457,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(2, summary.UpdatedPackages.Count());
@@ -1815,7 +2536,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert - only Dummy.Tool (from src/Directory.Build.props) is updated, the root
         // Directory.Build.props (never imported by this project) is left untouched.
@@ -1880,7 +2604,10 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp);
+        var summary = await update.UpdateAsync(
+            temp,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         var updatedPackage = Assert.Single(summary.UpdatedPackages);
@@ -1928,7 +2655,11 @@ public class UpdaterTests
         var update = new Updater();
 
         // Act
-        var summary = await update.UpdateAsync(temp, alignWithTfm: ["Has.Newer.Tfm"]);
+        var summary = await update.UpdateAsync(
+            temp,
+            new UpdateOptions { AlignWithTfm = ["Has.Newer.Tfm"] },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         var updatedPackage = Assert.Single(summary.UpdatedPackages);

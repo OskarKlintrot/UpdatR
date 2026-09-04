@@ -68,6 +68,15 @@ public static class TextFormatter
             sb.AppendLine("------------------------------");
         }
 
+        if (summary.SkippedUpdatePackages.Any())
+        {
+            sb.AppendLine("Skipped updates");
+            sb.AppendLine("--");
+            SkippedUpdatePackages(sb, summary.SkippedUpdatePackages);
+            sb.AppendLine();
+            sb.AppendLine("------------------------------");
+        }
+
         if (summary.UnauthorizedSources.Any())
         {
             sb.AppendLine("Unauthorized sources");
@@ -87,7 +96,7 @@ public static class TextFormatter
     {
         foreach (var (name, source) in unauthorizedSources)
         {
-            sb.AppendFormat(new CultureInfo("en-US"), "{0} ({1})", name, source);
+            sb.AppendFormat(CultureInfo.InvariantCulture, "{0} ({1})", name, source);
             sb.AppendLine();
             sb.AppendLine("--");
         }
@@ -121,7 +130,7 @@ public static class TextFormatter
 
             foreach (var (versionRange, projects) in ranges)
             {
-                sb.AppendFormat(new CultureInfo("en-US"), "Version range: {0}", versionRange);
+                sb.AppendFormat(CultureInfo.InvariantCulture, "Version range: {0}", versionRange);
                 sb.AppendLine();
                 sb.AppendLine(
                     "A newer version may be available, but UpdatR doesn't know how to safely rewrite this version range - update it manually if needed."
@@ -164,13 +173,13 @@ public static class TextFormatter
 
             var padding = versions
                 .SelectMany(x => x.Projects.Select(y => y.Length))
-                .OrderByDescending(x => x)
-                .First();
+                .DefaultIfEmpty(0)
+                .Max();
 
             foreach (var ((version, metadata), projects) in versions)
             {
                 sb.AppendFormat(
-                    new CultureInfo("en-US"),
+                    CultureInfo.InvariantCulture,
                     "Reason(s): {0}",
                     string.Join(", ", metadata.Reasons)
                 );
@@ -185,14 +194,14 @@ public static class TextFormatter
                 if (metadata.AlternatePackage is not null)
                 {
                     sb.AppendFormat(
-                            new CultureInfo("en-US"),
+                            CultureInfo.InvariantCulture,
                             "Alternate Package: {0}",
                             metadata.AlternatePackage.PackageId
                         )
                         .AppendLine();
 
                     sb.AppendFormat(
-                            new CultureInfo("en-US"),
+                            CultureInfo.InvariantCulture,
                             "Version range: {0}",
                             metadata.AlternatePackage.Range
                         )
@@ -204,7 +213,7 @@ public static class TextFormatter
                 foreach (var project in projects)
                 {
                     sb.AppendFormat(
-                        new CultureInfo("en-US"),
+                        CultureInfo.InvariantCulture,
                         "{0} {1}",
                         project.PadRight(padding),
                         version
@@ -231,7 +240,7 @@ public static class TextFormatter
                 foreach (var vulnerability in vulnerabilities)
                 {
                     sb.AppendFormat(
-                        new CultureInfo("en-US"),
+                        CultureInfo.InvariantCulture,
                         "Version {0} with severity {1}: {2}",
                         version,
                         vulnerability.Severity,
@@ -264,11 +273,42 @@ public static class TextFormatter
             foreach (var (version, projects) in package.Versions)
             {
                 sb.AppendFormat(
-                    new CultureInfo("en-US"),
+                    CultureInfo.InvariantCulture,
                     "{0} {1}: {2}",
                     version.IsInstalledVersion ? "Installed version" : "Newer version available",
                     version.NuGetVersion,
                     version.License
+                );
+
+                sb.AppendLine();
+                sb.AppendLine("Used in:");
+
+                foreach (var project in projects)
+                {
+                    sb.AppendLine(project);
+                }
+            }
+
+            sb.AppendLine("--");
+        }
+    }
+
+    private static void SkippedUpdatePackages(
+        StringBuilder sb,
+        IEnumerable<SkippedUpdatePackage> skippedUpdatePackages
+    )
+    {
+        foreach (var package in skippedUpdatePackages)
+        {
+            sb.AppendLine(package.PackageId);
+
+            foreach (var (version, projects) in package.Versions)
+            {
+                sb.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Newer version available: {0} ({1})",
+                    version.NuGetVersion,
+                    version.Reason
                 );
 
                 sb.AppendLine();
@@ -311,7 +351,7 @@ public static class TextFormatter
             foreach (var (from, to, project) in packages.Updates)
             {
                 sb.AppendFormat(
-                    new CultureInfo("en-US"),
+                    CultureInfo.InvariantCulture,
                     "{0} {1} => {2}",
                     project.PadRight(padRightProject),
                     from.ToString().PadRight(padRightFrom),

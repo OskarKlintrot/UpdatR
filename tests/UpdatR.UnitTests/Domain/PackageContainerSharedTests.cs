@@ -247,9 +247,7 @@ public class PackageContainerSharedTests
             bool dryRun,
             ILogger logger
         ) =>
-            Task.FromResult(
-                Csproj.Create(Path).UpdatePackages(packages, dryRun, usePrerelease: false, logger)
-            );
+            Csproj.Create(Path).UpdatePackagesAsync(packages, dryRun, usePrerelease: false, logger);
 
         public override async Task<string> ReadVersionStringAsync(string packageId)
         {
@@ -282,11 +280,9 @@ public class PackageContainerSharedTests
             bool dryRun,
             ILogger logger
         ) =>
-            Task.FromResult(
-                PropsFile
-                    .Create(Path, [NuGetFramework.Parse("net10.0")])
-                    .UpdatePackages(packages, dryRun, usePrerelease: false, logger)
-            );
+            PropsFile
+                .Create(Path, [NuGetFramework.Parse("net10.0")])
+                .UpdatePackagesAsync(packages, dryRun, usePrerelease: false, logger);
 
         public override async Task<string> ReadVersionStringAsync(string packageId)
         {

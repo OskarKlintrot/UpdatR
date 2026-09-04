@@ -97,6 +97,14 @@ public static class MarkdownFormatter
             sb.AppendLine();
         }
 
+        if (summary.SkippedUpdatePackages.Any())
+        {
+            sb.AppendLine("## Skipped updates");
+            sb.AppendLine();
+            SkippedUpdatePackages(sb, summary.SkippedUpdatePackages);
+            sb.AppendLine();
+        }
+
         if (summary.UnauthorizedSources.Any())
         {
             sb.AppendLine("## Unauthorized sources");
@@ -135,7 +143,8 @@ public static class MarkdownFormatter
 
         foreach (var (name, source) in unauthorizedSources)
         {
-            sb.AppendFormat(new CultureInfo("en-US"), "| {0} | {1} |", name, source).AppendLine();
+            sb.AppendFormat(CultureInfo.InvariantCulture, "| {0} | {1} |", name, source)
+                .AppendLine();
         }
 
         sb.AppendLine();
@@ -172,7 +181,7 @@ public static class MarkdownFormatter
 
             foreach (var (versionRange, projects) in ranges)
             {
-                sb.AppendFormat(new CultureInfo("en-US"), "Version range: `{0}`", versionRange)
+                sb.AppendFormat(CultureInfo.InvariantCulture, "Version range: `{0}`", versionRange)
                     .AppendLine()
                     .AppendLine();
 
@@ -204,8 +213,8 @@ public static class MarkdownFormatter
 
             var padding = versions
                 .SelectMany(x => x.Projects.Select(y => y.Length))
-                .OrderByDescending(x => x)
-                .First();
+                .DefaultIfEmpty(0)
+                .Max();
 
             foreach (var ((version, metadata), projects) in versions)
             {
@@ -220,7 +229,7 @@ public static class MarkdownFormatter
                 }
 
                 sb.AppendFormat(
-                        new CultureInfo("en-US"),
+                        CultureInfo.InvariantCulture,
                         "Reason(s): {0}",
                         string.Join(", ", metadata.Reasons)
                     )
@@ -230,7 +239,7 @@ public static class MarkdownFormatter
                 if (metadata.AlternatePackage is not null)
                 {
                     sb.AppendFormat(
-                            new CultureInfo("en-US"),
+                            CultureInfo.InvariantCulture,
                             "Alternate Package: {0}",
                             metadata.AlternatePackage.PackageId
                         )
@@ -238,7 +247,7 @@ public static class MarkdownFormatter
                         .AppendLine();
 
                     sb.AppendFormat(
-                            new CultureInfo("en-US"),
+                            CultureInfo.InvariantCulture,
                             "Version range: {0}",
                             metadata.AlternatePackage.Range
                         )
@@ -254,7 +263,7 @@ public static class MarkdownFormatter
                 foreach (var project in projects)
                 {
                     sb.AppendFormat(
-                            new CultureInfo("en-US"),
+                            CultureInfo.InvariantCulture,
                             "| {0} | {1} |",
                             project.PadRight(padding),
                             version
@@ -280,7 +289,7 @@ public static class MarkdownFormatter
                 foreach (var vulnerability in vulnerabilities)
                 {
                     sb.AppendFormat(
-                            new CultureInfo("en-US"),
+                            CultureInfo.InvariantCulture,
                             "Version {0} with severity {1}: {2}",
                             version,
                             vulnerability.Severity,
@@ -314,13 +323,45 @@ public static class MarkdownFormatter
             foreach (var (version, projects) in package.Versions)
             {
                 sb.AppendFormat(
-                        new CultureInfo("en-US"),
+                        CultureInfo.InvariantCulture,
                         "{0} {1}: {2}",
                         version.IsInstalledVersion
                             ? "Installed version"
                             : "Newer version available",
                         version.NuGetVersion,
                         version.License
+                    )
+                    .AppendLine();
+
+                sb.AppendLine();
+                sb.AppendLine("#### Used in:");
+
+                foreach (var project in projects)
+                {
+                    sb.Append("- ").AppendLine(project);
+                }
+            }
+
+            sb.AppendLine();
+        }
+    }
+
+    private static void SkippedUpdatePackages(
+        StringBuilder sb,
+        IEnumerable<SkippedUpdatePackage> skippedUpdatePackages
+    )
+    {
+        foreach (var package in skippedUpdatePackages)
+        {
+            sb.Append("### ").AppendLine(package.PackageId);
+
+            foreach (var (version, projects) in package.Versions)
+            {
+                sb.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "Newer version available: {0} ({1})",
+                        version.NuGetVersion,
+                        version.Reason
                     )
                     .AppendLine();
 
@@ -367,7 +408,7 @@ public static class MarkdownFormatter
             foreach (var (from, to, project) in packages.Updates)
             {
                 sb.AppendFormat(
-                        new CultureInfo("en-US"),
+                        CultureInfo.InvariantCulture,
                         "| {0} | {1} | {2} |",
                         project.PadRight(padRightProject),
                         from.ToString().PadRight(padRightFrom),

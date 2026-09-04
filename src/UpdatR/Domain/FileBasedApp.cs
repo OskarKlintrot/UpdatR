@@ -30,6 +30,7 @@ internal sealed partial class FileBasedApp : PackageContainer
     private NuGetFramework? _targetFramework;
     private string? _content;
     private readonly List<(string OldDirective, string NewDirective)> _replacements = [];
+    private Dictionary<string, NuGetVersion>? _packages;
 
     private FileBasedApp(FileInfo path)
     {
@@ -48,7 +49,7 @@ internal sealed partial class FileBasedApp : PackageContainer
 
     public NuGetFramework TargetFramework => _targetFramework ??= GetTargetFramework();
 
-    public IDictionary<string, NuGetVersion> Packages => GetPackages();
+    public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();
 
     public static FileBasedApp Create(string path)
     {
@@ -90,16 +91,51 @@ internal sealed partial class FileBasedApp : PackageContainer
     /// Checks if <paramref name="path"/> is a .cs file containing at least one `#:package` directive.
     /// </summary>
     /// <remarks>
-    /// The whole file is scanned to be certain no `#:package` directive is missed. Directives are
-    /// expected near the top of the file, but nothing prevents a file from having e.g. leading
-    /// comments or blank lines before them.
+    /// Only the leading run of blank lines, `//` comments, an optional shebang and `#:`
+    /// directives is scanned - per the file-based apps spec, a directive can only appear before
+    /// any other C# code, so scanning stops as soon as the first non-directive line is reached
+    /// instead of reading a potentially large file to the end.
     /// See <see href="https://learn.microsoft.com/en-us/dotnet/core/sdk/file-based-apps">
     /// File-based apps</see> for the directive rules this class relies on.
     /// </remarks>
-    public static bool IsFileBasedApp(string path) =>
-        path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-        && File.Exists(path)
-        && File.ReadLines(path).Any(line => PackageDirectiveRegex().IsMatch(line));
+    public static bool IsFileBasedApp(string path)
+    {
+        if (!path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        foreach (var line in File.ReadLines(path))
+        {
+            var trimmed = line.AsSpan().Trim();
+
+            if (trimmed.IsEmpty || trimmed.StartsWith("//") || trimmed.StartsWith("#!"))
+            {
+                continue;
+            }
+
+            if (trimmed.StartsWith("#:"))
+            {
+                if (PackageDirectiveRegex().IsMatch(line))
+                {
+                    return true;
+                }
+
+                // Some other file-level directive (e.g. #:sdk, #:property) - directives can
+                // still follow it, so keep scanning.
+                continue;
+            }
+
+            // The first real line of C# code reached: per the file-based apps spec, file-level
+            // directives may only appear before any other code (only comments/blank lines and
+            // the optional shebang are allowed among them), so no #:package directive can appear
+            // further down - no point reading (and regex-matching) the rest of a potentially
+            // large file.
+            break;
+        }
+
+        return false;
+    }
 
     public async Task<ProjectWithPackages?> UpdatePackagesAsync(
         IDictionary<string, NuGetPackage?> packages,
@@ -108,11 +144,13 @@ internal sealed partial class FileBasedApp : PackageContainer
         ILogger logger,
         NuGetFramework? tfm = null,
         IReadOnlyCollection<string>? allowedLicenses = null,
-        IReadOnlyCollection<string>? alignWithTfm = null
+        IReadOnlyCollection<string>? alignWithTfm = null,
+        IReadOnlyCollection<PackageVersionPolicy>? packagePolicies = null
     )
     {
         _content = await File.ReadAllTextAsync(Path).ConfigureAwait(false);
         _replacements.Clear();
+        _packages = null;
 
         return await UpdatePackagesCoreAsync(
                 packages,
@@ -121,7 +159,8 @@ internal sealed partial class FileBasedApp : PackageContainer
                 logger,
                 tfm,
                 allowedLicenses,
-                alignWithTfm
+                alignWithTfm,
+                packagePolicies
             )
             .ConfigureAwait(false);
     }

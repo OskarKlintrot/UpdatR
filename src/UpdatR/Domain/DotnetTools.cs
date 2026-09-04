@@ -4,15 +4,23 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using NuGet.Frameworks;
 using NuGet.Versioning;
-using UpdatR.Domain.Utils;
 using UpdatR.Internals;
 
 namespace UpdatR.Domain;
 
-internal sealed partial class DotnetTools
+internal sealed partial class DotnetTools : PackageContainer
 {
     private readonly FileInfo _path;
     private readonly IEnumerable<Csproj> _affectedCsprojs;
+    private List<string>? _packageIds;
+    private string? _rawJson;
+    private JsonObject? _tools;
+    private IReadOnlyCollection<ToolPackagePin> _toolPackagePins =
+    [
+        ToolPackagePin.EntityFrameworkCore,
+    ];
+    private readonly List<(string PackageId, string OldVersion, string NewVersion)> _replacements =
+    [];
 
     // dotnet-tools.json files generated from dotnet new templates may contain
     // template-engine directives such as "//#if (...)" and "//#endif". These
@@ -43,16 +51,18 @@ internal sealed partial class DotnetTools
         _affectedCsprojs = affectedCsprojs;
     }
 
-    public string Name => _path.Name;
+    public override string Name => _path.Name;
 
-    public string Path => _path.FullName;
+    public override string Path => _path.FullName;
 
     public string Parent => _path.DirectoryName!;
 
-    public IEnumerable<string> PackageIds => GetPackageIds();
+    protected override string ReferenceKind => "tool reference";
 
-    private NuGetVersion? HighestAllowedDotnetEf() =>
-        _affectedCsprojs.Min(x => x.EntityFrameworkVersion);
+    public IEnumerable<string> PackageIds => _packageIds ??= GetPackageIds();
+
+    private NuGetVersion? HighestAllowedVersion(string pinnedPackageIdPrefix) =>
+        _affectedCsprojs.Min(x => x.GetPinnedVersion(pinnedPackageIdPrefix));
 
     public static DotnetTools Create(string path, IEnumerable<Csproj> affectedCsprojs)
     {
@@ -87,41 +97,52 @@ internal sealed partial class DotnetTools
         bool dryRun,
         bool usePrerelease,
         ILogger logger,
-        IReadOnlyCollection<string>? alignWithTfm = null
+        IReadOnlyCollection<string>? allowedLicenses = null,
+        IReadOnlyCollection<string>? alignWithTfm = null,
+        IReadOnlyCollection<ToolPackagePin>? toolPackagePins = null,
+        IReadOnlyCollection<PackageVersionPolicy>? packagePolicies = null
     )
     {
-        var alignMajor = TfmAlignment.ResolveAlignMajor(
-            _affectedCsprojs.SelectMany(x => x.TargetFrameworks).ToList()
-        );
-        var shouldAlignWithTfm = SearchPattern.CreateSearch(
-            alignWithTfm,
-            treatNullOrEmptyAs: false
-        );
-
-        var rawJson = await File.ReadAllTextAsync(Path);
-
-        var config = JsonSerializer.Deserialize<JsonObject>(rawJson, s_jsonSerializerOptions);
-
-        if (config is null)
+        if (toolPackagePins is { Count: > 0 })
         {
-            return null;
+            _toolPackagePins = toolPackagePins;
         }
 
-        var tools = config["tools"]?.AsObject();
+        _rawJson = await File.ReadAllTextAsync(Path).ConfigureAwait(false);
+        _tools = JsonSerializer
+            .Deserialize<JsonObject>(_rawJson, s_jsonSerializerOptions)
+            ?["tools"]?.AsObject();
+        _replacements.Clear();
 
-        if (tools is null)
+        return await UpdatePackagesCoreAsync(
+                packages,
+                dryRun,
+                usePrerelease,
+                logger,
+                tfm: null,
+                allowedLicenses,
+                alignWithTfm,
+                packagePolicies
+            )
+            .ConfigureAwait(false);
+    }
+
+    protected override IReadOnlyCollection<NuGetFramework> ResolveTfms(
+        NuGetFramework? tfmOverride
+    ) => [tfmOverride ?? NuGetFramework.AnyFramework];
+
+    protected override IReadOnlyCollection<NuGetFramework> ResolveAlignmentTfms(
+        IReadOnlyCollection<NuGetFramework> candidateTfms
+    ) => [.. _affectedCsprojs.SelectMany(x => x.TargetFrameworks)];
+
+    protected override IEnumerable<Candidate> EnumerateCandidates()
+    {
+        if (_tools is null)
         {
-            return null;
+            yield break;
         }
 
-        var project = new ProjectWithPackages(Path);
-
-        // Version strings that need to be replaced. The file is never fully
-        // re-serialized (that would drop comments/formatting); instead the
-        // exact "version" values are patched into the original text.
-        var replacements = new List<(string PackageId, string OldVersion, string NewVersion)>();
-
-        foreach (var element in tools)
+        foreach (var element in _tools)
         {
             var packageId = element.Key;
 
@@ -134,8 +155,6 @@ internal sealed partial class DotnetTools
 
             if (toolObject is null)
             {
-                LogToolObjectNull(logger, Path);
-
                 continue;
             }
 
@@ -145,83 +164,64 @@ internal sealed partial class DotnetTools
 
             var rawVersion = versionProperty.Value?.GetValue<string>();
 
-            if (rawVersion is null || !NuGetVersion.TryParse(rawVersion, out var version))
+            if (rawVersion is null || !NuGetVersion.TryParse(rawVersion, out _))
             {
                 continue;
             }
 
-            if (!packages.TryGetValue(packageId, out var package))
+            yield return new DotnetToolsCandidate
             {
-                project.AddUnknownPackage(packageId);
-            }
-            else if (package is not null)
-            {
-                var maxMajor = shouldAlignWithTfm(packageId)
-                    ? TfmAlignment.ResolveMaxMajor(alignMajor, version)
-                    : null;
-
-                if (
-                    package.TryGetLatestComparedTo(
-                        version,
-                        NuGetFramework.AnyFramework,
-                        usePrerelease,
-                        out var updateTo,
-                        maxMajor: maxMajor
-                    )
-                )
-                {
-                    // EF Bodge
-                    if (
-                        packageId.Equals("dotnet-ef", StringComparison.OrdinalIgnoreCase)
-                        && HighestAllowedDotnetEf() is { } highestAllowedDotnetEf
-                        && package.TryGet(highestAllowedDotnetEf, out _)
-                        && highestAllowedDotnetEf <= updateTo.Version
-                    )
-                    {
-                        updateTo = package.Get(highestAllowedDotnetEf);
-                    }
-
-                    // EF Bodge
-                    if (version != updateTo.Version)
-                    {
-                        LogUpdateSuccessful(logger, Name, packageId, version, updateTo.Version);
-
-                        project.AddUpdatedPackage(new(packageId, version, updateTo.Version));
-
-                        replacements.Add((packageId, rawVersion, updateTo.Version.ToString()));
-                    }
-                }
-                else
-                {
-                    if (package.TryGet(version, out var packageMetadata))
-                    {
-                        if (packageMetadata.DeprecationMetadata is not null)
-                        {
-                            project.AddDeprecatedPackage(
-                                new(packageId, version, packageMetadata.DeprecationMetadata)
-                            );
-                        }
-
-                        if (packageMetadata.Vulnerabilities?.Any() == true)
-                        {
-                            project.AddVulnerablePackage(
-                                new(packageId, version, packageMetadata.Vulnerabilities)
-                            );
-                        }
-                    }
-                }
-            }
+                PackageId = packageId,
+                VersionString = rawVersion,
+                SiteText = toolObject.ToJsonString(),
+            };
         }
-
-        if (!dryRun && replacements.Count > 0)
-        {
-            var patchedJson = ReplaceVersionsInRawJson(rawJson, replacements);
-
-            await File.WriteAllTextAsync(Path, patchedJson);
-        }
-
-        return project;
     }
+
+    protected override PackageMetadata AdjustUpdateTarget(
+        Candidate candidate,
+        NuGetPackage package,
+        NuGetVersion currentVersion,
+        PackageMetadata updateTo
+    )
+    {
+        // A pinned tool (e.g. dotnet-ef, pinned to Microsoft.EntityFrameworkCore by default) must
+        // never move ahead of the highest version of its pinned package any affected project can
+        // still resolve, so the tool and the package(s) it drives (e.g. EF migrations) never
+        // mismatch.
+        var pin = _toolPackagePins.FirstOrDefault(x =>
+            x.ToolPackageId.Equals(candidate.PackageId, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (
+            pin is not null
+            && HighestAllowedVersion(pin.PinnedPackageIdPrefix) is { } highestAllowedVersion
+            && package.TryGet(highestAllowedVersion, out _)
+            && highestAllowedVersion <= updateTo.Version
+        )
+        {
+            return package.Get(highestAllowedVersion);
+        }
+
+        return updateTo;
+    }
+
+    protected override void ApplyVersionUpdate(Candidate candidate, string newVersionString) =>
+        _replacements.Add((candidate.PackageId, candidate.VersionString, newVersionString));
+
+    protected override async Task PersistAsync(bool dryRun)
+    {
+        if (dryRun || _replacements.Count == 0)
+        {
+            return;
+        }
+
+        var patchedJson = ReplaceVersionsInRawJson(_rawJson!, _replacements);
+
+        await File.WriteAllTextAsync(Path, patchedJson).ConfigureAwait(false);
+    }
+
+    private sealed class DotnetToolsCandidate : Candidate;
 
     // Patches only the "version" string values that changed directly into
     // the original file text, leaving comments (e.g. dotnet template-engine
@@ -361,20 +361,4 @@ internal sealed partial class DotnetTools
 
         return tools;
     }
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Tool object in {Path} was null.")]
-    static partial void LogToolObjectNull(ILogger logger, string path);
-
-    [LoggerMessage(
-        Level = LogLevel.Information,
-        EventId = 3,
-        Message = "{Name}: Updated {PackageId} from {FromVersion} to {ToVersion}"
-    )]
-    static partial void LogUpdateSuccessful(
-        ILogger logger,
-        string name,
-        string packageId,
-        NuGetVersion fromVersion,
-        NuGetVersion toVersion
-    );
 }

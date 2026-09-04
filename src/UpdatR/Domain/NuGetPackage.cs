@@ -6,7 +6,7 @@ using UpdatR.Internals;
 namespace UpdatR.Domain;
 
 [SuppressMessage("Style", "IDE0022:Use block body for method", Justification = "<Pending>")]
-internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> PackageMetadatas)
+internal sealed class NuGetPackage
 {
     // Keyed by target framework - a single NuGetPackage instance is now queried for multiple,
     // different target frameworks within the same update run (e.g. a multi-targeted project with
@@ -17,6 +17,42 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
     private readonly Dictionary<NuGetFramework, PackageMetadata?> _latestStable = [];
     private readonly Dictionary<NuGetFramework, PackageMetadata?> _latestPrerelease = [];
     private CompatibilityProvider? _compatibilityProvider;
+
+    public NuGetPackage(string packageId, IEnumerable<PackageMetadata> packageMetadatas)
+    {
+        PackageId = packageId;
+        PackageMetadatas = Deduplicate(packageMetadatas);
+    }
+
+    public string PackageId { get; }
+
+    /// <summary>
+    /// Materialized, deduplicated (by <see cref="PackageMetadata.Version"/>) and
+    /// version-descending ordered metadata. Materializing avoids re-running the same LINQ chain -
+    /// and re-allocating every element - on each enumeration, and deduplicating up front means a
+    /// feed that (incorrectly) returns two entries for the same version can no longer crash
+    /// callers that expect at most one match.
+    /// </summary>
+    public IReadOnlyList<PackageMetadata> PackageMetadatas { get; }
+
+    /// <summary>
+    /// Creates a new <see cref="NuGetPackage"/> combining this instance's metadata with
+    /// <paramref name="additionalMetadata"/> (e.g. from another NuGet source). Returns a fresh
+    /// instance with its own, empty caches - <c>with</c>-style in-place mutation would otherwise
+    /// leave the merged instance sharing (and returning stale results from) the pre-merge
+    /// instance's caches.
+    /// </summary>
+    public NuGetPackage Merge(IEnumerable<PackageMetadata> additionalMetadata) =>
+        new(PackageId, PackageMetadatas.Concat(additionalMetadata));
+
+    private static List<PackageMetadata> Deduplicate(
+        IEnumerable<PackageMetadata> packageMetadatas
+    ) =>
+        packageMetadatas
+            .GroupBy(x => x.Version)
+            .Select(x => x.First())
+            .OrderByDescending(x => x.Version)
+            .ToList();
 
     private CompatibilityProvider CompatibilityProvider =>
         _compatibilityProvider ??= new CompatibilityProvider(DefaultFrameworkNameProvider.Instance);
@@ -218,7 +254,7 @@ internal record NuGetPackage(string PackageId, IEnumerable<PackageMetadata> Pack
         [NotNullWhen(returnValue: true)] out PackageMetadata? package
     )
     {
-        package = PackageMetadatas.SingleOrDefault(x => x.Version == version);
+        package = PackageMetadatas.FirstOrDefault(x => x.Version == version);
 
         return package != null;
     }

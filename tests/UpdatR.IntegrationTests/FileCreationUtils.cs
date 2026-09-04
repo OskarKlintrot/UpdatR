@@ -101,7 +101,11 @@ internal static class FileCreationUtils
         await File.WriteAllTextAsync(path, json);
     }
 
-    public static void CreateNuGetConfig(string path, bool addNuGetOrg = false)
+    public static void CreateNuGetConfig(
+        string path,
+        bool addNuGetOrg = false,
+        IReadOnlyDictionary<string, string[]>? packageSourceMappingPatternsBySource = null
+    )
     {
         var nugetContent = GetResource("UpdatR.IntegrationTests.Resources.Templates.nuget.config");
 
@@ -129,6 +133,25 @@ internal static class FileCreationUtils
         );
 
         packageSources.Add(local);
+
+        if (packageSourceMappingPatternsBySource is not null)
+        {
+            var packageSourceMapping = new XElement("packageSourceMapping");
+
+            foreach (var (source, patterns) in packageSourceMappingPatternsBySource)
+            {
+                var packageSource = new XElement("packageSource", new XAttribute("key", source));
+
+                foreach (var pattern in patterns)
+                {
+                    packageSource.Add(new XElement("package", new XAttribute("pattern", pattern)));
+                }
+
+                packageSourceMapping.Add(packageSource);
+            }
+
+            doc.Element("configuration")!.Add(packageSourceMapping);
+        }
 
         doc.Save(path);
     }

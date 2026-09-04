@@ -31,12 +31,36 @@ namespace UpdatR;
 /// with the target framework(s) of the csproj(s) the manifest applies to (e.g. keeping
 /// <c>dotnet-ef</c> in step with <c>Microsoft.EntityFrameworkCore</c>).
 /// </param>
+/// <param name="ToolPackagePins">
+/// Extra tool-to-package pin rules for <c>dotnet-tools.json</c> entries, on top of the built-in
+/// default that pins <c>dotnet-ef</c> to <c>Microsoft.EntityFrameworkCore</c>. An entry here for
+/// <c>dotnet-ef</c> overrides the default instead of adding to it.
+/// </param>
+/// <param name="PackagePolicies">
+/// Per-package (or wildcard-matched) fixed major-version caps - see
+/// <see cref="UpdatR.PackageVersionPolicy"/>. Merged with
+/// <see cref="UpdateOptions.PackagePolicies"/> (that collection first).
+/// </param>
+/// <param name="FailOn">
+/// Minimum severity of finding - <c>"outdated"</c>, <c>"deprecated"</c> or <c>"vulnerable"</c> -
+/// that should make <see cref="Summary.ShouldFail"/> true. Overridden by
+/// <see cref="UpdateOptions.FailOn"/> if given. Defaults to <see cref="UpdatR.FailOn.None"/>.
+/// </param>
+/// <param name="FailOnIncomplete">
+/// Also make <see cref="Summary.ShouldFail"/> true when the run was incomplete - i.e. it hit an
+/// unauthorized package source, or couldn't resolve a package on any source. Overridden by
+/// <see cref="UpdateOptions.FailOnIncomplete"/> if given. Defaults to <see langword="false"/>.
+/// </param>
 public sealed record UpdatRConfig(
     [property: JsonPropertyName("excludePackages")] string[]? ExcludePackages,
     [property: JsonPropertyName("allowedLicenses")] string[]? AllowedLicenses,
     [property: JsonPropertyName("path")] string? Path = null,
     [property: JsonPropertyName("excludeFiles")] string[]? ExcludeFiles = null,
-    [property: JsonPropertyName("alignWithTfm")] string[]? AlignWithTfm = null
+    [property: JsonPropertyName("alignWithTfm")] string[]? AlignWithTfm = null,
+    [property: JsonPropertyName("toolPackagePins")] ToolPackagePinConfig[]? ToolPackagePins = null,
+    [property: JsonPropertyName("packagePolicies")] PackagePolicyConfig[]? PackagePolicies = null,
+    [property: JsonPropertyName("failOn")] string? FailOn = null,
+    [property: JsonPropertyName("failOnIncomplete")] bool? FailOnIncomplete = null
 )
 {
     /// <summary>
@@ -51,6 +75,10 @@ public sealed record UpdatRConfig(
         "path",
         "excludeFiles",
         "alignWithTfm",
+        "toolPackagePins",
+        "packagePolicies",
+        "failOn",
+        "failOnIncomplete",
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -166,7 +194,37 @@ public sealed record UpdatRConfig(
     }
 
     /// <summary>
-    /// Creates a new <c>.updatrrc</c> file containing all known options, empty.
+    /// An example <c>.updatrrc</c>, meant as a realistic starting point rather than an
+    /// exhaustive reference: it excludes the Roslyn compiler packages (which projects rarely
+    /// intend to update directly), pins <c>dotnet-ef</c> to <c>Microsoft.EntityFrameworkCore</c>
+    /// explicitly (redundant with the built-in default, but shown here for discoverability), and
+    /// keeps Entity Framework Core and <c>Microsoft.Extensions.*</c> - both of which commonly
+    /// ship versions that multi-target a newer TFM than the project actually targets - aligned
+    /// with the project's target framework.
+    /// </summary>
+    private const string ExampleJson = """
+        {
+          "excludePackages": [
+            "Microsoft.CodeAnalysis.*"
+          ],
+          "toolPackagePins": [
+            {
+              "tool": "dotnet-ef",
+              "package": "Microsoft.EntityFrameworkCore"
+            }
+          ],
+          "alignWithTfm": [
+            "Microsoft.EntityFrameworkCore",
+            "Microsoft.EntityFrameworkCore.*",
+            "Microsoft.Extensions.*",
+            "System.Net.Http.Json"
+          ]
+        }
+        """;
+
+    /// <summary>
+    /// Creates a new <c>.updatrrc</c> file, either containing all known options, empty, or - if
+    /// <paramref name="example"/> is <see langword="true"/> - a realistic, populated example.
     /// </summary>
     /// <param name="path">
     /// Path to write the file to. If it's an existing directory, or doesn't exist and doesn't
@@ -175,11 +233,14 @@ public sealed record UpdatRConfig(
     /// is used as the file path directly.
     /// </param>
     /// <param name="overwrite">Overwrite the file if it already exists.</param>
+    /// <param name="example">
+    /// Write a populated, realistic example instead of all options present but empty.
+    /// </param>
     /// <returns>The full path of the created file.</returns>
     /// <exception cref="IOException">
     /// The file already exists and <paramref name="overwrite"/> is <see langword="false"/>.
     /// </exception>
-    public static string CreateFile(string path, bool overwrite = false)
+    public static string CreateFile(string path, bool overwrite = false, bool example = false)
     {
         var filePath = ResolveFilePath(path);
 
@@ -195,16 +256,22 @@ public sealed record UpdatRConfig(
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(
-            new UpdatRConfig(
-                ExcludePackages: [],
-                AllowedLicenses: [],
-                Path: null,
-                ExcludeFiles: [],
-                AlignWithTfm: []
-            ),
-            WriteJsonOptions
-        );
+        var json = example
+            ? ExampleJson
+            : JsonSerializer.Serialize(
+                new UpdatRConfig(
+                    ExcludePackages: [],
+                    AllowedLicenses: [],
+                    Path: null,
+                    ExcludeFiles: [],
+                    AlignWithTfm: [],
+                    ToolPackagePins: [],
+                    PackagePolicies: [],
+                    FailOn: null,
+                    FailOnIncomplete: null
+                ),
+                WriteJsonOptions
+            );
 
         File.WriteAllText(filePath, json);
 
@@ -307,6 +374,28 @@ public sealed record UpdatRConfig(
                         }
                     }
                 }
+                else if (
+                    property.Name.Equals("toolPackagePins", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    ValidateToolPackagePins(property, errors);
+                }
+                else if (
+                    property.Name.Equals("packagePolicies", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    ValidatePackagePolicies(property, errors);
+                }
+                else if (property.Name.Equals("failOn", StringComparison.OrdinalIgnoreCase))
+                {
+                    ValidateFailOn(property, errors);
+                }
+                else if (
+                    property.Name.Equals("failOnIncomplete", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    ValidateBoolean(property, errors);
+                }
                 else
                 {
                     ValidateStringArray(property, errors);
@@ -315,6 +404,154 @@ public sealed record UpdatRConfig(
         }
 
         return errors;
+    }
+
+    /// <summary>
+    /// Parses a <c>.updatrrc</c> <c>failOn</c> value (case-insensitive), or <see langword="null"/>
+    /// if <paramref name="value"/> is <see langword="null"/> or empty.
+    /// </summary>
+    /// <exception cref="UpdatRException">
+    /// <paramref name="value"/> isn't a recognized <see cref="UpdatR.FailOn"/> name.
+    /// </exception>
+    internal static FailOn? ParseFailOn(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<FailOn>(value, ignoreCase: true, out var failOn))
+        {
+            return failOn;
+        }
+
+        throw new UpdatRException(
+            $"'{value}' is not a valid 'failOn' value. Valid values are: "
+                + string.Join(", ", Enum.GetNames<FailOn>())
+                + "."
+        );
+    }
+
+    private static void ValidateBoolean(JsonProperty property, List<string> errors)
+    {
+        if (
+            property.Value.ValueKind
+            is not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null)
+        )
+        {
+            errors.Add($"'{property.Name}' must be a boolean");
+        }
+    }
+
+    private static void ValidateFailOn(JsonProperty property, List<string> errors)
+    {
+        if (property.Value.ValueKind is JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (
+            property.Value.ValueKind is not JsonValueKind.String
+            || !Enum.TryParse<FailOn>(property.Value.GetString(), ignoreCase: true, out _)
+        )
+        {
+            errors.Add(
+                $"'{property.Name}' must be one of: " + string.Join(", ", Enum.GetNames<FailOn>())
+            );
+        }
+    }
+
+    private static void ValidateToolPackagePins(JsonProperty property, List<string> errors)
+    {
+        if (property.Value.ValueKind is JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (property.Value.ValueKind is not JsonValueKind.Array)
+        {
+            errors.Add($"'{property.Name}' must be an array of objects.");
+
+            return;
+        }
+
+        var index = 0;
+
+        foreach (var item in property.Value.EnumerateArray())
+        {
+            if (item.ValueKind is not JsonValueKind.Object)
+            {
+                errors.Add($"'{property.Name}[{index}]' must be an object.");
+
+                index++;
+
+                continue;
+            }
+
+            foreach (var key in new[] { "tool", "package" })
+            {
+                if (
+                    !item.TryGetProperty(key, out var value)
+                    || value.ValueKind is not JsonValueKind.String
+                    || string.IsNullOrWhiteSpace(value.GetString())
+                )
+                {
+                    errors.Add($"'{property.Name}[{index}].{key}' must be a non-empty string.");
+                }
+            }
+
+            index++;
+        }
+    }
+
+    private static void ValidatePackagePolicies(JsonProperty property, List<string> errors)
+    {
+        if (property.Value.ValueKind is JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (property.Value.ValueKind is not JsonValueKind.Array)
+        {
+            errors.Add($"'{property.Name}' must be an array of objects.");
+
+            return;
+        }
+
+        var index = 0;
+
+        foreach (var item in property.Value.EnumerateArray())
+        {
+            if (item.ValueKind is not JsonValueKind.Object)
+            {
+                errors.Add($"'{property.Name}[{index}]' must be an object.");
+
+                index++;
+
+                continue;
+            }
+
+            if (
+                !item.TryGetProperty("package", out var packageValue)
+                || packageValue.ValueKind is not JsonValueKind.String
+                || string.IsNullOrWhiteSpace(packageValue.GetString())
+            )
+            {
+                errors.Add($"'{property.Name}[{index}].package' must be a non-empty string.");
+            }
+
+            if (
+                !item.TryGetProperty("maxMajor", out var maxMajorValue)
+                || maxMajorValue.ValueKind is not JsonValueKind.Number
+                || !maxMajorValue.TryGetInt32(out var maxMajor)
+                || maxMajor < 0
+            )
+            {
+                errors.Add($"'{property.Name}[{index}].maxMajor' must be a non-negative integer.");
+            }
+
+            index++;
+        }
     }
 
     private static void ValidateString(JsonProperty property, List<string> errors)
@@ -363,3 +600,33 @@ public sealed record UpdatRConfig(
         }
     }
 }
+
+/// <summary>
+/// A <c>.updatrrc</c>-declared tool-to-package pin rule; see <see cref="ToolPackagePin"/> for what
+/// it does. Deserialized separately from <see cref="ToolPackagePin"/> since JSON property names
+/// (<c>tool</c>/<c>package</c>) are shorter than what would otherwise be idiomatic public API
+/// property names.
+/// </summary>
+/// <param name="Tool">The dotnet tool's package id, e.g. <c>dotnet-ef</c>.</param>
+/// <param name="Package">
+/// Prefix (case-insensitive) matched against package ids referenced by an affected project to
+/// find the package this tool is pinned to, e.g. <c>Microsoft.EntityFrameworkCore</c>.
+/// </param>
+public sealed record ToolPackagePinConfig(
+    [property: JsonPropertyName("tool")] string Tool,
+    [property: JsonPropertyName("package")] string Package
+);
+
+/// <summary>
+/// A <c>.updatrrc</c>-declared package version policy; see <see cref="PackageVersionPolicy"/> for
+/// what it does. Deserialized separately since JSON property names (<c>package</c>/
+/// <c>maxMajor</c>) are shorter than what would otherwise be idiomatic public API property names.
+/// </summary>
+/// <param name="Package">
+/// Package id pattern to match, supports <c>*</c> as wildcard - e.g. <c>Serilog*</c>.
+/// </param>
+/// <param name="MaxMajor">The highest major version an update may move to.</param>
+public sealed record PackagePolicyConfig(
+    [property: JsonPropertyName("package")] string Package,
+    [property: JsonPropertyName("maxMajor")] int MaxMajor
+);

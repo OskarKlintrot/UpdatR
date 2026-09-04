@@ -1,4 +1,4 @@
-1 package(s) were updated in 1 projects:
+﻿1 package(s) were updated in 1 projects:
 
 | Updated.Package |
 
@@ -8,7 +8,7 @@
 Version 1.2.3 with severity 1: https://google.com/
 
 #### Used in:
-- Foo\Foo.csproj
+- Foo/Foo.csproj
 
 
 ## Deprecated packages
@@ -26,7 +26,7 @@ Package used in:
 
 | Project | Version |
 |:--------|:--------|
-| Foo\Foo.csproj | 1.2.3 |
+| Foo/Foo.csproj | 1.2.3 |
 
 
 ## Updated packages
@@ -34,7 +34,7 @@ Package used in:
 ### Updated.Package
 | Project   | From   | To |
 |:----------|:-------|:---|
-| Foo\Foo.csproj | 1.0.0 | 2.0.0 |
+| Foo/Foo.csproj | 1.0.0 | 2.0.0 |
 
 
 ## Not found packages
@@ -42,7 +42,16 @@ Package used in:
 ### Unknown.Package
 
 Used in:
-- Foo\Foo.csproj
+- Foo/Foo.csproj
+
+
+## Skipped updates
+
+### Skipped.Package
+Newer version available: 2.0.0 (AlignedWithTfm)
+
+#### Used in:
+- Foo/Foo.csproj
 
 
 ## Unauthorized sources

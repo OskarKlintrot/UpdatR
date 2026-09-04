@@ -1,0 +1,11 @@
+﻿# 📦 Update no packages
+
+## Skipped updates
+
+### Skipped.Package
+Newer version available: 2.0.0 (IncompatibleTargetFramework)
+
+#### Used in:
+- Foo/Foo.csproj
+
+

@@ -1,0 +1,55 @@
+﻿------------------------------
+📦 Updated Updated.Package
+
+------------------------------
+Vulnerable packages
+--
+Vulnerable.Package
+Version 1.2.3 with severity 1: https://google.com/
+Used in:
+Foo/Foo.csproj
+--
+
+------------------------------
+Deprecated packages
+--
+Deprecated.Package
+Reason(s): Other
+Old and deprecated package.
+Alternate Package: Not.Deprecated
+Version range: (, )
+Package used in:
+Foo/Foo.csproj 1.2.3
+--
+
+------------------------------
+Updated packages
+--
+Updated.Package
+Foo/Foo.csproj 1.0.0 => 2.0.0
+--
+
+------------------------------
+Not found packages
+--
+Unknown.Package
+Used in:
+- Foo/Foo.csproj
+--
+
+------------------------------
+Skipped updates
+--
+Skipped.Package
+Newer version available: 2.0.0 (AlignedWithTfm)
+Used in:
+Foo/Foo.csproj
+--
+
+------------------------------
+Unauthorized sources
+--
+Unauthorized source (https://google.com)
+--
+
+------------------------------

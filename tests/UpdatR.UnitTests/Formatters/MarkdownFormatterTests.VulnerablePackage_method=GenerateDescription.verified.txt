@@ -1,9 +1,9 @@
-## Vulnerable packages
+﻿## Vulnerable packages
 
 ### Vulnerable.Package
 
 #### Used in:
-- Foo\Foo.csproj
-- Bar\Bar.csproj
+- Foo/Foo.csproj
+- Bar/Bar.csproj
 
 

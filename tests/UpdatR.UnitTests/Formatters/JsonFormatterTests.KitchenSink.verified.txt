@@ -1,0 +1,86 @@
+﻿{
+  "schemaVersion": 1,
+  "shouldFail": true,
+  "failOn": "outdated",
+  "failOnIncomplete": false,
+  "updatedPackagesCount": 1,
+  "updatedPackages": [
+    {
+      "packageId": "Updated.Package",
+      "updates": [
+        {
+          "from": "1.0.0",
+          "to": "2.0.0",
+          "project": "Foo/Foo.csproj"
+        }
+      ]
+    }
+  ],
+  "deprecatedPackages": [
+    {
+      "packageId": "Deprecated.Package",
+      "versions": [
+        {
+          "version": "1.2.3",
+          "message": "Old and deprecated package.",
+          "reasons": [
+            "Other"
+          ],
+          "alternatePackage": {
+            "packageId": "Not.Deprecated",
+            "range": "(, )"
+          },
+          "projects": [
+            "Foo/Foo.csproj"
+          ]
+        }
+      ]
+    }
+  ],
+  "vulnerablePackages": [
+    {
+      "packageId": "Vulnerable.Package",
+      "versions": [
+        {
+          "version": "1.2.3",
+          "vulnerabilities": [
+            {
+              "advisoryUrl": "https://google.com/",
+              "severity": 1
+            }
+          ],
+          "projects": [
+            "Foo/Foo.csproj"
+          ]
+        }
+      ]
+    }
+  ],
+  "licenseMismatchPackages": [],
+  "unsupportedRangePackages": [],
+  "skippedUpdatePackages": [
+    {
+      "packageId": "Skipped.Package",
+      "versions": [
+        {
+          "version": "2.0.0",
+          "reason": "alignedWithTfm",
+          "projects": [
+            "Foo/Foo.csproj"
+          ]
+        }
+      ]
+    }
+  ],
+  "unknownPackages": {
+    "Unknown.Package": [
+      "Foo/Foo.csproj"
+    ]
+  },
+  "unauthorizedSources": [
+    {
+      "name": "Unauthorized source",
+      "source": "https://google.com"
+    }
+  ]
+}
