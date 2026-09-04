@@ -83,6 +83,12 @@ internal static partial class Program
             Description = "Interaction with user is possible.",
         };
 
+        var noCacheOption = new Option<bool>("--no-cache")
+        {
+            Description =
+                "Bypass the local NuGet HTTP cache when checking for package versions, forcing every source to be queried fresh.",
+        };
+
         var tfmOption = new Option<string?>("--tfm") { Description = "Lowest TFM to support." };
 
         var allowedLicensesOption = new Option<string[]>("--allowed-licenses")
@@ -192,6 +198,7 @@ internal static partial class Program
             prereleaseOption,
             browserOption,
             interactiveOption,
+            noCacheOption,
             tfmOption,
             allowedLicensesOption,
             excludeFileOption,
@@ -216,6 +223,7 @@ internal static partial class Program
                     prerelease: parseResult.GetValue(prereleaseOption),
                     browser: parseResult.GetValue(browserOption),
                     interactive: parseResult.GetValue(interactiveOption),
+                    noCache: parseResult.GetValue(noCacheOption),
                     tfm: parseResult.GetValue(tfmOption),
                     allowedLicenses: parseResult.GetValue(allowedLicensesOption),
                     excludeFile: parseResult.GetValue(excludeFileOption),
@@ -304,6 +312,7 @@ internal static partial class Program
         bool prerelease = false,
         bool browser = false,
         bool interactive = false,
+        bool noCache = false,
         string? tfm = null,
         string[]? allowedLicenses = null,
         string[]? excludeFile = null,
@@ -376,6 +385,7 @@ internal static partial class Program
                     DryRun = dryRun,
                     Prerelease = prerelease,
                     Interactive = interactive,
+                    NoCache = noCache,
                     TargetFrameworkMoniker = tfm,
                     AllowedLicenses = allowedLicenses,
                     ExcludeFiles = excludeFile,

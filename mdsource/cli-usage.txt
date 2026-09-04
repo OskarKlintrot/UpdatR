@@ -16,6 +16,7 @@ Options:
   --prerelease                                                       Allow prerelease packages to be installed.
   --browser                                                          Open summary in browser.
   --interactive                                                      Interaction with user is possible.
+  --no-cache                                                         Bypass the local NuGet HTTP cache when checking for package versions, forcing every source to be queried fresh.
   --tfm <tfm>                                                        Lowest TFM to support.
   --allowed-licenses <allowed-licenses>                              Only update to (and warn about) versions whose license contains one of these values, e.g. 'MIT'. Packages without license information are always allowed. Leave out to disable license checking. Merged with "allowedLicenses" from a .updatrrc file, if present.
   --exclude-file <exclude-file>                                      File to exclude, matched against its path relative to the resolved target. Supports * as wildcard. Merged with "excludeFiles" from a .updatrrc file, if present.

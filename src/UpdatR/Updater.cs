@@ -163,6 +163,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             shouldIncludePackage,
             shouldExcludePackage,
             options.Interactive,
+            options.NoCache,
             new NuGetLogger(_logger),
             cancellationToken
         );
@@ -313,13 +314,18 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         Func<string, bool> shouldIncludePackage,
         Func<string, bool> shouldExcludePackage,
         bool interactive,
+        bool noCache,
         NuGet.Common.ILogger nuGetLogger,
         CancellationToken cancellationToken
     )
     {
         DefaultCredentialServiceUtility.SetupDefaultCredentialService(nuGetLogger, !interactive);
 
-        using var cacheContext = new SourceCacheContext();
+        using var cacheContext = new SourceCacheContext
+        {
+            NoCache = noCache,
+            RefreshMemoryCache = noCache,
+        };
 
         Dictionary<string, NuGetPackage?> packageSearchMetadata = new(
             StringComparer.OrdinalIgnoreCase
