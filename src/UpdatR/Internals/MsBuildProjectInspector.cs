@@ -30,6 +30,22 @@ internal static class MsBuildProjectInspector
     private static bool _registered;
 
     /// <summary>
+    /// Disables the SDK's default item globs (<c>Compile</c>, <c>EmbeddedResource</c>,
+    /// <c>PRIResource</c>, <c>None</c> - see
+    /// <c>Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.DefaultItems.props</c>) for every
+    /// evaluation this type performs. Those globs recursively enumerate the entire project
+    /// directory tree, which is by far the most expensive part of an SDK-style evaluation and is
+    /// never needed here: this type only ever reads <c>PackageReference</c>,
+    /// <c>PackageVersion</c> and <c>GlobalPackageReference</c> items, none of which are ever
+    /// produced by a default item glob (they're always declared explicitly). Safe to apply
+    /// unconditionally.
+    /// </summary>
+    private static readonly Dictionary<string, string> DisableDefaultItemsGlobalProperty = new()
+    {
+        ["EnableDefaultItems"] = "false",
+    };
+
+    /// <summary>
     /// Evaluates <paramref name="projectPath"/> and returns every evaluated
     /// <c>PackageReference</c>, <c>PackageVersion</c> and <c>GlobalPackageReference</c> item
     /// together with the file it was declared in.
@@ -101,7 +117,7 @@ internal static class MsBuildProjectInspector
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static IReadOnlyList<PackageItemSource> GetPackageItemSourcesCore(string projectPath)
     {
-        using var collection = new ProjectCollection();
+        using var collection = new ProjectCollection(DisableDefaultItemsGlobalProperty);
 
         try
         {
@@ -151,7 +167,10 @@ internal static class MsBuildProjectInspector
             // of the "outer build" (cross-targeting loop) a multi-targeted project normally
             // evaluates as, where $(TargetFramework) is empty.
             using var collection = new ProjectCollection(
-                new Dictionary<string, string> { ["TargetFramework"] = targetFramework }
+                new Dictionary<string, string>(DisableDefaultItemsGlobalProperty)
+                {
+                    ["TargetFramework"] = targetFramework,
+                }
             );
 
             try
@@ -187,7 +206,7 @@ internal static class MsBuildProjectInspector
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static IReadOnlyList<string> GetImportedFilesCore(string projectPath)
     {
-        using var collection = new ProjectCollection();
+        using var collection = new ProjectCollection(DisableDefaultItemsGlobalProperty);
 
         try
         {
