@@ -1,8 +1,44 @@
-- Support .props and .targets files
 - breaking: To support .props and .targets files, UpdatR now requires the .NET SDK to be installed on the machine.
+- breaking: `Updater.UpdateAsync`'s parameter list has been replaced by an `UpdateOptions` record and a `CancellationToken`. `UpdateAsync(string? path, string[]? excludePackages, string[]? packages, bool dryRun, bool prerelease, bool interactive, string? targetFrameworkMoniker)` is now `UpdateAsync(string? path = null, UpdateOptions? options = null, CancellationToken cancellationToken = default)`.
+- breaking: `Summary`'s constructor takes five new arguments - `licenseMismatchPackages`, `unsupportedRangePackages`, `skippedUpdatePackages`, `failOn` and `failOnIncomplete` - and the type gained `LicenseMismatchPackages`, `UnsupportedRangePackages`, `SkippedUpdatePackages`, `FailOn`, `FailOnIncomplete` and `ShouldFail` members. All of its collections are now materialized snapshots instead of lazy queries.
+- breaking: `dotnet-updatr` now returns a non-zero exit code where it previously always returned 0: 1 for a domain error, 2 when `--fail-on`/`--fail-on-incomplete` was tripped, and 130 when cancelled with Ctrl+C.
+- breaking: `.sln` and `.slnx` files are now read with `Microsoft.VisualStudio.SolutionPersistence` instead of two hand-rolled parsers. As a side effect `.sln` targets now discover file-based apps too, which only `.slnx` did before.
+- Support `.props` and `.targets` files, including central package management via `Directory.Packages.props`. Discovery is done with MSBuild, and an evaluation failure is logged as a warning instead of being silently ignored.
+- Support multi-targeted projects. A project declaring `<TargetFrameworks>` previously fell back to "any framework", so no target framework compatibility check was done at all; every declared framework is now evaluated and an update has to be compatible with all of them.
+- Support a `Condition` on `PackageReference` per target framework, so the same package can be updated to a different version per framework in a multi-targeted project or `.props` file.
+- Support `GlobalPackageReference` in `Directory.Packages.props`.
+- Support `VersionOverride` on a `PackageReference`.
+- Support floating versions and version ranges. A float such as `8.0.*` keeps its notation and only has its fixed prefix bumped, and is left alone entirely when it already resolves to the newest version.
+- Report version ranges that UpdatR cannot safely rewrite, such as `[1.0,2.0)` or a prerelease float, via the new `Summary.UnsupportedRangePackages`, instead of silently leaving them alone.
 - Add `--allowed-licenses` option to filter package updates by license expression (case-insensitive substring match). Packages without license information are always allowed. The currently installed version is also checked and reported as a mismatch if applicable.
-- breaking: `Updater.UpdateAsync` has a new optional `allowedLicenses` parameter and `Summary` has a new `LicenseMismatchPackages` property.
-- Add support for a `.updatrrc` JSON config file. The file is looked up next to the target path, falling back to the current working directory, and its values are merged with the corresponding command line options / `Updater.UpdateAsync` parameters.
+- Add `--exclude-file` option / `excludeFiles` in `.updatrrc`, to exclude files matched against their path relative to the resolved target. Supports `*` as wildcard.
+- Add support for a `.updatrrc` JSON config file. The file is looked up next to the target path, falling back to the current working directory, and its values are merged with the corresponding command line options / `UpdateOptions` properties. Comments and trailing commas are allowed.
 - Add SourceLink support to the `UpdatR` and `dotnet-updatr` packages, enabling source debugging and repository metadata (commit, branch, URL) in the published NuGet packages.
 - Add `update config init` / `update config validate` commands, and public `UpdatRConfig.CreateFile` / `UpdatRConfig.Validate` API, for scaffolding and validating a `.updatrrc` file.
+- Add `--example` option to `update config init`, to create a populated, realistic `.updatrrc` instead of all options present but empty.
 - Add `--align-with-tfm` option / `alignWithTfm` in `.updatrrc`, to cap matching packages (e.g. `Microsoft.Extensions.*`) to the project's (or, for `dotnet-tools.json`, the affected project(s)') target framework major version, instead of updating to a newer major that only happens to also multi-target the project's TFM.
+- Add support for `.fsproj` and `.vbproj` projects, alongside `.csproj`.
+- Add `--fail-on <none|outdated|deprecated|vulnerable>` / `failOn` in `.updatrrc`, to exit with code 2 when a package was updated, is deprecated or is vulnerable. Most useful together with `--dry-run` to gate CI on packages merely needing an update.
+- Add `--fail-on-incomplete` / `failOnIncomplete` in `.updatrrc`, to exit with code 2 when UpdatR could not check every package - an unauthorized package source, or a package that was not found on any source. Independent of `--fail-on`, since "I could not tell" is not a severity.
+- Add machine-readable JSON output: `--output <path>.json` writes the full summary via the new public `JsonFormatter`, using camelCase property names and a `schemaVersion` field.
+- Add reporting of updates that were held back, via the new `Summary.SkippedUpdatePackages` and `SkippedUpdateReason`. Covers updates capped by `alignWithTfm`, capped by `packagePolicies`, or blocked by target framework incompatibility - previously only license mismatches were reported.
+- Add `packagePolicies` to `.updatrrc` and `UpdateOptions.PackagePolicies`, a fixed per-package (or wildcard) major version cap. Combines with `alignWithTfm`; the more restrictive cap wins.
+- Add `toolPackagePins` to `.updatrrc` and `UpdateOptions.ToolPackagePins`, generalizing the previously hardcoded rule that `dotnet-ef` must stay in step with `Microsoft.EntityFrameworkCore`. The built-in Entity Framework Core rule is still applied by default.
+- Add `CancellationToken` support throughout, so Ctrl+C aborts in-flight NuGet calls and solution parsing instead of running to completion.
+- `packageSourceMapping` in `NuGet.config` is now respected - a source is only queried for the packages it is mapped to.
+- New public types: `UpdateOptions`, `FailOn`, `JsonFormatter`, `PackageVersionPolicy`, `SkippedUpdateReason`, `ToolPackagePin`, `UpdatRException`, `InvalidUpdateTargetException`, `LicenseMismatchPackage`, `LicenseMismatchVersion`, `UnsupportedRangePackage`, `SkippedUpdatePackage` and `SkippedUpdateVersion`.
+- fix: wildcards in package and file patterns are now escaped correctly. `--exclude-package System.Text.Json` previously also matched `SystemXTextYJson`, and any pattern containing `(`, `[`, `+` or `?` crashed the run with a `RegexParseException`.
+- fix: a `PackageReference` using the `Update` attribute instead of `Include` is now resolved to the right package id, instead of warning about a package with an empty name and never being updated.
+- fix: the projects a `dotnet-tools.json` is checked against are now scoped to the directory tree it applies to. An unrelated project elsewhere in the repository could previously cap `dotnet-ef`'s update for a completely different tool manifest.
+- fix: a `dotnet-tools.json` tool that is ahead of the package it is pinned to is no longer downgraded and reported as an update.
+- fix: reported project paths now always use `/`, instead of `\` on every platform.
+- fix: path comparisons are now case-sensitive on Linux and macOS, so two distinct files no longer collapse into one.
+- fix: a deprecated package with no associated projects no longer crashes the markdown and text formatters.
+- fix: `--output`/`--title`/`--description` now correctly treats an existing directory whose name contains a dot as a directory, creates missing parent directories, and reports an unsupported file extension as a friendly error instead of a `NotImplementedException`.
+- fix: `--browser` now opens the report via its default file association on Windows, instead of shelling out to `cmd.exe /c` with an unquoted path.
+- fix: a package source returning duplicate entries for the same version no longer crashes the run.
+- fix: the crash log path is now printed to stderr when an unhandled exception is captured.
+- perf: each `(source, package)` pair is now queried once globally with bounded parallelism, instead of once per project sequentially.
+- perf: NuGet `Settings`, `SourceRepositoryProvider` and `PackageSourceMapping` are cached per `NuGet.config` directory instead of rebuilt per project.
+- perf: package lists are memoized in all containers instead of re-reading the file or re-running XPath on every access.
+- perf: the file-based app scan now skips `.git`, `.vs`, `node_modules`, `bin` and `obj`, and stops reading a `.cs` file at the first non-directive line.
