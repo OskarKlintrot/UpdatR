@@ -25,6 +25,13 @@ public sealed record UpdateOptions
     /// <summary>Interaction with user is possible.</summary>
     public bool Interactive { get; init; }
 
+    /// <summary>
+    /// Bypass the local NuGet HTTP cache when checking for package versions, forcing every
+    /// source to be queried fresh. Leave <see langword="false"/> (default) to reuse cached
+    /// responses, which is faster and avoids unnecessary load on package sources.
+    /// </summary>
+    public bool NoCache { get; init; }
+
     /// <summary>Lowest Target Framework Moniker to support.</summary>
     public string? TargetFrameworkMoniker { get; init; }
 
