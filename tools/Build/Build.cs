@@ -1,11 +1,11 @@
 #!/usr/bin/env dotnet
-#:package Bullseye@6.1.0
+#:package Bullseye@6.2.0
 #:package Microsoft.Extensions.Configuration.UserSecrets@10.0.11
 #:package Microsoft.Extensions.Logging.Console@10.0.11
 #:package NuGet.Protocol@7.9.0
 #:package NuGet.Versioning@7.9.0
 #:package Octokit@14.0.0
-#:package SimpleExec@13.0.0
+#:package SimpleExec@13.1.0
 #:property UserSecretsId=f8057ef4-f389-4c3d-bbc5-ec638d0454d7
 #:include ../../src/BuildingBlocks/NuGetLogger.cs
 
