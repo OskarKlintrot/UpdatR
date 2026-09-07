@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0" />
     <!--
       Needed directly: UpdatR.csproj marks its own Microsoft.Build.Locator PackageReference
       PrivateAssets="all" (see the comment there), which also stops it flowing transitively via

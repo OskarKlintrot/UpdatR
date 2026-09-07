@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0" />
     <!--
       Needed directly: UpdatR.csproj no longer flows this transitively (see the comment on the
       same PackageReference there). Must be excluded here too, since Microsoft.Build.Locator is
@@ -16,12 +16,7 @@
       UpdatR.dll) has no guaranteed entry point, ModuleInitializer.cs in this project registers
       MSBuildLocator before any test can run.
     -->
-    <PackageReference
-      Include="NuGet.Frameworks"
-      Version="7.9.0"
-      ExcludeAssets="runtime"
-      PrivateAssets="all"
-    />
+    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" ExcludeAssets="runtime" PrivateAssets="all" />
     <!--
       Needed directly: UpdatR.csproj marks its own Microsoft.Build.Locator PackageReference
       PrivateAssets="all" (see the comment there), which also stops it flowing transitively via
