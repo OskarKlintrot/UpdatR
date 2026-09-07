@@ -54,7 +54,7 @@
     },
     "toolPackagePins": {
       "title": "Tool package pins",
-      "description": "Rules that keep a .NET tool compatible with a package used by the affected project.",
+      "description": "Rules that match a .NET tool's update version to the version of a referenced package in the affected project.",
       "type": "array",
       "items": {
         "type": "object",
@@ -63,7 +63,7 @@
         "properties": {
           "tool": {
             "title": ".NET tool package ID",
-            "description": "Package ID of the .NET tool to constrain.",
+            "description": "Package ID of the .NET tool whose update version should match the referenced package version.",
             "examples": [
               "dotnet-ef"
             ],
@@ -71,7 +71,7 @@
           },
           "package": {
             "title": "Referenced package ID pattern",
-            "description": "Package ID pattern matched against package references in the affected project. Supports * as a wildcard.",
+            "description": "Package ID pattern used to find the package whose version the .NET tool update should match. Supports * as a wildcard.",
             "examples": [
               "Microsoft.EntityFrameworkCore*"
             ],
