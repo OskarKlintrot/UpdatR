@@ -25,7 +25,7 @@
       Microsoft.Build.Locator.dll copied to its own output.
     -->
     <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
-    <PackageReference Include="Verify.XunitV3" Version="33.0.1" />
+    <PackageReference Include="Verify.XunitV3" Version="32.0.1" />
     <PackageReference Include="xunit.v3" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
