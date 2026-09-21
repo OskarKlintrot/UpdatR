@@ -7,7 +7,8 @@
     <PackageId>UpdatR</PackageId>
     <Description>Package to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
     <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
-    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'"
+      >true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +26,12 @@
       this assembly can run, guaranteeing the "excluded" NuGet.Frameworks gets resolved from
       whatever .NET SDK/Visual Studio installation MSBuildLocator finds instead.
     -->
-    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference
+      Include="NuGet.Frameworks"
+      Version="7.9.0"
+      ExcludeAssets="runtime"
+      PrivateAssets="all"
+    />
     <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
     <!--
@@ -38,7 +44,12 @@
       NuGet.Frameworks, downstream consumers never need Microsoft.Build at all (it's used only by
       MsBuildProjectInspector.cs, entirely internal), so PrivateAssets="all" is also set.
     -->
-    <PackageReference Include="Microsoft.Build" Version="18.9.6" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference
+      Include="Microsoft.Build"
+      Version="18.9.6"
+      ExcludeAssets="runtime"
+      PrivateAssets="all"
+    />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,7 +90,10 @@
     </TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
 
-  <Target Name="CopyMicrosoftBuildLocatorToPackage" DependsOnTargets="ResolveReferences;ResolvePackageAssets">
+  <Target
+    Name="CopyMicrosoftBuildLocatorToPackage"
+    DependsOnTargets="ResolveReferences;ResolvePackageAssets"
+  >
     <ItemGroup>
       <!--
         UpdatR is a class library, so Microsoft.Build.Locator.dll is never copy-local to UpdatR's
