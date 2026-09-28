@@ -13,7 +13,8 @@
     <ToolCommandName>update</ToolCommandName>
     <Description>Tool to update NuGet packages. Supports package references and dotnet-tools.json.</Description>
     <PackageTags>Update,NuGet,Packages,CI,CD</PackageTags>
-    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'"
+      >true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,7 +29,12 @@
       UpdatR's public API), so no extra registration guard is needed here - UpdatR.dll's own
       ModuleInitializer covers it.
     -->
-    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference
+      Include="NuGet.Frameworks"
+      Version="7.9.0"
+      ExcludeAssets="runtime"
+      PrivateAssets="all"
+    />
     <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
     <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.12" />
