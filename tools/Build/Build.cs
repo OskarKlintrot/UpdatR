@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet
-#:package Bullseye@6.2.0
+#:package Bullseye@6.3.0
 #:package Microsoft.Extensions.Configuration.UserSecrets@10.0.12
 #:package Microsoft.Extensions.Logging.Console@10.0.12
 #:package NuGet.Protocol@7.9.0
