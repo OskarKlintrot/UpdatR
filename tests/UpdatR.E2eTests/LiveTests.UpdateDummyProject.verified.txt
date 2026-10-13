@@ -34,9 +34,9 @@ Package used in:
 | Dummy.App/Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
-> Please note, this package is obsolete and will no longer be maintained after 9/30/2026. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
+> Please note, this package is obsolete as of 9/30/2026 and is no longer maintained or monitored. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
 
-Reason(s): Other
+Reason(s): Legacy
 
 Alternate Package: Azure.Messaging.ServiceBus
 
@@ -105,9 +105,9 @@ Package used in:
 | Dummy.App/Dummy.App.csproj | 2.2.8 |
 
 ### Microsoft.Azure.ServiceBus
-> Please note, this package is obsolete and will no longer be maintained after 9/30/2026. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
+> Please note, this package is obsolete as of 9/30/2026 and is no longer maintained or monitored. Microsoft encourages you to upgrade to the replacement package, Azure.Messaging.ServiceBus, to continue receiving updates. Refer to the migration guide (https://aka.ms/azsdk/net/migrate/sb) for guidance on upgrading. Refer to our deprecation policy (https://aka.ms/azsdk/support-policies) for more details.
 
-Reason(s): Other
+Reason(s): Legacy
 
 Alternate Package: Azure.Messaging.ServiceBus
 
