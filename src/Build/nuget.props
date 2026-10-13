@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401">
+    <PackageReference Include="Microsoft.SourceLink.GitHub">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
@@ -42,15 +42,14 @@
       git commit/branch detection they provide never actually runs. Referencing them directly here
       activates that detection so RepositoryCommit/SourceLink URLs get populated correctly.
     -->
-    <PackageReference Include="Microsoft.SourceLink.Common" Version="10.0.401">
+    <PackageReference Include="Microsoft.SourceLink.Common">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Build.Tasks.Git" Version="10.0.401">
+    <PackageReference Include="Microsoft.Build.Tasks.Git">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
 </Project>
-

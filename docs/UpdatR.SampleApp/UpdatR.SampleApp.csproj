@@ -15,7 +15,7 @@
       Microsoft.Build.Locator.dll copied to its own output - UpdatR.dll's ModuleInitializer
       requires it to be physically present at runtime.
     -->
-    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+    <PackageReference Include="Microsoft.Build.Locator" />
   </ItemGroup>
 
   <ItemGroup>
