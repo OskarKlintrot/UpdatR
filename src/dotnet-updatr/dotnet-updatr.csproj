@@ -18,9 +18,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Markdig" Version="1.4.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.12" />
-    <PackageReference Include="NuGet.Credentials" Version="7.9.0" />
+    <PackageReference Include="Markdig" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="NuGet.Credentials" />
     <!--
       NuGet.Protocol depends on NuGet.Frameworks itself, so it must be pinned and excluded here
       too, otherwise it flows in as a normal (non-excluded) transitive dependency of NuGet.Protocol,
@@ -29,15 +29,10 @@
       UpdatR's public API), so no extra registration guard is needed here - UpdatR.dll's own
       ModuleInitializer covers it.
     -->
-    <PackageReference
-      Include="NuGet.Frameworks"
-      Version="7.9.0"
-      ExcludeAssets="runtime"
-      PrivateAssets="all"
-    />
-    <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
-    <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.12" />
+    <PackageReference Include="NuGet.Frameworks" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="NuGet.Protocol" />
+    <PackageReference Include="NuGet.Versioning" />
+    <PackageReference Include="System.CommandLine" />
     <!--
       Needed directly: UpdatR.csproj marks its own Microsoft.Build.Locator PackageReference
       PrivateAssets="all" (see the comment there), which also stops it flowing transitively via
@@ -47,7 +42,7 @@
       version itself to get Microsoft.Build.Locator.dll copied to its own output - UpdatR.dll's
       ModuleInitializer requires it to be physically present at runtime.
     -->
-    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+    <PackageReference Include="Microsoft.Build.Locator" />
   </ItemGroup>
 
   <ItemGroup>

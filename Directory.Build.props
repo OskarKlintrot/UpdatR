@@ -13,8 +13,8 @@
     <WarningsAsErrors />
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="CSharpier.MSBuild" Version="1.3.0" PrivateAssets="all" />
+  <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' == 'true'">
+    <PackageReference Include="CSharpier.MSBuild" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
