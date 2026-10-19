@@ -120,6 +120,17 @@
       "title": "Fail on incomplete checks",
       "description": "Exit with code 2 when a package source is unauthorized or a package cannot be resolved from any source.",
       "type": "boolean"
+    },
+    "minPublishAgeHours": {
+      "title": "Minimum package publication age",
+      "description": "Only update to versions that have been published for at least this many whole hours, for every package source. Overrides minPublishAgeHours on individual sources in nuget.config, and is overridden by --min-publish-age-hours. 0 disables the check. Packages matching minPublishAgeExceptions in nuget.config are exempt.",
+      "examples": [
+        24,
+        72
+      ],
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 256204778
     }
   },
   "$defs": {

@@ -111,7 +111,8 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
   "toolPackagePins": [{ "tool": "dotnet-ef", "package": "Microsoft.EntityFrameworkCore*" }],
   "packagePolicies": [{ "package": "Serilog*", "maxMajor": 3 }],
   "failOn": "outdated",
-  "failOnIncomplete": false
+  "failOnIncomplete": false,
+  "minPublishAgeHours": 24
 }
 ```
 
@@ -140,6 +141,26 @@ Equivalent to (and overridden by) the `--fail-on` command line option.
 
 `failOnIncomplete` is a separate, orthogonal switch: it fails the run when UpdatR couldn't fully check every package - i.e. a package source returned 401/403, or a package wasn't found on any source. Those cases mean "I couldn't tell", not "everything is fine", which is why they're not part of `failOn`'s severity ladder. Equivalent to (and overridden by) the `--fail-on-incomplete` command line option.
 
+`minPublishAgeHours` sets a minimum package publication age ("cooldown"), in whole hours: versions published more recently than that aren't picked as update targets. This mirrors NuGet's own `minPublishAgeHours` setting, introduced with the .NET 11 SDK. Updates that are held back are reported as skipped with reason `MinimumPublishAge`, and an older version that's old enough is picked instead, if there is one. Installed versions are never downgraded, and a skipped update by itself doesn't trip `failOn`. Equivalent to (and overridden by) the `--min-publish-age-hours` command line option; `0` disables the check.
+
+Without `--min-publish-age-hours` or `minPublishAgeHours` in `.updatrrc`, UpdatR uses NuGet's per-source settings in `nuget.config`. If either is set, its value applies to every source and replaces those per-source values:
+
+```xml
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" minPublishAgeHours="48" />
+  </packageSources>
+  <minPublishAgeExceptions>
+    <package pattern="Contoso.*" />
+  </minPublishAgeExceptions>
+</configuration>
+```
+
+Packages matching `minPublishAgeExceptions` are always exempt, whichever setting the age comes from. Patterns use package source mapping syntax: an exact id, a prefix ending in `*` (`Contoso.*` doesn't match `Contoso` itself), or `*` alone. As in NuGet, the closest `nuget.config` that has a `minPublishAgeExceptions` section wins, and an empty section clears exceptions further away. A version that's available from more than one source is eligible if any of those sources allows it. If several projects with different `nuget.config` files use the same source URL, the first configuration read for that URL decides that source's age and exceptions.
+
+If an age applies but a source doesn't report when a version was published, `update` fails with an error before changing any files. For local folder feeds, NuGet uses each `.nupkg` file's last write time as its publish date. This is UpdatR's own selection of update targets, not a restore policy: it doesn't affect what `dotnet restore` resolves, and floating versions such as `1.*` are left as they are.
+
 Use `update config init` to create a `.updatrrc` file with all options present, but empty:
 
 ```
@@ -152,7 +173,7 @@ By default it's created in the current directory. Pass a path to create it elsew
 > update config init path/to/project --force
 ```
 
-Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, and aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework:
+Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework, and only picking versions that have been published for at least 24 hours:
 
 ```
 > update config init --example
@@ -175,7 +196,8 @@ Pass `--example` to instead create a populated, realistic starting point - exclu
     "Microsoft.EntityFrameworkCore.*",
     "Microsoft.Extensions.*",
     "System.Net.Http.Json"
-  ]
+  ],
+  "minPublishAgeHours": 24
 }
 ```
 
@@ -285,6 +307,7 @@ Options:
   --align-with-tfm <align-with-tfm>                                  Package to keep aligned with the project's target framework's major version, instead of updating to a newer version whose major just happens to also be compatible. Supports * as wildcard. Merged with "alignWithTfm" from a .updatrrc file, if present.
   --fail-on <Deprecated|None|Outdated|Vulnerable>                    Exit with a non-zero code if a finding of this severity or higher is found: "outdated" (any package was updated, is deprecated, or is vulnerable - most useful together with --dry-run), "deprecated" (deprecated or vulnerable) or "vulnerable". Defaults to "none", or "failOn" from a .updatrrc file, if present.
   --fail-on-incomplete                                               Exit with a non-zero code if the run was incomplete, i.e. a package source returned 401 or a package couldn't be resolved on any source. Independent of --fail-on. Can also be set via "failOnIncomplete" in a .updatrrc file.
+  --min-publish-age-hours <min-publish-age-hours>                    Only update to versions that have been published for at least this many whole hours, for every package source. Overrides "minPublishAgeHours" from a .updatrrc file and minPublishAgeHours on individual sources in nuget.config. 0 disables the check. Packages matching minPublishAgeExceptions in nuget.config are exempt.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
 
@@ -332,7 +355,10 @@ var description =
 // Use title as title in the PR and description as the description/body in the PR
 ```
 <!-- endSnippet -->
-<!-- endInclude -->
+
+### Minimum package publication age
+
+Set `UpdateOptions.MinPublishAgeHours` (or `minPublishAgeHours` in `.updatrrc`) to keep versions published within that many hours from being picked as update targets. `0` disables the check. Without either setting, the `minPublishAgeHours` attribute on package sources in `nuget.config` is used, as introduced by NuGet in the .NET 11 SDK. Packages matching `minPublishAgeExceptions` in `nuget.config` are always exempt. Held-back versions are reported in `Summary.SkippedUpdatePackages` with `SkippedUpdateReason.MinimumPublishAge`. An invalid value, or a missing publish date while an age applies, throws `MinimumPublishAgeException` before any files are changed. See [dotnet-updatr](#dotnet-updatr) for details.<!-- endInclude -->
 
 ## Known Issues<!-- include: known-issues. path: /mdsource/known-issues.include.md -->
 

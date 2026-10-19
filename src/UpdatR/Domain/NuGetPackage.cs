@@ -45,12 +45,17 @@ internal sealed class NuGetPackage
     public NuGetPackage Merge(IEnumerable<PackageMetadata> additionalMetadata) =>
         new(PackageId, PackageMetadatas.Concat(additionalMetadata));
 
+    /// <summary>
+    /// Merges duplicate entries for the same version (e.g. from multiple sources). A version is
+    /// eligible if any source allows it, so an entry not blocked by a minimum publish age is
+    /// preferred over a blocked one.
+    /// </summary>
     private static List<PackageMetadata> Deduplicate(
         IEnumerable<PackageMetadata> packageMetadatas
     ) =>
         packageMetadatas
             .GroupBy(x => x.Version)
-            .Select(x => x.First())
+            .Select(x => x.FirstOrDefault(y => !y.BlockedByMinPublishAge) ?? x.First())
             .OrderByDescending(x => x.Version)
             .ToList();
 
@@ -135,7 +140,8 @@ internal sealed class NuGetPackage
     ) =>
         PackageMetadatas
             .Where(x =>
-                predicate(x)
+                !x.BlockedByMinPublishAge
+                && predicate(x)
                 && (maxMajor is null || x.Version.Major <= maxMajor)
                 && IsCompatibleWithFramework(targetFramework, x)
             ) // Todo: Bodge for tools

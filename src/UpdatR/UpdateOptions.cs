@@ -100,4 +100,18 @@ public sealed record UpdateOptions
     /// set.
     /// </summary>
     public bool? FailOnIncomplete { get; init; }
+
+    /// <summary>
+    /// Minimum package publication age ("cooldown"), in whole hours: a version is only picked as
+    /// an update target once it has been published for at least this long, mirroring NuGet's
+    /// <c>minPublishAgeHours</c> package source setting. Applies to every package source and
+    /// takes priority over <c>.updatrrc</c>'s <c>minPublishAgeHours</c> and over
+    /// <c>minPublishAgeHours</c> on individual sources in <c>nuget.config</c>. <c>0</c> disables
+    /// the check. Packages matching <c>nuget.config</c>'s <c>minPublishAgeExceptions</c> are
+    /// always exempt. Leave out (or <see langword="null"/>) to fall back to <c>.updatrrc</c>, and
+    /// then to each source's own <c>minPublishAgeHours</c> in <c>nuget.config</c>. Installed
+    /// versions are never downgraded, and a newer version that's skipped is reported with
+    /// <see cref="SkippedUpdateReason.MinimumPublishAge"/>.
+    /// </summary>
+    public int? MinPublishAgeHours { get; init; }
 }

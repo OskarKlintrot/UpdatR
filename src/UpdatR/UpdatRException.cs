@@ -49,3 +49,17 @@ public sealed class AmbiguousToolPackagePinException : UpdatRException
     public AmbiguousToolPackagePinException(string message, Exception innerException)
         : base(message, innerException) { }
 }
+
+/// <summary>
+/// Thrown when a minimum package publication age ("cooldown") can't be applied safely: the
+/// configured value is invalid, or a package source didn't report when a version was published
+/// while a minimum publish age is active for that source and package.
+/// </summary>
+public sealed class MinimumPublishAgeException : UpdatRException
+{
+    public MinimumPublishAgeException(string message)
+        : base(message) { }
+
+    public MinimumPublishAgeException(string message, Exception innerException)
+        : base(message, innerException) { }
+}

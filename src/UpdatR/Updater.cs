@@ -48,13 +48,17 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// <c>toolPackagePins</c>, and a concatenation (caller-supplied entries checked first) for
     /// <c>packagePolicies</c>. Its <c>failOn</c> and <c>failOnIncomplete</c> are used only if
     /// <see cref="UpdateOptions.FailOn"/> and <see cref="UpdateOptions.FailOnIncomplete"/> aren't
-    /// given. If <paramref name="path"/> is left out (i.e. it resolves to the
+    /// given. Its <c>minPublishAgeHours</c> is used only if
+    /// <see cref="UpdateOptions.MinPublishAgeHours"/> isn't given, and either one replaces
+    /// <c>minPublishAgeHours</c> on individual package sources in <c>nuget.config</c>.
+    /// If <paramref name="path"/> is left out (i.e. it resolves to the
     /// current directory) and the config file has a <c>path</c>, that's used as the target path
     /// instead of the current directory.
     /// </remarks>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="InvalidUpdateTargetException"></exception>
     /// <exception cref="AmbiguousToolPackagePinException"></exception>
+    /// <exception cref="MinimumPublishAgeException"></exception>
     public async Task<Summary> UpdateAsync(
         string? path = null,
         UpdateOptions? options = null,
@@ -82,6 +86,18 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         var failOn =
             options.FailOn ?? UpdatRConfig.ParseFailOn(updatRConfig?.FailOn) ?? FailOn.None;
         var failOnIncomplete = options.FailOnIncomplete ?? updatRConfig?.FailOnIncomplete ?? false;
+
+        // Both are validated, even if the options value wins, so an invalid .updatrrc is never
+        // silently accepted.
+        var minPublishAgeFromOptions = MinPublishAgePolicy.ParseHours(
+            options.MinPublishAgeHours,
+            $"{nameof(UpdateOptions)}.{nameof(UpdateOptions.MinPublishAgeHours)}"
+        );
+        var minPublishAgeFromConfig = MinPublishAgePolicy.ParseHours(
+            updatRConfig?.MinPublishAgeHours,
+            $"'{UpdatRConfig.FileName}'"
+        );
+        var minPublishAgeOverride = minPublishAgeFromOptions ?? minPublishAgeFromConfig;
 
         // Options-supplied policies are checked first, so they take priority when more than one
         // pattern matches the same package id (see PackageContainer.ResolvePackagePolicyMaxMajor).
@@ -165,6 +181,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             shouldExcludePackage,
             options.Interactive,
             options.NoCache,
+            minPublishAgeOverride,
+            DateTimeOffset.UtcNow,
             new NuGetLogger(_logger),
             cancellationToken
         );
@@ -316,6 +334,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         Func<string, bool> shouldExcludePackage,
         bool interactive,
         bool noCache,
+        TimeSpan? minPublishAgeOverride,
+        DateTimeOffset now,
         NuGet.Common.ILogger nuGetLogger,
         CancellationToken cancellationToken
     )
@@ -371,6 +391,22 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             StringComparer.OrdinalIgnoreCase
         );
 
+        // Minimum publish age ("cooldown") per directory, from the same Settings as above:
+        // nuget.config's per-source minPublishAgeHours and its minPublishAgeExceptions.
+        Dictionary<string, IReadOnlyDictionary<string, TimeSpan>> minPublishAgesByDir = new(
+            PathComparer.Comparer
+        );
+        Dictionary<string, MinPublishAgeExceptionPatterns> minPublishAgeExceptionsByDir = new(
+            PathComparer.Comparer
+        );
+
+        // Like the repository itself, a source's policy is decided by the first nuget.config
+        // chain that references its URL, since metadata is fetched (and its eligibility decided)
+        // once per source URL rather than once per project.
+        Dictionary<string, MinPublishAgePolicy> minPublishAgePoliciesBySourceUrl = new(
+            StringComparer.OrdinalIgnoreCase
+        );
+
         foreach (var (path, packageIds) in projectsWithPackages)
         {
             var configDir = System.IO.Path.GetDirectoryName(path) ?? path;
@@ -394,6 +430,19 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 sourceRepositoryProvidersByDir[configDir] = sourceRepositoryProvider;
                 packageSourceMappingsByDir[configDir] =
                     PackageSourceMapping.GetPackageSourceMapping(settings);
+
+                try
+                {
+                    minPublishAgesByDir[configDir] = minPublishAgeOverride is null
+                        ? NuGetMinPublishAgeSettings.GetMinPublishAgeBySourceName(settings)
+                        : new Dictionary<string, TimeSpan>();
+                    minPublishAgeExceptionsByDir[configDir] =
+                        NuGetMinPublishAgeSettings.GetMinPublishAgeExceptions(settings);
+                }
+                catch (NuGetConfigurationException exception)
+                {
+                    throw new MinimumPublishAgeException(exception.Message, exception);
+                }
             }
 
             var packageSourceMapping = packageSourceMappingsByDir[configDir];
@@ -406,7 +455,15 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             {
                 var sourceUrl = repo.PackageSource.Source;
 
-                reposBySourceUrl.TryAdd(sourceUrl, repo);
+                if (reposBySourceUrl.TryAdd(sourceUrl, repo))
+                {
+                    minPublishAgePoliciesBySourceUrl[sourceUrl] = new MinPublishAgePolicy(
+                        minPublishAgeOverride
+                            ?? minPublishAgesByDir[configDir]
+                                .GetValueOrDefault(repo.PackageSource.Name, TimeSpan.Zero),
+                        minPublishAgeExceptionsByDir[configDir]
+                    );
+                }
 
                 if (!packageIdsBySourceUrl.TryGetValue(sourceUrl, out var packageIdSet))
                 {
@@ -450,6 +507,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             {
                 continue;
             }
+
+            var minPublishAgePolicy = minPublishAgePoliciesBySourceUrl[sourceUrl];
 
             try
             {
@@ -497,10 +556,19 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                                 )),
                                 x.LicenseMetadata?.Type == NuGet.Packaging.LicenseType.Expression
                                     ? x.LicenseMetadata.License
-                                    : null
-                            ));
+                                    : null,
+                                x.Published,
+                                minPublishAgePolicy.IsTooRecent(
+                                    repo.PackageSource.Name,
+                                    packageId,
+                                    x.Identity.Version,
+                                    x.Published,
+                                    now
+                                )
+                            ))
+                            .ToList();
 
-                        if (!metadata.Any())
+                        if (metadata.Count == 0)
                         {
                             return;
                         }

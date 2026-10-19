@@ -1094,6 +1094,126 @@ public class CsprojTests : IDisposable
         Assert.Contains("xunit.runner.visualstudio 2.8.2", exception.Message);
     }
 
+    [Theory]
+    [InlineData("1.0.0", false, "1.5.0")]
+    [InlineData("1.0.0", true, null)]
+    public async Task UpdatePackagesSkipsVersionsBlockedByMinPublishAge(
+        string installed,
+        bool blockOlderUpdate,
+        string? expectedUpdate
+    )
+    {
+        // Arrange - 2.0.0 is too recent. Whether or not an older update is eligible, 2.0.0 is
+        // reported as skipped because of the minimum publish age, not as an incompatible target
+        // framework or an unknown package.
+        File.WriteAllText(
+            _csprojPath,
+            $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="{installed}" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                Metadata("1.0.0"),
+                Metadata("1.5.0", blockedByMinPublishAge: blockOlderUpdate),
+                Metadata("2.0.0", blockedByMinPublishAge: true),
+            ]
+        );
+
+        // Act
+        var result = await csproj.UpdatePackagesAsync(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: new FakeLogger()
+        );
+
+        // Assert
+        Assert.NotNull(result);
+
+        var skipped = Assert.Single(result.SkippedUpdatePackages);
+
+        Assert.Equal(NuGetVersion.Parse("2.0.0"), skipped.Version);
+        Assert.Equal(SkippedUpdateReason.MinimumPublishAge, skipped.Reason);
+
+        var content = File.ReadAllText(_csprojPath);
+
+        if (expectedUpdate is null)
+        {
+            Assert.Empty(result.UpdatedPackages);
+            Assert.Contains($"""Version="{installed}" """.Trim(), content);
+        }
+        else
+        {
+            var updated = Assert.Single(result.UpdatedPackages);
+
+            Assert.Equal(NuGetVersion.Parse(expectedUpdate), updated.To);
+            Assert.Contains($"""Version="{expectedUpdate}" """.Trim(), content);
+        }
+    }
+
+    [Theory]
+    [InlineData("1.*")]
+    [InlineData("[1.0.0,2.0.0)")]
+    public async Task UpdatePackagesDoesNotRewriteVersionRangeToVersionBlockedByMinPublishAge(
+        string range
+    )
+    {
+        // Arrange - the only version outside the range is too recent, so the range stays as is.
+        File.WriteAllText(
+            _csprojPath,
+            $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" Version="{range}" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        var csproj = Csproj.Create(_csprojPath);
+
+        var package = new NuGetPackage(
+            "Some.Package",
+            [Metadata("1.5.0"), Metadata("2.0.0", blockedByMinPublishAge: true)]
+        );
+
+        // Act
+        var result = await csproj.UpdatePackagesAsync(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: false,
+            usePrerelease: false,
+            logger: new FakeLogger()
+        );
+
+        // Assert
+        Assert.Empty(result?.UpdatedPackages ?? []);
+        Assert.Contains($"""Version="{range}" """.Trim(), File.ReadAllText(_csprojPath));
+    }
+
+    private static PackageMetadata Metadata(string version, bool blockedByMinPublishAge = false) =>
+        new(
+            NuGetVersion.Parse(version),
+            [NuGetFramework.Parse("net8.0")],
+            null,
+            null,
+            BlockedByMinPublishAge: blockedByMinPublishAge
+        );
+
     private sealed class FakeLogger : ILogger
     {
         public List<(LogLevel Level, string Message)> Logs { get; } = [];

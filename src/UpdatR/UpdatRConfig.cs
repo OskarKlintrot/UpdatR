@@ -51,6 +51,12 @@ namespace UpdatR;
 /// unauthorized package source, or couldn't resolve a package on any source. Overridden by
 /// <see cref="UpdateOptions.FailOnIncomplete"/> if given. Defaults to <see langword="false"/>.
 /// </param>
+/// <param name="MinPublishAgeHours">
+/// Minimum package publication age ("cooldown") in whole hours, applied to every package source -
+/// see <see cref="UpdateOptions.MinPublishAgeHours"/>, which overrides it if given. Takes priority
+/// over <c>minPublishAgeHours</c> on individual sources in <c>nuget.config</c>. <c>0</c> disables
+/// the check.
+/// </param>
 /// <param name="Schema">
 /// Optional JSON Schema URI used by editors to provide completion and validation. It does not
 /// affect UpdatR's behavior.
@@ -65,7 +71,8 @@ public sealed record UpdatRConfig(
     [property: JsonPropertyName("packagePolicies")] PackagePolicyConfig[]? PackagePolicies = null,
     [property: JsonPropertyName("failOn")] string? FailOn = null,
     [property: JsonPropertyName("failOnIncomplete")] bool? FailOnIncomplete = null,
-    [property: JsonPropertyName("$schema"), JsonPropertyOrder(-1)] string? Schema = null
+    [property: JsonPropertyName("$schema"), JsonPropertyOrder(-1)] string? Schema = null,
+    [property: JsonPropertyName("minPublishAgeHours")] int? MinPublishAgeHours = null
 )
 {
     /// <summary>
@@ -87,6 +94,7 @@ public sealed record UpdatRConfig(
         "packagePolicies",
         "failOn",
         "failOnIncomplete",
+        "minPublishAgeHours",
         "$schema",
     ];
 
@@ -209,7 +217,8 @@ public sealed record UpdatRConfig(
     /// explicitly (redundant with the built-in default, but shown here for discoverability), and
     /// keeps Entity Framework Core and <c>Microsoft.Extensions.*</c> - both of which commonly
     /// ship versions that multi-target a newer TFM than the project actually targets - aligned
-    /// with the project's target framework.
+    /// with the project's target framework. It also only picks versions that have been published
+    /// for at least 24 hours (<c>minPublishAgeHours</c>).
     /// </summary>
     private const string ExampleJson = """
         {
@@ -228,7 +237,8 @@ public sealed record UpdatRConfig(
             "Microsoft.EntityFrameworkCore.*",
             "Microsoft.Extensions.*",
             "System.Net.Http.Json"
-          ]
+          ],
+          "minPublishAgeHours": 24
         }
         """;
 
@@ -279,7 +289,8 @@ public sealed record UpdatRConfig(
                     PackagePolicies: [],
                     FailOn: null,
                     FailOnIncomplete: null,
-                    Schema: SchemaUrl
+                    Schema: SchemaUrl,
+                    MinPublishAgeHours: null
                 ),
                 WriteJsonOptions
             );
@@ -317,7 +328,8 @@ public sealed record UpdatRConfig(
     /// trailing commas are allowed) containing a JSON object, that it doesn't contain unknown
     /// option, that <c>excludePackages</c> / <c>allowedLicenses</c> / <c>excludeFiles</c> /
     /// <c>alignWithTfm</c> - if present - are arrays of non-empty strings, and that
-    /// <c>path</c> and <c>$schema</c> - if present - are non-empty strings.
+    /// <c>path</c> and <c>$schema</c> - if present - are non-empty strings, and that
+    /// <c>minPublishAgeHours</c> - if present - is a non-negative whole number.
     /// </summary>
     /// <param name="json">The content of the <c>.updatrrc</c> file.</param>
     /// <param name="configDirectory">
@@ -411,6 +423,12 @@ public sealed record UpdatRConfig(
                 {
                     ValidateBoolean(property, errors);
                 }
+                else if (
+                    property.Name.Equals("minPublishAgeHours", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    ValidateMinPublishAgeHours(property, errors);
+                }
                 else
                 {
                     ValidateStringArray(property, errors);
@@ -455,6 +473,24 @@ public sealed record UpdatRConfig(
         )
         {
             errors.Add($"'{property.Name}' must be a boolean");
+        }
+    }
+
+    private static void ValidateMinPublishAgeHours(JsonProperty property, List<string> errors)
+    {
+        if (property.Value.ValueKind is JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (
+            property.Value.ValueKind is not JsonValueKind.Number
+            || !property.Value.TryGetInt32(out var hours)
+            || hours < 0
+            || hours > TimeSpan.MaxValue.TotalHours
+        )
+        {
+            errors.Add($"'{property.Name}' must be a non-negative whole number of hours.");
         }
     }
 
