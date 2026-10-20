@@ -482,4 +482,97 @@ public class NuGetPackageTests
             Assert.Equal(expected, packageMetadata?.Version.ToString());
         }
     }
+
+    [Theory]
+    [InlineData("0.0.1", false, "1.0.0")]
+    [InlineData("0.0.1", true, "1.1.0-beta0")]
+    [InlineData("1.0.0", false)]
+    [InlineData("1.1.0-beta0", true, "1.1.0-beta0")]
+    public void TryGetLatestComparedToSkipsVersionsBlockedByMinPublishAge(
+        string comparedTo,
+        bool usePrerelease,
+        string? expected = null
+    )
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [
+                Metadata("0.0.1"),
+                Metadata("1.0.0"),
+                Metadata("1.1.0-beta0"),
+                Metadata("1.1.0-beta1", blocked: true),
+                Metadata("2.0.0", blocked: true),
+            ]
+        );
+
+        // Act
+        var newerVersionIsAvailable = package.TryGetLatestComparedTo(
+            version: NuGetVersion.Parse(comparedTo),
+            targetFramework: NuGetFramework.Parse("net6.0"),
+            usePrerelease: usePrerelease,
+            package: out var packageMetadata
+        );
+
+        // Assert
+        Assert.Equal(expected is not null, newerVersionIsAvailable);
+        Assert.Equal(expected, packageMetadata?.Version.ToString());
+    }
+
+    [Fact]
+    public void BlockedVersionsAreStillAvailableForInstalledVersionLookups()
+    {
+        // Arrange
+        var package = new NuGetPackage("package-id", [Metadata("1.0.0", blocked: true)]);
+
+        // Act & Assert
+        Assert.True(package.TryGet(NuGetVersion.Parse("1.0.0"), out var metadata));
+        Assert.True(metadata!.BlockedByMinPublishAge);
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, true)]
+    public void SameVersionFromMultipleSourcesIsEligibleIfAnySourceAllowsIt(
+        bool firstBlocked,
+        bool secondBlocked,
+        bool expectedBlocked
+    )
+    {
+        // Arrange
+        var package = new NuGetPackage(
+            "package-id",
+            [Metadata("1.0.0", blocked: firstBlocked), Metadata("1.0.0", blocked: secondBlocked)]
+        );
+
+        // Act
+        var metadata = Assert.Single(package.PackageMetadatas);
+
+        // Assert
+        Assert.Equal(expectedBlocked, metadata.BlockedByMinPublishAge);
+    }
+
+    [Fact]
+    public void MergedPackagesAreEligibleIfAnySourceAllowsTheVersion()
+    {
+        // Arrange
+        var blocked = new NuGetPackage("package-id", [Metadata("1.0.0", blocked: true)]);
+
+        // Act
+        var merged = blocked.Merge([Metadata("1.0.0")]);
+
+        // Assert
+        Assert.False(Assert.Single(merged.PackageMetadatas).BlockedByMinPublishAge);
+    }
+
+    private static PackageMetadata Metadata(string version, bool blocked = false) =>
+        new(
+            NuGetVersion.Parse(version),
+            [NuGetFramework.Parse("net6.0")],
+            null,
+            null,
+            BlockedByMinPublishAge: blocked
+        );
 }

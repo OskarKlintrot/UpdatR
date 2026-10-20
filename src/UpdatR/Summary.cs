@@ -69,8 +69,9 @@ public sealed class Summary(
 
     /// <summary>
     /// Updates that exist on the package source(s) but weren't applied because they're capped by
-    /// <c>alignWithTfm</c>, or because they're incompatible with one of the affected project(s)'
-    /// target framework(s) - see <see cref="SkippedUpdateReason"/>. Unlike
+    /// <c>alignWithTfm</c> or a package policy, because they're incompatible with one of the
+    /// affected project(s)' target framework(s), or because they were published more recently
+    /// than the minimum publish age allows - see <see cref="SkippedUpdateReason"/>. Unlike
     /// <see cref="LicenseMismatchPackages"/> and <see cref="UnsupportedRangePackages"/>, these
     /// updates aren't blocked by anything UpdatR can rewrite or that a caller can allow via
     /// configuration - they're informational only.

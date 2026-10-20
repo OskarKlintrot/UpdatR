@@ -100,7 +100,8 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
   "toolPackagePins": [{ "tool": "dotnet-ef", "package": "Microsoft.EntityFrameworkCore*" }],
   "packagePolicies": [{ "package": "Serilog*", "maxMajor": 3 }],
   "failOn": "outdated",
-  "failOnIncomplete": false
+  "failOnIncomplete": false,
+  "minPublishAgeHours": 72
 }
 ```
 
@@ -129,6 +130,12 @@ Equivalent to (and overridden by) the `--fail-on` command line option.
 
 `failOnIncomplete` is a separate, orthogonal switch: it fails the run when UpdatR couldn't fully check every package - i.e. a package source returned 401/403, or a package wasn't found on any source. Those cases mean "I couldn't tell", not "everything is fine", which is why they're not part of `failOn`'s severity ladder. Equivalent to (and overridden by) the `--fail-on-incomplete` command line option.
 
+`minPublishAgeHours` sets a minimum package publication age ("cooldown"), in whole hours: versions published more recently than that aren't picked as update targets. This mirrors NuGet's own `minPublishAgeHours` setting, introduced with the .NET 11 SDK. Updates that are held back are reported as skipped with reason `MinimumPublishAge`, and an older version that's old enough is picked instead, if there is one. Installed versions are never downgraded, and a skipped update by itself doesn't trip `failOn`. Equivalent to (and overridden by) the `--min-publish-age-hours` command line option; `0` disables the check.
+
+The value applies to every package source. NuGet's own `minPublishAgeHours` on package sources and `minPublishAgeExceptions` in `nuget.config` aren't read yet - support is planned once UpdatR can use NuGet 8's APIs for them. To pick up a version right away, pass `--min-publish-age-hours 0` for that run.
+
+If a minimum age is set but a source doesn't report when a version was published, `update` fails with an error before changing any files. For local folder feeds, NuGet uses each `.nupkg` file's last write time as its publish date. This is UpdatR's own selection of update targets, not a restore policy: it doesn't affect what `dotnet restore` resolves, and floating versions such as `1.*` are left as they are.
+
 Use `update config init` to create a `.updatrrc` file with all options present, but empty:
 
 ```
@@ -141,7 +148,7 @@ By default it's created in the current directory. Pass a path to create it elsew
 > update config init path/to/project --force
 ```
 
-Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, and aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework:
+Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework, and only picking versions that have been published for at least 72 hours:
 
 ```
 > update config init --example
@@ -164,7 +171,8 @@ Pass `--example` to instead create a populated, realistic starting point - exclu
     "Microsoft.EntityFrameworkCore.*",
     "Microsoft.Extensions.*",
     "System.Net.Http.Json"
-  ]
+  ],
+  "minPublishAgeHours": 72
 }
 ```
 

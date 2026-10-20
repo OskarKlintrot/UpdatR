@@ -404,6 +404,30 @@ public class MarkdownFormatterTests
         return Verify(md).UseParameters(method);
     }
 
+    [Fact]
+    public Task SkippedUpdateBecauseOfMinimumPublishAge()
+    {
+        // Arrange
+        var root = Path.GetTempPath();
+
+        var project = new ProjectBuilder(root)
+            .WithUpdatedPackage("Updated.Package", "1.0.0", "1.5.0")
+            .WithSkippedUpdatePackage(
+                "Updated.Package",
+                "2.0.0",
+                SkippedUpdateReason.MinimumPublishAge
+            )
+            .Build();
+
+        var summary = Summary.Create(new ResultBuilder(root).WithProject(project).Build());
+
+        // Act
+        var md = MarkdownFormatter.Generate(summary);
+
+        // Assert
+        return Verify(md);
+    }
+
     public static IEnumerable<object[]> GetMethods()
     {
         yield return new object[] { "Generate" };

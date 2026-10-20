@@ -513,12 +513,14 @@ internal abstract partial class PackageContainer
     /// Reports an update that was skipped for a reason other than a license mismatch (see
     /// <see cref="CheckForSkippedLicenseMismatch"/>) or an unsupported version range/floating
     /// version - i.e. a newer version was capped by <c>alignWithTfm</c> or a matching
-    /// <see cref="PackageVersionPolicy"/>, or is incompatible with one of the project's target
-    /// framework(s). Compares <paramref name="version"/> (the currently installed version, or the
+    /// <see cref="PackageVersionPolicy"/>, is incompatible with one of the project's target
+    /// framework(s), or was published more recently than the minimum publish age allows. Compares
+    /// <paramref name="version"/> (the currently installed version, or the
     /// version an update was already applied to) against the absolute latest version available,
-    /// ignoring target framework compatibility entirely - if that's newer, whatever's left
-    /// blocking it (<paramref name="policyMaxMajor"/> or <paramref name="alignWithTfmMaxMajor"/>,
-    /// whichever's major is what's in the way, or else target framework compatibility) is
+    /// ignoring target framework compatibility and minimum publish age entirely - if that's newer,
+    /// whatever's left blocking it (<paramref name="policyMaxMajor"/> or
+    /// <paramref name="alignWithTfmMaxMajor"/>, whichever's major is what's in the way, else the
+    /// minimum publish age, or else target framework compatibility) is
     /// reported.
     /// </summary>
     private static void CheckForSkippedUpdate(
@@ -552,6 +554,7 @@ internal abstract partial class PackageContainer
                 ? SkippedUpdateReason.PackageVersionPolicy
             : alignWithTfmMaxMajor is not null && latest.Version.Major > alignWithTfmMaxMajor
                 ? SkippedUpdateReason.AlignedWithTfm
+            : latest.BlockedByMinPublishAge ? SkippedUpdateReason.MinimumPublishAge
             : SkippedUpdateReason.IncompatibleTargetFramework;
 
         project.AddSkippedUpdatePackage(new(packageId, latest.Version, reason));

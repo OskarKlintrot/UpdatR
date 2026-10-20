@@ -24,4 +24,10 @@ public enum SkippedUpdateReason
     /// The newer version isn't compatible with every one of the project's target framework(s).
     /// </summary>
     IncompatibleTargetFramework,
+
+    /// <summary>
+    /// The newer version was published more recently than the minimum publish age
+    /// (<c>minPublishAgeHours</c>) allows - see <see cref="UpdateOptions.MinPublishAgeHours"/>.
+    /// </summary>
+    MinimumPublishAge,
 }

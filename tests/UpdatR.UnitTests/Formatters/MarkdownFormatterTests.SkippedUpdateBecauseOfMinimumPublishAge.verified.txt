@@ -1,0 +1,23 @@
+﻿# 📦 Update Updated.Package
+
+1 package(s) were updated in 1 projects:
+
+| Updated.Package |
+
+## Updated packages
+
+### Updated.Package
+| Project   | From   | To |
+|:----------|:-------|:---|
+| Foo/Foo.csproj | 1.0.0 | 1.5.0 |
+
+
+## Skipped updates
+
+### Updated.Package
+Newer version available: 2.0.0 (MinimumPublishAge)
+
+#### Used in:
+- Foo/Foo.csproj
+
+

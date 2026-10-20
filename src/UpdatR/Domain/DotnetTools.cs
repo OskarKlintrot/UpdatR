@@ -200,7 +200,14 @@ internal sealed partial class DotnetTools : PackageContainer
             && highestAllowedVersion <= updateTo.Version
         )
         {
-            return package.Get(highestAllowedVersion);
+            // The pinned version itself may be too recent for the minimum publish age, even
+            // though updateTo isn't - fall back to the highest eligible version below the pin,
+            // or don't update at all, rather than bypassing the cooldown.
+            return package.PackageMetadatas.FirstOrDefault(x =>
+                    !x.BlockedByMinPublishAge
+                    && x.Version <= highestAllowedVersion
+                    && (highestAllowedVersion.IsPrerelease || !x.Version.IsPrerelease)
+                ) ?? updateTo with { Version = currentVersion };
         }
 
         return updateTo;

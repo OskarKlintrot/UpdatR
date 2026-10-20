@@ -48,13 +48,16 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// <c>toolPackagePins</c>, and a concatenation (caller-supplied entries checked first) for
     /// <c>packagePolicies</c>. Its <c>failOn</c> and <c>failOnIncomplete</c> are used only if
     /// <see cref="UpdateOptions.FailOn"/> and <see cref="UpdateOptions.FailOnIncomplete"/> aren't
-    /// given. If <paramref name="path"/> is left out (i.e. it resolves to the
+    /// given. Its <c>minPublishAgeHours</c> is used only if
+    /// <see cref="UpdateOptions.MinPublishAgeHours"/> isn't given.
+    /// If <paramref name="path"/> is left out (i.e. it resolves to the
     /// current directory) and the config file has a <c>path</c>, that's used as the target path
     /// instead of the current directory.
     /// </remarks>
     /// <returns><see cref="Summary"/></returns>
     /// <exception cref="InvalidUpdateTargetException"></exception>
     /// <exception cref="AmbiguousToolPackagePinException"></exception>
+    /// <exception cref="MinimumPublishAgeException"></exception>
     public async Task<Summary> UpdateAsync(
         string? path = null,
         UpdateOptions? options = null,
@@ -82,6 +85,20 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         var failOn =
             options.FailOn ?? UpdatRConfig.ParseFailOn(updatRConfig?.FailOn) ?? FailOn.None;
         var failOnIncomplete = options.FailOnIncomplete ?? updatRConfig?.FailOnIncomplete ?? false;
+
+        // Both are validated, even if the options value wins, so an invalid .updatrrc is never
+        // silently accepted.
+        var minPublishAgeFromOptions = MinPublishAgePolicy.ParseHours(
+            options.MinPublishAgeHours,
+            $"{nameof(UpdateOptions)}.{nameof(UpdateOptions.MinPublishAgeHours)}"
+        );
+        var minPublishAgeFromConfig = MinPublishAgePolicy.ParseHours(
+            updatRConfig?.MinPublishAgeHours,
+            $"'{UpdatRConfig.FileName}'"
+        );
+        var minPublishAgePolicy = new MinPublishAgePolicy(
+            minPublishAgeFromOptions ?? minPublishAgeFromConfig ?? TimeSpan.Zero
+        );
 
         // Options-supplied policies are checked first, so they take priority when more than one
         // pattern matches the same package id (see PackageContainer.ResolvePackagePolicyMaxMajor).
@@ -165,6 +182,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             shouldExcludePackage,
             options.Interactive,
             options.NoCache,
+            minPublishAgePolicy,
+            DateTimeOffset.UtcNow,
             new NuGetLogger(_logger),
             cancellationToken
         );
@@ -316,6 +335,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         Func<string, bool> shouldExcludePackage,
         bool interactive,
         bool noCache,
+        MinPublishAgePolicy minPublishAgePolicy,
+        DateTimeOffset now,
         NuGet.Common.ILogger nuGetLogger,
         CancellationToken cancellationToken
     )
@@ -497,10 +518,19 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                                 )),
                                 x.LicenseMetadata?.Type == NuGet.Packaging.LicenseType.Expression
                                     ? x.LicenseMetadata.License
-                                    : null
-                            ));
+                                    : null,
+                                x.Published,
+                                minPublishAgePolicy.IsTooRecent(
+                                    repo.PackageSource.Name,
+                                    packageId,
+                                    x.Identity.Version,
+                                    x.Published,
+                                    now
+                                )
+                            ))
+                            .ToList();
 
-                        if (!metadata.Any())
+                        if (metadata.Count == 0)
                         {
                             return;
                         }

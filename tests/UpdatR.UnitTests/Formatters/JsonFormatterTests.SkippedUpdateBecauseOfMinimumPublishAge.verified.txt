@@ -1,0 +1,39 @@
+﻿{
+  "schemaVersion": 1,
+  "shouldFail": false,
+  "failOn": "none",
+  "failOnIncomplete": false,
+  "updatedPackagesCount": 1,
+  "updatedPackages": [
+    {
+      "packageId": "Updated.Package",
+      "updates": [
+        {
+          "from": "1.0.0",
+          "to": "1.5.0",
+          "project": "Foo/Foo.csproj"
+        }
+      ]
+    }
+  ],
+  "deprecatedPackages": [],
+  "vulnerablePackages": [],
+  "licenseMismatchPackages": [],
+  "unsupportedRangePackages": [],
+  "skippedUpdatePackages": [
+    {
+      "packageId": "Updated.Package",
+      "versions": [
+        {
+          "version": "2.0.0",
+          "reason": "minimumPublishAge",
+          "projects": [
+            "Foo/Foo.csproj"
+          ]
+        }
+      ]
+    }
+  ],
+  "unknownPackages": {},
+  "unauthorizedSources": []
+}

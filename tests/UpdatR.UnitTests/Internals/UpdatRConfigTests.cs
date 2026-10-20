@@ -178,6 +178,7 @@ public class UpdatRConfigTests
         Assert.Null(config.FailOn);
         Assert.Empty(config.ToolPackagePins ?? []);
         Assert.Empty(config.PackagePolicies ?? []);
+        Assert.Null(config.MinPublishAgeHours);
     }
 
     [Fact]
@@ -211,6 +212,7 @@ public class UpdatRConfigTests
             ["Microsoft.EntityFrameworkCore*"],
             config.ToolPackagePins?.Select(x => x.Package).ToArray() ?? []
         );
+        Assert.Equal(72, config.MinPublishAgeHours);
         Assert.Empty(UpdatRConfig.Validate(File.ReadAllText(filePath)));
     }
 
@@ -589,6 +591,64 @@ public class UpdatRConfigTests
     {
         // Act & Assert
         Assert.Throws<UpdatRException>(() => UpdatRConfig.ParseFailOn("not-a-real-value"));
+    }
+
+    [Theory]
+    [InlineData("""{ "minPublishAgeHours": 0 }""")]
+    [InlineData("""{ "minPublishAgeHours": 24 }""")]
+    [InlineData("""{ "minPublishAgeHours": 256204778 }""")]
+    [InlineData("""{ "minPublishAgeHours": null }""")]
+    public void ValidateReturnsNoErrorsForValidMinPublishAgeHoursValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [InlineData("""{ "minPublishAgeHours": -1 }""")]
+    [InlineData("""{ "minPublishAgeHours": 1.5 }""")]
+    [InlineData("""{ "minPublishAgeHours": 1e2 }""")]
+    [InlineData("""{ "minPublishAgeHours": "24" }""")]
+    [InlineData("""{ "minPublishAgeHours": true }""")]
+    [InlineData("""{ "minPublishAgeHours": [] }""")]
+    [InlineData("""{ "minPublishAgeHours": 256204779 }""")]
+    [InlineData("""{ "minPublishAgeHours": 2147483648 }""")]
+    public void ValidateReturnsErrorForInvalidMinPublishAgeHoursValue(string json)
+    {
+        // Act
+        var errors = UpdatRConfig.Validate(json);
+
+        // Assert
+        var error = Assert.Single(errors);
+
+        Assert.Contains("minPublishAgeHours", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadReadsMinPublishAgeHours()
+    {
+        // Arrange
+        var temp = CreateTempDirectory();
+
+        File.WriteAllText(
+            Path.Combine(temp, UpdatRConfig.FileName),
+            """
+            {
+              // Wait a day before picking up new versions.
+              "minPublishAgeHours": 24,
+            }
+            """
+        );
+
+        // Act
+        var config = UpdatRConfig.Load(temp);
+
+        // Assert
+        Assert.NotNull(config);
+        Assert.Equal(24, config.MinPublishAgeHours);
     }
 
     private static string CreateTempDirectory()

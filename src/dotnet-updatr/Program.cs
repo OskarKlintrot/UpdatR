@@ -124,6 +124,12 @@ internal static partial class Program
                 "Exit with a non-zero code if the run was incomplete, i.e. a package source returned 401 or a package couldn't be resolved on any source. Independent of --fail-on. Can also be set via \"failOnIncomplete\" in a .updatrrc file.",
         };
 
+        var minPublishAgeHoursOption = new Option<int?>("--min-publish-age-hours")
+        {
+            Description =
+                "Only update to versions that have been published for at least this many whole hours, for every package source. Overrides \"minPublishAgeHours\" from a .updatrrc file. 0 disables the check.",
+        };
+
         var configPathArgument = new Argument<string>("path")
         {
             Description =
@@ -205,6 +211,7 @@ internal static partial class Program
             alignWithTfmOption,
             failOnOption,
             failOnIncompleteOption,
+            minPublishAgeHoursOption,
             configCommand,
         };
 
@@ -230,6 +237,7 @@ internal static partial class Program
                     alignWithTfm: parseResult.GetValue(alignWithTfmOption),
                     failOn: parseResult.GetValue(failOnOption),
                     failOnIncomplete: parseResult.GetValue(failOnIncompleteOption),
+                    minPublishAgeHours: parseResult.GetValue(minPublishAgeHoursOption),
                     cancellationToken: cancellationToken
                 )
         );
@@ -319,6 +327,7 @@ internal static partial class Program
         string[]? alignWithTfm = null,
         FailOn? failOn = null,
         bool failOnIncomplete = false,
+        int? minPublishAgeHours = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -395,6 +404,7 @@ internal static partial class Program
                     // Only override .updatrrc when the flag was actually passed - there's no way
                     // to turn it back off from the command line, same as every other bool flag.
                     FailOnIncomplete = failOnIncomplete ? true : null,
+                    MinPublishAgeHours = minPublishAgeHours,
                 },
                 cancellationToken
             );

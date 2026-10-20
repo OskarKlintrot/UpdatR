@@ -239,5 +239,7 @@ internal record PackageMetadata(
     IEnumerable<NuGet.Frameworks.NuGetFramework> TargetFrameworks,
     PackageDeprecationMetadata? DeprecationMetadata,
     IEnumerable<PackageVulnerabilityMetadata>? Vulnerabilities,
-    string? LicenseExpression = null
+    string? LicenseExpression = null,
+    DateTimeOffset? Published = null,
+    bool BlockedByMinPublishAge = false
 );

@@ -23,6 +23,7 @@ Options:
   --align-with-tfm <align-with-tfm>                                  Package to keep aligned with the project's target framework's major version, instead of updating to a newer version whose major just happens to also be compatible. Supports * as wildcard. Merged with "alignWithTfm" from a .updatrrc file, if present.
   --fail-on <Deprecated|None|Outdated|Vulnerable>                    Exit with a non-zero code if a finding of this severity or higher is found: "outdated" (any package was updated, is deprecated, or is vulnerable - most useful together with --dry-run), "deprecated" (deprecated or vulnerable) or "vulnerable". Defaults to "none", or "failOn" from a .updatrrc file, if present.
   --fail-on-incomplete                                               Exit with a non-zero code if the run was incomplete, i.e. a package source returned 401 or a package couldn't be resolved on any source. Independent of --fail-on. Can also be set via "failOnIncomplete" in a .updatrrc file.
+  --min-publish-age-hours <min-publish-age-hours>                    Only update to versions that have been published for at least this many whole hours, for every package source. Overrides "minPublishAgeHours" from a .updatrrc file. 0 disables the check.
   -?, -h, --help                                                     Show help and usage information
   --version                                                          Show version information
 

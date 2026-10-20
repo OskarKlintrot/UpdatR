@@ -120,6 +120,17 @@
       "title": "Fail on incomplete checks",
       "description": "Exit with code 2 when a package source is unauthorized or a package cannot be resolved from any source.",
       "type": "boolean"
+    },
+    "minPublishAgeHours": {
+      "title": "Minimum package publication age",
+      "description": "Only update to versions that have been published for at least this many whole hours, for every package source. Overridden by --min-publish-age-hours. 0 disables the check.",
+      "examples": [
+              72,
+              24
+      ],
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 256204778
     }
   },
   "$defs": {
