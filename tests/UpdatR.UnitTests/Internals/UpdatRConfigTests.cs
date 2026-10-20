@@ -212,7 +212,7 @@ public class UpdatRConfigTests
             ["Microsoft.EntityFrameworkCore*"],
             config.ToolPackagePins?.Select(x => x.Package).ToArray() ?? []
         );
-        Assert.Equal(24, config.MinPublishAgeHours);
+        Assert.Equal(72, config.MinPublishAgeHours);
         Assert.Empty(UpdatRConfig.Validate(File.ReadAllText(filePath)));
     }
 

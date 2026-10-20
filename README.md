@@ -112,7 +112,7 @@ Instead of (or in addition to) `--exclude-package` and `--allowed-licenses` you 
   "packagePolicies": [{ "package": "Serilog*", "maxMajor": 3 }],
   "failOn": "outdated",
   "failOnIncomplete": false,
-  "minPublishAgeHours": 24
+  "minPublishAgeHours": 72
 }
 ```
 
@@ -173,7 +173,7 @@ By default it's created in the current directory. Pass a path to create it elsew
 > update config init path/to/project --force
 ```
 
-Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework, and only picking versions that have been published for at least 24 hours:
+Pass `--example` to instead create a populated, realistic starting point - excluding the Roslyn compiler packages, pinning `dotnet-ef` to `Microsoft.EntityFrameworkCore*` explicitly, aligning Entity Framework Core and `Microsoft.Extensions.*` with the project's target framework, and only picking versions that have been published for at least 72 hours:
 
 ```
 > update config init --example
@@ -197,7 +197,7 @@ Pass `--example` to instead create a populated, realistic starting point - exclu
     "Microsoft.Extensions.*",
     "System.Net.Http.Json"
   ],
-  "minPublishAgeHours": 24
+  "minPublishAgeHours": 72
 }
 ```
 

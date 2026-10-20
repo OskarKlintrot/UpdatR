@@ -218,7 +218,7 @@ public sealed record UpdatRConfig(
     /// keeps Entity Framework Core and <c>Microsoft.Extensions.*</c> - both of which commonly
     /// ship versions that multi-target a newer TFM than the project actually targets - aligned
     /// with the project's target framework. It also only picks versions that have been published
-    /// for at least 24 hours (<c>minPublishAgeHours</c>).
+    /// for at least 72 hours (<c>minPublishAgeHours</c>).
     /// </summary>
     private const string ExampleJson = """
         {
@@ -238,7 +238,7 @@ public sealed record UpdatRConfig(
             "Microsoft.Extensions.*",
             "System.Net.Http.Json"
           ],
-          "minPublishAgeHours": 24
+          "minPublishAgeHours": 72
         }
         """;
 
