@@ -12,7 +12,3 @@ See [dotnet-updatr](#dotnet-updatr) for a dotnet tool that can be run from the c
 ### Usage
 
 snippet: SampleUsage
-
-### Minimum package publication age
-
-Set `UpdateOptions.MinPublishAgeHours` (or `minPublishAgeHours` in `.updatrrc`) to keep versions published within that many hours from being picked as update targets. `0` disables the check. The value applies to every package source; NuGet's `minPublishAgeHours` and `minPublishAgeExceptions` in `nuget.config` (.NET 11 SDK) aren't read yet. Held-back versions are reported in `Summary.SkippedUpdatePackages` with `SkippedUpdateReason.MinimumPublishAge`. An invalid value, or a missing publish date while an age is set, throws `MinimumPublishAgeException` before any files are changed. See [dotnet-updatr](#dotnet-updatr) for details.
