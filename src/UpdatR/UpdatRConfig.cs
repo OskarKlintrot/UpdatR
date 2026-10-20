@@ -53,9 +53,8 @@ namespace UpdatR;
 /// </param>
 /// <param name="MinPublishAgeHours">
 /// Minimum package publication age ("cooldown") in whole hours, applied to every package source -
-/// see <see cref="UpdateOptions.MinPublishAgeHours"/>, which overrides it if given. Takes priority
-/// over <c>minPublishAgeHours</c> on individual sources in <c>nuget.config</c>. <c>0</c> disables
-/// the check.
+/// see <see cref="UpdateOptions.MinPublishAgeHours"/>, which overrides it if given. <c>0</c>
+/// disables the check.
 /// </param>
 /// <param name="Schema">
 /// Optional JSON Schema URI used by editors to provide completion and validation. It does not

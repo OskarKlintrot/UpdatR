@@ -127,7 +127,7 @@ internal static partial class Program
         var minPublishAgeHoursOption = new Option<int?>("--min-publish-age-hours")
         {
             Description =
-                "Only update to versions that have been published for at least this many whole hours, for every package source. Overrides \"minPublishAgeHours\" from a .updatrrc file and minPublishAgeHours on individual sources in nuget.config. 0 disables the check. Packages matching minPublishAgeExceptions in nuget.config are exempt.",
+                "Only update to versions that have been published for at least this many whole hours, for every package source. Overrides \"minPublishAgeHours\" from a .updatrrc file. 0 disables the check.",
         };
 
         var configPathArgument = new Argument<string>("path")

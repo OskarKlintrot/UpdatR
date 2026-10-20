@@ -132,23 +132,9 @@ Equivalent to (and overridden by) the `--fail-on` command line option.
 
 `minPublishAgeHours` sets a minimum package publication age ("cooldown"), in whole hours: versions published more recently than that aren't picked as update targets. This mirrors NuGet's own `minPublishAgeHours` setting, introduced with the .NET 11 SDK. Updates that are held back are reported as skipped with reason `MinimumPublishAge`, and an older version that's old enough is picked instead, if there is one. Installed versions are never downgraded, and a skipped update by itself doesn't trip `failOn`. Equivalent to (and overridden by) the `--min-publish-age-hours` command line option; `0` disables the check.
 
-Without `--min-publish-age-hours` or `minPublishAgeHours` in `.updatrrc`, UpdatR uses NuGet's per-source settings in `nuget.config`. If either is set, its value applies to every source and replaces those per-source values:
+The value applies to every package source. NuGet's own `minPublishAgeHours` on package sources and `minPublishAgeExceptions` in `nuget.config` aren't read yet - support is planned once UpdatR can use NuGet 8's APIs for them. To pick up a version right away, pass `--min-publish-age-hours 0` for that run.
 
-```xml
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" minPublishAgeHours="48" />
-  </packageSources>
-  <minPublishAgeExceptions>
-    <package pattern="Contoso.*" />
-  </minPublishAgeExceptions>
-</configuration>
-```
-
-Packages matching `minPublishAgeExceptions` are always exempt, whichever setting the age comes from. Patterns use package source mapping syntax: an exact id, a prefix ending in `*` (`Contoso.*` doesn't match `Contoso` itself), or `*` alone. As in NuGet, the closest `nuget.config` that has a `minPublishAgeExceptions` section wins, and an empty section clears exceptions further away. A version that's available from more than one source is eligible if any of those sources allows it. If several projects with different `nuget.config` files use the same source URL, the first configuration read for that URL decides that source's age and exceptions.
-
-If an age applies but a source doesn't report when a version was published, `update` fails with an error before changing any files. For local folder feeds, NuGet uses each `.nupkg` file's last write time as its publish date. This is UpdatR's own selection of update targets, not a restore policy: it doesn't affect what `dotnet restore` resolves, and floating versions such as `1.*` are left as they are.
+If a minimum age is set but a source doesn't report when a version was published, `update` fails with an error before changing any files. For local folder feeds, NuGet uses each `.nupkg` file's last write time as its publish date. This is UpdatR's own selection of update targets, not a restore policy: it doesn't affect what `dotnet restore` resolves, and floating versions such as `1.*` are left as they are.
 
 Use `update config init` to create a `.updatrrc` file with all options present, but empty:
 

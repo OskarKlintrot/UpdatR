@@ -123,10 +123,10 @@
     },
     "minPublishAgeHours": {
       "title": "Minimum package publication age",
-      "description": "Only update to versions that have been published for at least this many whole hours, for every package source. Overrides minPublishAgeHours on individual sources in nuget.config, and is overridden by --min-publish-age-hours. 0 disables the check. Packages matching minPublishAgeExceptions in nuget.config are exempt.",
+      "description": "Only update to versions that have been published for at least this many whole hours, for every package source. Overridden by --min-publish-age-hours. 0 disables the check.",
       "examples": [
-        24,
-        72
+              72,
+              24
       ],
       "type": ["integer", "null"],
       "minimum": 0,
