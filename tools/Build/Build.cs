@@ -1,7 +1,7 @@
 #!/usr/bin/env dotnet
 #:package Bullseye@6.3.0
-#:package Microsoft.Extensions.Configuration.UserSecrets@10.0.13
-#:package Microsoft.Extensions.Logging.Console@10.0.13
+#:package Microsoft.Extensions.Configuration.UserSecrets@10.0.14
+#:package Microsoft.Extensions.Logging.Console@10.0.14
 #:package NuGet.Protocol@7.9.0
 #:package NuGet.Versioning@7.9.0
 #:package Octokit@14.0.0
@@ -9,7 +9,7 @@
 // Pin NuGet.Protocol's transitive dependency until NuGet updates it; fixes DoS vulnerabilities
 // https://github.com/advisories/GHSA-2fmv-rv2c-59x7 and https://github.com/advisories/GHSA-846f-f764-76mx.
 // File-based apps do not use the central transitive pin in Directory.Packages.props.
-#:package System.Security.Cryptography.Pkcs@8.0.2
+#:package System.Security.Cryptography.Pkcs@10.0.14
 #:property UserSecretsId=f8057ef4-f389-4c3d-bbc5-ec638d0454d7
 #:include ../../src/BuildingBlocks/NuGetLogger.cs
 
