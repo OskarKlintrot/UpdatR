@@ -136,9 +136,45 @@ public sealed class PackageConsumerTests : IDisposable
         await File.WriteAllTextAsync(
             Path.Combine(consumerDir, "Program.cs"),
             $$"""
+            bool IsLocatorRegistered()
+            {
+                var locatorAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .SingleOrDefault(assembly =>
+                        assembly.GetName().Name == "Microsoft.Build.Locator"
+                    );
+                var locatorType = locatorAssembly?.GetType(
+                    "Microsoft.Build.Locator.MSBuildLocator"
+                );
+
+                return locatorType is not null
+                    && (bool)locatorType.GetProperty("IsRegistered")!.GetValue(null)!;
+            }
+
+            if (IsLocatorRegistered())
+            {
+                throw new InvalidOperationException("MSBuildLocator was registered before UpdatR was used.");
+            }
+
             var updater = new UpdatR.Updater();
+            if (IsLocatorRegistered())
+            {
+                throw new InvalidOperationException("Constructing Updater registered MSBuildLocator.");
+            }
+
+            if (UpdatR.UpdatRConfig.Validate("{}").Count != 0 || IsLocatorRegistered())
+            {
+                throw new InvalidOperationException(
+                    "Validating config failed or registered MSBuildLocator."
+                );
+            }
+
             var options = new UpdatR.UpdateOptions { DryRun = true };
             var summary = await updater.UpdateAsync(@"{{consumerDir}}", options);
+            if (!IsLocatorRegistered())
+            {
+                throw new InvalidOperationException("UpdateAsync did not register MSBuildLocator.");
+            }
+
             Console.WriteLine("UpdatR ran successfully. Updated packages: " + summary.UpdatedPackagesCount);
             """,
             TestContext.Current.CancellationToken
@@ -177,8 +213,8 @@ public sealed class PackageConsumerTests : IDisposable
 
         Assert.Contains("Microsoft.Build.Locator.dll", consumerOutputFiles);
 
-        // Exercise the actual runtime behavior too (ModuleInitializer registering MSBuildLocator,
-        // and MsBuildProjectInspector actually resolving a real MSBuild), not just the build - the
+        // Exercise the actual runtime behavior too (the updater registering MSBuildLocator, and
+        // MsBuildProjectInspector actually resolving a real MSBuild), not just the build - the
         // DLL needs to both be present (build-time check above) and loadable. Uses `dotnet exec`
         // against the binary just built, the same proven pattern LiveTests uses for the CLI,
         // instead of `dotnet run` (which would re-evaluate/rebuild the project again).

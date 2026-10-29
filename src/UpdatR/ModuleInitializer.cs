@@ -7,7 +7,7 @@ namespace UpdatR;
 internal static class ModuleInitializer
 {
     /// <summary>
-    /// Eagerly registers MSBuildLocator's assembly resolver as soon as this assembly is loaded.
+    /// Installs the bundled dependency resolver as soon as this assembly is loaded.
     /// </summary>
     /// <remarks>
     /// <see cref="Internals.MsBuildProjectInspector"/> is used to resolve
@@ -22,12 +22,11 @@ internal static class ModuleInitializer
     /// unless MSBuildLocator's assembly-resolve handler has already been registered - it redirects
     /// the load to the copy MSBuildLocator locates from an installed .NET SDK/Visual Studio.
     ///
-    /// A module initializer is the only place guaranteed by the runtime to run before any type in
-    /// this module is used by any caller, so it is the right place for this one-time setup. This
-    /// is only safe because NuGet.Frameworks (and every other Microsoft.Build.* type) is strictly
-    /// an implementation detail of UpdatR - it never appears in this assembly's public API - so no
-    /// other assembly can ever reference a NuGet.Frameworks type without first going through a
-    /// member of this module, which guarantees this method has already run.
+    /// The module initializer installs the bundled dependency resolver before any type in this
+    /// module can be used. MSBuildLocator registration is deferred until the first updater
+    /// operation, so commands that only use the CLI or configuration APIs don't scan for an SDK.
+    /// This is safe because NuGet.Frameworks and every other Microsoft.Build.* type are internal
+    /// implementation details; updater operations register MSBuildLocator before using them.
     ///
     /// If no .NET SDK/Visual Studio installation can be found, registration fails and is
     /// re-thrown as a clear <see cref="InvalidOperationException"/> explaining the actual
@@ -66,9 +65,9 @@ internal static class ModuleInitializer
         // Microsoft.Build.* types until that method is actually invoked, by which point the
         // handler below is already registered.
         AssemblyLoadContext.Default.Resolving += ResolveBundledDependency;
-
-        RegisterMsBuildLocator();
     }
+
+    internal static void EnsureMsBuildLocatorIsRegistered() => RegisterMsBuildLocator();
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void RegisterMsBuildLocator()
