@@ -136,27 +136,32 @@ public sealed class PackageConsumerTests : IDisposable
         await File.WriteAllTextAsync(
             Path.Combine(consumerDir, "Program.cs"),
             $$"""
-            using System.Reflection;
+            bool IsLocatorRegistered()
+            {
+                var locatorAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .SingleOrDefault(assembly =>
+                        assembly.GetName().Name == "Microsoft.Build.Locator"
+                    );
+                var locatorType = locatorAssembly?.GetType(
+                    "Microsoft.Build.Locator.MSBuildLocator"
+                );
 
-            var locatorAssembly = Assembly.LoadFrom(
-                Path.Combine(AppContext.BaseDirectory, "Microsoft.Build.Locator.dll")
-            );
-            var locatorType = locatorAssembly.GetType("Microsoft.Build.Locator.MSBuildLocator")!;
-            var isLocatorRegistered = () =>
-                (bool)locatorType.GetProperty("IsRegistered")!.GetValue(null)!;
+                return locatorType is not null
+                    && (bool)locatorType.GetProperty("IsRegistered")!.GetValue(null)!;
+            }
 
-            if (isLocatorRegistered())
+            if (IsLocatorRegistered())
             {
                 throw new InvalidOperationException("MSBuildLocator was registered before UpdatR was used.");
             }
 
             var updater = new UpdatR.Updater();
-            if (isLocatorRegistered())
+            if (IsLocatorRegistered())
             {
                 throw new InvalidOperationException("Constructing Updater registered MSBuildLocator.");
             }
 
-            if (UpdatR.UpdatRConfig.Validate("{}").Count != 0 || isLocatorRegistered())
+            if (UpdatR.UpdatRConfig.Validate("{}").Count != 0 || IsLocatorRegistered())
             {
                 throw new InvalidOperationException(
                     "Validating config failed or registered MSBuildLocator."
@@ -165,7 +170,7 @@ public sealed class PackageConsumerTests : IDisposable
 
             var options = new UpdatR.UpdateOptions { DryRun = true };
             var summary = await updater.UpdateAsync(@"{{consumerDir}}", options);
-            if (!isLocatorRegistered())
+            if (!IsLocatorRegistered())
             {
                 throw new InvalidOperationException("UpdateAsync did not register MSBuildLocator.");
             }
