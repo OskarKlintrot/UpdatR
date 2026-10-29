@@ -136,9 +136,40 @@ public sealed class PackageConsumerTests : IDisposable
         await File.WriteAllTextAsync(
             Path.Combine(consumerDir, "Program.cs"),
             $$"""
+            using System.Reflection;
+
+            var locatorAssembly = Assembly.LoadFrom(
+                Path.Combine(AppContext.BaseDirectory, "Microsoft.Build.Locator.dll")
+            );
+            var locatorType = locatorAssembly.GetType("Microsoft.Build.Locator.MSBuildLocator")!;
+            var isLocatorRegistered = () =>
+                (bool)locatorType.GetProperty("IsRegistered")!.GetValue(null)!;
+
+            if (isLocatorRegistered())
+            {
+                throw new InvalidOperationException("MSBuildLocator was registered before UpdatR was used.");
+            }
+
             var updater = new UpdatR.Updater();
+            if (isLocatorRegistered())
+            {
+                throw new InvalidOperationException("Constructing Updater registered MSBuildLocator.");
+            }
+
+            if (UpdatR.UpdatRConfig.Validate("{}").Count != 0 || isLocatorRegistered())
+            {
+                throw new InvalidOperationException(
+                    "Validating config failed or registered MSBuildLocator."
+                );
+            }
+
             var options = new UpdatR.UpdateOptions { DryRun = true };
             var summary = await updater.UpdateAsync(@"{{consumerDir}}", options);
+            if (!isLocatorRegistered())
+            {
+                throw new InvalidOperationException("UpdateAsync did not register MSBuildLocator.");
+            }
+
             Console.WriteLine("UpdatR ran successfully. Updated packages: " + summary.UpdatedPackagesCount);
             """,
             TestContext.Current.CancellationToken
