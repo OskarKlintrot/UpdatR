@@ -1,4 +1,5 @@
-﻿using BuildingBlocks;
+using System.Runtime.CompilerServices;
+using BuildingBlocks;
 using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Credentials;
@@ -58,10 +59,29 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
     /// <exception cref="InvalidUpdateTargetException"></exception>
     /// <exception cref="AmbiguousToolPackagePinException"></exception>
     /// <exception cref="MinimumPublishAgeException"></exception>
-    public async Task<Summary> UpdateAsync(
+    public Task<Summary> UpdateAsync(
         string? path = null,
         UpdateOptions? options = null,
         CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            ModuleInitializer.EnsureMsBuildLocatorIsRegistered();
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Task.FromException<Summary>(exception);
+        }
+
+        return UpdateAsyncCore(path, options, cancellationToken);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private async Task<Summary> UpdateAsyncCore(
+        string? path,
+        UpdateOptions? options,
+        CancellationToken cancellationToken
     )
     {
         options ??= new UpdateOptions();

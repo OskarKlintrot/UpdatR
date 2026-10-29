@@ -1,0 +1,1 @@
+- Faster startup for help and configuration-only CLI commands by deferring SDK discovery until an update starts.

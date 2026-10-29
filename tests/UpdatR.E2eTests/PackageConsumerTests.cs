@@ -177,8 +177,8 @@ public sealed class PackageConsumerTests : IDisposable
 
         Assert.Contains("Microsoft.Build.Locator.dll", consumerOutputFiles);
 
-        // Exercise the actual runtime behavior too (ModuleInitializer registering MSBuildLocator,
-        // and MsBuildProjectInspector actually resolving a real MSBuild), not just the build - the
+        // Exercise the actual runtime behavior too (the updater registering MSBuildLocator, and
+        // MsBuildProjectInspector actually resolving a real MSBuild), not just the build - the
         // DLL needs to both be present (build-time check above) and loadable. Uses `dotnet exec`
         // against the binary just built, the same proven pattern LiveTests uses for the CLI,
         // instead of `dotnet run` (which would re-evaluate/rebuild the project again).
