@@ -9,7 +9,8 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 # UpdatR packages
 
-## dotnet-updatr<!-- include: cli-readme. path: /mdsource/cli-readme.include.md -->
+<!-- include: cli-readme. path: /mdsource/cli-readme.include.md -->
+## dotnet-updatr
 
 [![Latest Nuget Version](https://badgen.net/nuget/v/dotnet-updatr/latest)](https://www.nuget.org/packages/dotnet-updatr/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/dotnet-updatr)](https://www.nuget.org/packages/dotnet-updatr/)
@@ -303,7 +304,8 @@ Commands:
 <!-- endSnippet -->
 <!-- endInclude -->
 
-## UpdatR<!-- include: sdk-readme. path: /mdsource/sdk-readme.include.md -->
+<!-- include: sdk-readme. path: /mdsource/sdk-readme.include.md -->
+## UpdatR
 
 [![Latest Nuget Version](https://badgen.net/nuget/v/UpdatR/latest)](https://www.nuget.org/packages/UpdatR/)
 [![Latest Nuget Version](https://badgen.net/nuget/dt/UpdatR)](https://www.nuget.org/packages/UpdatR/)
@@ -343,7 +345,8 @@ var description =
 <!-- endSnippet -->
 <!-- endInclude -->
 
-## Known Issues<!-- include: known-issues. path: /mdsource/known-issues.include.md -->
+<!-- include: known-issues. path: /mdsource/known-issues.include.md -->
+## Known Issues
 
 ### Unrelated formatting changes in `.csproj`/`.props` files
 
@@ -351,5 +354,6 @@ When a `.csproj` or `.props` file is updated, every self-closing XML element in 
 
 This won't be fixed, since avoiding it would require replacing the `XmlDocument`-based read/write with a fully text-based, surgical rewrite (similar to how UpdatR already handles `#:package` directives in file-based apps) - a significant rewrite for a purely cosmetic issue. `dotnet-tools.json` and file-based apps aren't affected, since they're already updated by rewriting only the exact text that changed.<!-- endInclude -->
 
-# Icon<!-- include: footer. path: /mdsource/footer.include.md -->
+<!-- include: footer. path: /mdsource/footer.include.md -->
+# Icon
 Package by Sergey Novosyolov from [NounProject.com](http://NounProject.com)<!-- endInclude -->
