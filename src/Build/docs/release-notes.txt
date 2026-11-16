@@ -1,2 +1,0 @@
-- Faster startup for help and configuration-only CLI commands by deferring SDK discovery until an update starts.
-- `UpdateOptions.MinPublishAgeHours` and `.updatrrc`'s `minPublishAgeHours` now fall back to NuGet's per-source minimum publish age and package exceptions when neither is set.
