@@ -104,7 +104,7 @@ public sealed class PackageConsumerTests : IDisposable
 
         await RunAsync(
             "dotnet",
-            $"new console -o \"{consumerDir}\" --force",
+            $"new console --framework net10.0 -o \"{consumerDir}\" --force",
             ct: TestContext.Current.CancellationToken
         );
 
