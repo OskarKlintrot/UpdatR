@@ -106,9 +106,10 @@ public sealed record UpdateOptions
     /// an update target once it has been published for at least this long, mirroring NuGet's
     /// <c>minPublishAgeHours</c> package source setting. Applies to every package source and
     /// takes priority over <c>.updatrrc</c>'s <c>minPublishAgeHours</c>. <c>0</c> disables the
-    /// check. Leave out (or <see langword="null"/>) to fall back to <c>.updatrrc</c>. NuGet's own
-    /// <c>minPublishAgeHours</c> and <c>minPublishAgeExceptions</c> in <c>nuget.config</c> aren't
-    /// read yet. Installed versions are never downgraded, and a newer version that's skipped is
+    /// check. Leave out (or <see langword="null"/>) to fall back to <c>.updatrrc</c>, then each
+    /// source's <c>minPublishAgeHours</c> and <c>minPublishAgeExceptions</c> from NuGet's settings
+    /// APIs. Explicit values here or in <c>.updatrrc</c> override NuGet's package exceptions too.
+    /// Installed versions are never downgraded, and a newer version that's skipped is
     /// reported with <see cref="SkippedUpdateReason.MinimumPublishAge"/>.
     /// </summary>
     public int? MinPublishAgeHours { get; init; }

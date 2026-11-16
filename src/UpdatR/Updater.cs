@@ -116,9 +116,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             updatRConfig?.MinPublishAgeHours,
             $"'{UpdatRConfig.FileName}'"
         );
-        var minPublishAgePolicy = new MinPublishAgePolicy(
-            minPublishAgeFromOptions ?? minPublishAgeFromConfig ?? TimeSpan.Zero
-        );
+        var minPublishAgeOverride = minPublishAgeFromOptions ?? minPublishAgeFromConfig;
 
         // Options-supplied policies are checked first, so they take priority when more than one
         // pattern matches the same package id (see PackageContainer.ResolvePackagePolicyMaxMajor).
@@ -202,7 +200,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             shouldExcludePackage,
             options.Interactive,
             options.NoCache,
-            minPublishAgePolicy,
+            minPublishAgeOverride,
             DateTimeOffset.UtcNow,
             new NuGetLogger(_logger),
             cancellationToken
@@ -355,7 +353,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         Func<string, bool> shouldExcludePackage,
         bool interactive,
         bool noCache,
-        MinPublishAgePolicy minPublishAgePolicy,
+        TimeSpan? minPublishAgeOverride,
         DateTimeOffset now,
         NuGet.Common.ILogger nuGetLogger,
         CancellationToken cancellationToken
@@ -397,6 +395,10 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             PathComparer.Comparer
         );
 
+        Dictionary<string, MinPublishAgeExceptions> minPublishAgeExceptionsByDir = new(
+            PathComparer.Comparer
+        );
+
         // A distinct (source, packageId) work set, built up front across every project, so a
         // packageId referenced by many projects that all resolve to the same source is only
         // queried once instead of once per referencing project - the source of the original
@@ -408,9 +410,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             StringComparer.OrdinalIgnoreCase
         );
 
-        Dictionary<string, HashSet<string>> packageIdsBySourceUrl = new(
-            StringComparer.OrdinalIgnoreCase
-        );
+        Dictionary<string, Dictionary<string, MinPublishAgePolicy>> packagePoliciesBySourceUrl =
+            new(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (path, packageIds) in projectsWithPackages)
         {
@@ -435,6 +436,8 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                 sourceRepositoryProvidersByDir[configDir] = sourceRepositoryProvider;
                 packageSourceMappingsByDir[configDir] =
                     PackageSourceMapping.GetPackageSourceMapping(settings);
+                minPublishAgeExceptionsByDir[configDir] =
+                    MinPublishAgeExceptions.GetMinPublishAgeExceptions(settings);
             }
 
             var packageSourceMapping = packageSourceMappingsByDir[configDir];
@@ -449,9 +452,9 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
 
                 reposBySourceUrl.TryAdd(sourceUrl, repo);
 
-                if (!packageIdsBySourceUrl.TryGetValue(sourceUrl, out var packageIdSet))
+                if (!packagePoliciesBySourceUrl.TryGetValue(sourceUrl, out var packagePolicies))
                 {
-                    packageIdsBySourceUrl[sourceUrl] = packageIdSet = new HashSet<string>(
+                    packagePoliciesBySourceUrl[sourceUrl] = packagePolicies = new(
                         StringComparer.OrdinalIgnoreCase
                     );
                 }
@@ -478,7 +481,24 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
                         continue;
                     }
 
-                    packageIdSet.Add(packageId);
+                    var minPublishAge =
+                        minPublishAgeOverride
+                        ?? (
+                            minPublishAgeExceptionsByDir[configDir].FindException(packageId)
+                                is not null
+                                ? TimeSpan.Zero
+                                : repo.PackageSource.MinPublishAge
+                        );
+
+                    // Match metadata merging across sources: a version is eligible if any
+                    // applicable source configuration allows it.
+                    if (
+                        !packagePolicies.TryGetValue(packageId, out var existingPolicy)
+                        || minPublishAge < existingPolicy.MinPublishAge
+                    )
+                    {
+                        packagePolicies[packageId] = new MinPublishAgePolicy(minPublishAge);
+                    }
                 }
             }
         }
@@ -495,14 +515,15 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
             try
             {
                 await Parallel.ForEachAsync(
-                    packageIdsBySourceUrl[sourceUrl],
+                    packagePoliciesBySourceUrl[sourceUrl],
                     new ParallelOptions
                     {
                         MaxDegreeOfParallelism = MaxConcurrentNuGetRequests,
                         CancellationToken = cancellationToken,
                     },
-                    async (packageId, nugetCancellationToken) =>
+                    async (packagePolicy, nugetCancellationToken) =>
                     {
+                        var (packageId, minPublishAgePolicy) = packagePolicy;
                         var packageMetadataResource = repo.GetResource<PackageMetadataResource>()!;
 
                         var searchMetadata = await packageMetadataResource.GetMetadataAsync(

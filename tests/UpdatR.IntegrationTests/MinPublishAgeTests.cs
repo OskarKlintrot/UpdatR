@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Xml.Linq;
+using NuGet.Configuration;
 using static UpdatR.IntegrationTests.FileCreationUtils;
 
 namespace UpdatR.IntegrationTests;
@@ -33,7 +34,7 @@ public class MinPublishAgeTests
         );
 
         CreateFeed(temp, ("Dummy.0.0.1.nupkg", s_old), ("Dummy.0.0.2.nupkg", s_recent));
-        CreateCooldownNuGetConfig(temp);
+        CreateCooldownNuGetConfig(temp, "72", "Dummy");
 
         await CreateUpdatRConfigAsync(
             Path.Combine(temp, UpdatRConfig.FileName),
@@ -105,15 +106,16 @@ public class MinPublishAgeTests
     }
 
     [Theory]
-    [InlineData("48")]
-    [InlineData("abc")]
-    public async Task Given_NuGetConfigMinPublishAgeSettings_When_Update_Then_IgnoreThemForNow(
-        string minPublishAgeHours
+    [InlineData("0", "0.0.2")]
+    [InlineData("48", "0.0.1")]
+    public async Task UpdateAsync_NuGetMinPublishAge_UsesSourceSetting(
+        string minPublishAgeHours,
+        string expectedVersion
     )
     {
-        // Arrange - UpdatR doesn't read NuGet's own settings until it can use NuGet 8's APIs.
+        // Arrange
         var temp = CreateTemp(
-            $"{nameof(Given_NuGetConfigMinPublishAgeSettings_When_Update_Then_IgnoreThemForNow)}_{minPublishAgeHours}"
+            $"{nameof(UpdateAsync_NuGetMinPublishAge_UsesSourceSetting)}_{minPublishAgeHours}"
         );
         var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
 
@@ -121,6 +123,56 @@ public class MinPublishAgeTests
 
         CreateFeed(temp, ("Dummy.0.0.1.nupkg", s_old), ("Dummy.0.0.2.nupkg", s_recent));
         CreateCooldownNuGetConfig(temp, minPublishAgeHours);
+        var configPath = Path.Combine(temp, "nuget.config");
+        var configOriginal = await File.ReadAllTextAsync(
+            configPath,
+            TestContext.Current.CancellationToken
+        );
+
+        // Act
+        var summary = await new Updater().UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Contains(
+            $"Include=\"Dummy\" Version=\"{expectedVersion}\"",
+            await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+        Assert.Equal(
+            expected: configOriginal,
+            actual: await File.ReadAllTextAsync(configPath, TestContext.Current.CancellationToken)
+        );
+        if (minPublishAgeHours == "48")
+        {
+            var skipped = Assert.Single(Assert.Single(summary.SkippedUpdatePackages).Versions);
+            Assert.Equal(
+                expected: SkippedUpdateReason.MinimumPublishAge,
+                actual: skipped.Version.Reason
+            );
+        }
+    }
+
+    [Theory]
+    [InlineData("Dummy", "0.0.2")]
+    [InlineData("dum*", "0.0.2")]
+    [InlineData("*", "0.0.2")]
+    [InlineData("Other.*", "0.0.1")]
+    public async Task UpdateAsync_NuGetMinPublishAgeException_UsesSdkPatternMatching(
+        string pattern,
+        string expectedVersion
+    )
+    {
+        // Arrange
+        var temp = CreateTemp(
+            $"{nameof(UpdateAsync_NuGetMinPublishAgeException_UsesSdkPatternMatching)}_{pattern.Replace('*', '_')}"
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+        CreateFeed(temp, ("Dummy.0.0.1.nupkg", s_old), ("Dummy.0.0.2.nupkg", s_recent));
+        CreateCooldownNuGetConfig(temp, "48", pattern);
 
         // Act
         await new Updater().UpdateAsync(
@@ -130,10 +182,166 @@ public class MinPublishAgeTests
 
         // Assert
         Assert.Contains(
-            "Include=\"Dummy\" Version=\"0.0.2\"",
+            $"Include=\"Dummy\" Version=\"{expectedVersion}\"",
             await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken),
             StringComparison.Ordinal
         );
+    }
+
+    [Theory]
+    [InlineData(0, true, null, "0.0.2")]
+    [InlineData(48, true, "Dummy", "0.0.1")]
+    [InlineData(0, false, null, "0.0.2")]
+    [InlineData(48, false, "Dummy", "0.0.1")]
+    public async Task UpdateAsync_ExplicitMinPublishAge_OverridesNuGetSettingsAndExceptions(
+        int hours,
+        bool useOptions,
+        string? exceptionPattern,
+        string expectedVersion
+    )
+    {
+        // Arrange
+        var temp = CreateTemp(
+            $"{nameof(UpdateAsync_ExplicitMinPublishAge_OverridesNuGetSettingsAndExceptions)}_{hours}_{useOptions}"
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+        CreateFeed(temp, ("Dummy.0.0.1.nupkg", s_old), ("Dummy.0.0.2.nupkg", s_recent));
+        CreateCooldownNuGetConfig(temp, "72", exceptionPattern);
+        if (!useOptions)
+        {
+            await CreateUpdatRConfigAsync(
+                Path.Combine(temp, UpdatRConfig.FileName),
+                $$"""{ "minPublishAgeHours": {{hours}} }"""
+            );
+        }
+
+        // Act
+        await new Updater().UpdateAsync(
+            tempCsproj,
+            new UpdateOptions { MinPublishAgeHours = useOptions ? hours : null },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Contains(
+            $"Include=\"Dummy\" Version=\"{expectedVersion}\"",
+            await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("-1")]
+    [InlineData("256204779")]
+    public async Task UpdateAsync_InvalidNuGetMinPublishAge_FailsBeforeChangingProject(string hours)
+    {
+        // Arrange
+        var temp = CreateTemp(
+            $"{nameof(UpdateAsync_InvalidNuGetMinPublishAge_FailsBeforeChangingProject)}_{hours}"
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        var original = await CreateTempCsprojAsync(
+            tempCsproj,
+            new KeyValuePair<string, string>("Dummy", "0.0.1")
+        );
+        CreateFeed(temp, ("Dummy.0.0.1.nupkg", s_old), ("Dummy.0.0.2.nupkg", s_recent));
+        CreateCooldownNuGetConfig(temp, hours);
+
+        // Act
+        var exception = await Record.ExceptionAsync(() =>
+            new Updater().UpdateAsync(
+                tempCsproj,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        // Assert
+        Assert.IsType<NuGetConfigurationException>(exception);
+        Assert.Contains("minPublishAgeHours", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(
+            expected: original,
+            actual: await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task UpdateAsync_DifferentSourceMinPublishAges_AppliesEachSourcesPolicy(
+        bool reverseSources,
+        bool eligibleSourceHasNewVersion
+    )
+    {
+        // Arrange
+        var temp = CreateTemp(
+            $"{nameof(UpdateAsync_DifferentSourceMinPublishAges_AppliesEachSourcesPolicy)}_{reverseSources}_{eligibleSourceHasNewVersion}"
+        );
+        var tempCsproj = Path.Combine(temp, "Dummy.App.csproj");
+        await CreateTempCsprojAsync(tempCsproj, new KeyValuePair<string, string>("Dummy", "0.0.1"));
+        var restrictedFeed = CreateFeed(
+            Path.Combine(temp, "restricted"),
+            ("Dummy.0.0.1.nupkg", s_old),
+            ("Dummy.0.0.2.nupkg", s_recent)
+        );
+        var eligibleFeed = eligibleSourceHasNewVersion
+            ? CreateFeed(
+                Path.Combine(temp, "eligible"),
+                ("Dummy.0.0.1.nupkg", s_old),
+                ("Dummy.0.0.2.nupkg", s_recent)
+            )
+            : CreateFeed(Path.Combine(temp, "eligible"), ("Dummy.0.0.1.nupkg", s_old));
+        var restrictedSource = new XElement(
+            "add",
+            new XAttribute("key", "restricted"),
+            new XAttribute("value", restrictedFeed),
+            new XAttribute("minPublishAgeHours", "48")
+        );
+        var eligibleSource = new XElement(
+            "add",
+            new XAttribute("key", "eligible"),
+            new XAttribute("value", eligibleFeed)
+        );
+        new XDocument(
+            new XElement(
+                "configuration",
+                new XElement(
+                    "packageSources",
+                    new XElement("clear"),
+                    reverseSources ? eligibleSource : restrictedSource,
+                    reverseSources ? restrictedSource : eligibleSource
+                )
+            )
+        ).Save(Path.Combine(temp, "nuget.config"));
+
+        // Act
+        var summary = await new Updater().UpdateAsync(
+            tempCsproj,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var expectedVersion = eligibleSourceHasNewVersion ? "0.0.2" : "0.0.1";
+        Assert.Contains(
+            $"Include=\"Dummy\" Version=\"{expectedVersion}\"",
+            await File.ReadAllTextAsync(tempCsproj, TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+        if (eligibleSourceHasNewVersion)
+        {
+            Assert.Empty(summary.SkippedUpdatePackages);
+        }
+        else
+        {
+            var skipped = Assert.Single(Assert.Single(summary.SkippedUpdatePackages).Versions);
+            Assert.Equal(
+                expected: SkippedUpdateReason.MinimumPublishAge,
+                actual: skipped.Version.Reason
+            );
+        }
     }
 
     [Fact]
@@ -457,7 +665,11 @@ public class MinPublishAgeTests
         return feed;
     }
 
-    private static void CreateCooldownNuGetConfig(string dir, string? minPublishAgeHours = null)
+    private static void CreateCooldownNuGetConfig(
+        string dir,
+        string? minPublishAgeHours = null,
+        string? exceptionPattern = null
+    )
     {
         var source = new XElement(
             "add",
@@ -473,7 +685,13 @@ public class MinPublishAgeTests
         new XDocument(
             new XElement(
                 "configuration",
-                new XElement("packageSources", new XElement("clear"), source)
+                new XElement("packageSources", new XElement("clear"), source),
+                exceptionPattern is null
+                    ? null
+                    : new XElement(
+                        "minPublishAgeExceptions",
+                        new XElement("package", new XAttribute("pattern", exceptionPattern))
+                    )
             )
         ).Save(Path.Combine(dir, "nuget.config"));
     }

@@ -5,7 +5,8 @@ namespace UpdatR.Internals;
 /// <summary>
 /// The effective minimum publish age: versions published more recently than
 /// <see cref="MinPublishAge"/> before the run started aren't eligible as update targets.
-/// Mirrors NuGet's own check, <c>Published &lt;= UtcNow - MinPublishAge</c>.
+/// NuGet exposes configuration and exception matching, but its equivalent date check
+/// is internal to the package update command.
 /// </summary>
 internal sealed class MinPublishAgePolicy(TimeSpan minPublishAge)
 {
