@@ -4,7 +4,6 @@ using NuGet.Frameworks;
 using NuGet.Versioning;
 using UpdatR.Domain.Utils;
 using UpdatR.Internals;
-using static UpdatR.Domain.Utils.RetriveTargetFramework;
 
 namespace UpdatR.Domain;
 
@@ -25,15 +24,20 @@ internal sealed partial class Csproj : PackageContainer
 
     private readonly FileInfo _path;
     private readonly XmlDocument _doc;
-    private IReadOnlyList<NuGetFramework>? _targetFrameworks;
     private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? _candidateTfmsByKey;
     private Dictionary<string, NuGetVersion>? _packages;
-    private IReadOnlyDictionary<string, IReadOnlyList<PackageItemSource>>? _injectedTfmSources;
 
-    private Csproj(FileInfo path, XmlDocument doc)
+    private Csproj(FileInfo path, XmlDocument doc, MsBuildProjectEvaluation evaluation)
     {
         _path = path;
         _doc = doc;
+        Evaluation = evaluation;
+        TargetFrameworks =
+        [
+            .. evaluation
+                .TargetFrameworks.Select(NuGetFramework.Parse)
+                .DefaultIfEmpty(NuGetFramework.AnyFramework),
+        ];
     }
 
     public override string Name => _path.Name;
@@ -45,14 +49,13 @@ internal sealed partial class Csproj : PackageContainer
     public string Parent => _path.DirectoryName!;
 
     /// <summary>
-    /// Every target framework declared by this project - either via a single
-    /// <c>TargetFramework</c>, or a <c>;</c>-separated <c>TargetFrameworks</c> for a
-    /// multi-targeted project. Falls back to whatever is declared in an imported
-    /// <c>Directory.Build.props</c>, or <see cref="NuGetFramework.AnyFramework"/> if none is
-    /// found.
+    /// Every target framework resolved by MSBuild evaluation, including imported properties
+    /// and per-framework evaluation of multi-targeted projects. Falls back to
+    /// <see cref="NuGetFramework.AnyFramework"/> if no target framework is defined.
     /// </summary>
-    public IReadOnlyList<NuGetFramework> TargetFrameworks =>
-        _targetFrameworks ??= GetTargetFrameworks();
+    public IReadOnlyList<NuGetFramework> TargetFrameworks { get; }
+
+    public MsBuildProjectEvaluation Evaluation { get; }
 
     /// <summary>
     /// The version every referenced package whose id matches <paramref name="packageIdPattern"/>
@@ -104,18 +107,6 @@ internal sealed partial class Csproj : PackageContainer
 
     public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();
 
-    /// <summary>
-    /// Lets <see cref="RootDir"/> pass in the per-TFM MSBuild evaluation it already performed for
-    /// this project while discovering shared props/targets files, so <see
-    /// cref="GetCandidateTfmsByKey"/> doesn't need to run the same (expensive) evaluation again.
-    /// Only relevant for a genuinely multi-targeted project; harmless to call otherwise.
-    /// </summary>
-    internal void SetTfmSources(IReadOnlyDictionary<string, IReadOnlyList<PackageItemSource>> byTfm)
-    {
-        _injectedTfmSources = byTfm;
-        _candidateTfmsByKey = null;
-    }
-
     public static Csproj Create(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -141,11 +132,12 @@ internal sealed partial class Csproj : PackageContainer
             );
         }
 
+        var evaluation = MsBuildProjectInspector.Evaluate(file.FullName);
         var doc = new XmlDocument { PreserveWhitespace = true };
 
         doc.Load(file.FullName);
 
-        return new Csproj(file, doc);
+        return new Csproj(file, doc, evaluation);
     }
 
     public Task<ProjectWithPackages?> UpdatePackagesAsync(
@@ -254,12 +246,8 @@ internal sealed partial class Csproj : PackageContainer
 
     /// <summary>
     /// Maps each distinct (item type, package id, version string) occurrence declared directly
-    /// in this csproj to the target framework(s) - resolved via a real per-framework MSBuild
-    /// evaluation - it actually applies to. Only attempted for a genuinely multi-targeted project
-    /// (a single/no <c>TargetFramework</c> is already evaluated correctly by a plain evaluation,
-    /// so there's nothing more precise to learn); falls back to an empty map - meaning every
-    /// candidate uses <see cref="TargetFrameworks"/> as before - if evaluation isn't attempted or
-    /// fails for any reason (e.g. a malformed project, or a missing SDK).
+    /// in this csproj to the target framework(s) it applies to, using the evaluation captured
+    /// when the project was loaded. An empty map means candidates use <see cref="TargetFrameworks"/>.
     /// </summary>
     private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>> GetCandidateTfmsByKey()
     {
@@ -270,53 +258,29 @@ internal sealed partial class Csproj : PackageContainer
 
         Dictionary<string, HashSet<NuGetFramework>> map = new(StringComparer.Ordinal);
 
-        if (TargetFrameworks.Count > 1 && !TargetFrameworks.Contains(NuGetFramework.AnyFramework))
+        foreach (var (tfmString, sources) in Evaluation.PackageItemSourcesByTfm)
         {
-            try
-            {
-                // RootDir already runs this exact per-framework evaluation while discovering
-                // shared props/targets files; reuse its result instead of evaluating the project
-                // a second time when available (e.g. when this Csproj was created standalone by
-                // a caller that never went through RootDir.Create, fall back to evaluating it
-                // ourselves).
-                var byTfm =
-                    _injectedTfmSources
-                    ?? MsBuildProjectInspector.GetPackageItemSourcesByTfm(
-                        Path,
-                        [.. TargetFrameworks.Select(x => x.GetShortFolderName())]
-                    );
+            var tfm = NuGetFramework.Parse(tfmString);
 
-                foreach (var (tfmString, sources) in byTfm)
+            foreach (
+                var source in sources.Where(x =>
+                    x.Version is not null
+                    && string.Equals(x.SourceFile, Path, PathComparer.Comparison)
+                )
+            )
+            {
+                var key = CandidateTfmKey.Create(
+                    source.ItemType,
+                    source.PackageId,
+                    source.Version!
+                );
+
+                if (!map.TryGetValue(key, out var tfms))
                 {
-                    var tfm = NuGetFramework.Parse(tfmString);
-
-                    foreach (
-                        var source in sources.Where(x =>
-                            x.Version is not null
-                            && string.Equals(x.SourceFile, Path, PathComparer.Comparison)
-                        )
-                    )
-                    {
-                        var key = CandidateTfmKey.Create(
-                            source.ItemType,
-                            source.PackageId,
-                            source.Version!
-                        );
-
-                        if (!map.TryGetValue(key, out var tfms))
-                        {
-                            map[key] = tfms = [];
-                        }
-
-                        tfms.Add(tfm);
-                    }
+                    map[key] = tfms = [];
                 }
-            }
-            catch (Exception)
-            {
-                // Fall back to no per-candidate information at all - every candidate then uses
-                // TargetFrameworks, same as before this per-framework evaluation existed.
-                map.Clear();
+
+                tfms.Add(tfm);
             }
         }
 
@@ -325,17 +289,6 @@ internal sealed partial class Csproj : PackageContainer
             x => (IReadOnlyCollection<NuGetFramework>)x.Value,
             StringComparer.Ordinal
         );
-    }
-
-    private NuGetFramework[] GetTargetFrameworks()
-    {
-        var targetFrameworks =
-            RetriveTargetFramework.GetTargetFrameworks(Path)
-            ?? GetTargetFrameworksFromDirectoryBuildProps(new(Parent));
-
-        return targetFrameworks is null
-            ? [NuGetFramework.AnyFramework]
-            : targetFrameworks.Select(NuGetFramework.Parse).ToArray();
     }
 
     private Dictionary<string, NuGetVersion> GetPackages() =>

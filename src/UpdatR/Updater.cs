@@ -188,7 +188,7 @@ public sealed partial class Updater(ILogger<Updater>? logger = null)
         var shouldExcludeFile = CreateFileExclusionSearch(exclusionRoot, excludeFiles);
 
         var dir = await RootDir
-            .CreateAsync(path, shouldExcludeFile, _logger, cancellationToken)
+            .CreateAsync(path, shouldExcludeFile, cancellationToken)
             .ConfigureAwait(false);
 
         var result = new Result(path);

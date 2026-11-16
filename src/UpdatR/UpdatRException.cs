@@ -20,8 +20,9 @@ public class UpdatRException : Exception
 /// <summary>
 /// Thrown when the <c>path</c> supplied to <see cref="Updater.UpdateAsync"/> (or resolved from a
 /// <c>.updatrrc</c>'s <c>path</c> property) doesn't point to anything UpdatR can update - it
-/// doesn't exist, isn't a supported file type, a directory/solution contains nothing to update,
-/// or a solution file couldn't be parsed.
+/// doesn't exist, isn't a supported file type, a project targets .NET Framework, a
+/// directory/solution contains nothing to update, a solution file couldn't be parsed, or a
+/// project couldn't be evaluated with MSBuild.
 /// </summary>
 public sealed class InvalidUpdateTargetException : UpdatRException
 {

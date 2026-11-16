@@ -23,6 +23,300 @@ public class CsprojTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    [Theory]
+    [InlineData(
+        """
+            <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+              <PropertyGroup>
+                <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+              </PropertyGroup>
+              <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+            </Project>
+            """
+    )]
+    [InlineData(
+        """
+            <Project>
+              <PropertyGroup>
+                <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+              </PropertyGroup>
+              <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+            </Project>
+            """
+    )]
+    [InlineData(
+        """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net48</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+    )]
+    [InlineData(
+        """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net10.0;net472</TargetFrameworks>
+              </PropertyGroup>
+            </Project>
+            """
+    )]
+    public async Task CreateAsyncRejectsEvaluatedNetFrameworkProject(string projectXml)
+    {
+        // Arrange
+        File.WriteAllText(_csprojPath, projectXml);
+
+        // Act
+        var exception = await Record.ExceptionAsync(() =>
+            RootDir.CreateAsync(
+                _csprojPath,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        // Assert
+        Assert.IsType<InvalidUpdateTargetException>(exception);
+        Assert.Equal(
+            expected: $"'{_csprojPath}' targets .NET Framework, which UpdatR does not support.",
+            actual: exception.Message
+        );
+        Assert.Equal(expected: projectXml, actual: File.ReadAllText(_csprojPath));
+    }
+
+    [Theory]
+    [InlineData(
+        """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup Condition="'false' == 'true'">
+                <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+                <TargetFramework>net48</TargetFramework>
+              </PropertyGroup>
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+    )]
+    [InlineData(
+        """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <Target Name="Unused">
+                <PropertyGroup>
+                  <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+                </PropertyGroup>
+              </Target>
+            </Project>
+            """
+    )]
+    [InlineData(
+        """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net48</TargetFramework>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+    )]
+    [InlineData(
+        """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup Condition="'false' == 'true'">
+                <TargetFrameworks>net48;net10.0</TargetFrameworks>
+              </PropertyGroup>
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+    )]
+    public void CreateIgnoresInactiveAndOverriddenFrameworkProperties(string projectXml)
+    {
+        // Arrange
+        File.WriteAllText(_csprojPath, projectXml);
+
+        // Act
+        var project = Csproj.Create(_csprojPath);
+
+        // Assert
+        Assert.Equal(
+            expected: NuGetFramework.Parse("net10.0"),
+            actual: Assert.Single(project.TargetFrameworks)
+        );
+    }
+
+    [Fact]
+    public async Task CreateAsyncReportsEvaluationFailureWithoutClaimingNetFramework()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project>
+              <PropertyGroup>
+                <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+              </PropertyGroup>
+              <Import Project="Missing.WebApplication.targets" />
+            </Project>
+            """
+        );
+
+        // Act
+        var exception = await Record.ExceptionAsync(() =>
+            RootDir.CreateAsync(
+                _csprojPath,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        // Assert
+        Assert.IsType<InvalidUpdateTargetException>(exception);
+        Assert.Contains(
+            expectedSubstring: $"Could not evaluate project '{_csprojPath}' with MSBuild.",
+            actualString: exception.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Missing.WebApplication.targets",
+            exception.Message,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(
+            "targets .NET Framework",
+            exception.Message,
+            StringComparison.Ordinal
+        );
+        Assert.NotNull(exception.InnerException);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateAsyncHandlesInheritedNetFrameworkAndFileExclusion(bool excludeProject)
+    {
+        // Arrange
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var projectPath = Path.Combine(directory, "Legacy.csproj");
+        var propsPath = Path.Combine(directory, "Directory.Build.props");
+        File.WriteAllText(projectPath, """<Project Sdk="Microsoft.NET.Sdk" />""");
+        File.WriteAllText(
+            propsPath,
+            """
+            <Project>
+              <PropertyGroup>
+                <TargetFramework>net48</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+        );
+
+        try
+        {
+            // Act
+            var exception = await Record.ExceptionAsync(() =>
+                RootDir.CreateAsync(
+                    directory,
+                    shouldExcludeFile: path => excludeProject && path == projectPath,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            );
+
+            // Assert
+            if (excludeProject)
+            {
+                Assert.Null(exception);
+            }
+            else
+            {
+                Assert.IsType<InvalidUpdateTargetException>(exception);
+                Assert.Equal(
+                    expected: $"'{projectPath}' targets .NET Framework, which UpdatR does not support.",
+                    actual: exception.Message
+                );
+            }
+        }
+        finally
+        {
+            File.Delete(projectPath);
+            File.Delete(propsPath);
+            Directory.Delete(directory);
+        }
+    }
+
+    [Fact]
+    public async Task CreateAsyncReusesInitialEvaluationForPropsDiscovery()
+    {
+        // Arrange
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var configDirectory = Path.Combine(directory, ".config");
+        Directory.CreateDirectory(configDirectory);
+        var projectPath = Path.Combine(directory, "Example.csproj");
+        var propsPath = Path.Combine(directory, "Directory.Build.props");
+        var toolsPath = Path.Combine(configDirectory, "dotnet-tools.json");
+        File.WriteAllText(
+            projectPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+        );
+        File.WriteAllText(
+            propsPath,
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Imported.Package" Version="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+        File.WriteAllText(toolsPath, """{"version":1,"isRoot":true,"tools":{}}""");
+        var projectChanged = false;
+
+        try
+        {
+            // Act
+            var root = await RootDir.CreateAsync(
+                projectPath,
+                shouldExcludeFile: path =>
+                {
+                    if (path == toolsPath)
+                    {
+                        // Tool discovery runs after project loading, before props discovery.
+                        File.WriteAllText(
+                            projectPath,
+                            """<Project><Import Project="Missing.targets" /></Project>"""
+                        );
+                        projectChanged = true;
+                    }
+
+                    return false;
+                },
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+            // Assert
+            Assert.True(projectChanged);
+            Assert.Equal(expected: propsPath, actual: Assert.Single(root.PropsFiles).Path);
+        }
+        finally
+        {
+            File.Delete(toolsPath);
+            File.Delete(propsPath);
+            File.Delete(projectPath);
+            Directory.Delete(configDirectory);
+            Directory.Delete(directory);
+        }
+    }
+
     [Fact]
     public async Task UpdatePackagesSkipsPackageReferenceWithoutVersionAttributeWithoutWarning()
     {
@@ -414,15 +708,15 @@ public class CsprojTests : IDisposable
     [Fact]
     public async Task UpdatePackagesSkipsUpdateWhenAnyTargetFrameworkHasNoNewerVersion()
     {
-        // Arrange - version 2.0.0 only targets net8.0, so the net472 part of this multi-targeted
+        // Arrange - version 2.0.0 only targets net8.0, so the net6.0 part of this multi-targeted
         // project can't use it. Nothing should be updated even though the net8.0 part could move
-        // to 2.0.0, since that could break the build for net472.
+        // to 2.0.0, since that could break the build for net6.0.
         File.WriteAllText(
             _csprojPath,
             """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFrameworks>net472;net8.0</TargetFrameworks>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
               </PropertyGroup>
               <ItemGroup>
                 <PackageReference Include="Some.Package" Version="1.0.0" />
@@ -438,7 +732,7 @@ public class CsprojTests : IDisposable
             [
                 new PackageMetadata(
                     NuGetVersion.Parse("1.0.0"),
-                    [NuGetFramework.Parse("net472"), NuGetFramework.Parse("net8.0")],
+                    [NuGetFramework.Parse("net6.0"), NuGetFramework.Parse("net8.0")],
                     null,
                     null
                 ),
@@ -559,22 +853,23 @@ public class CsprojTests : IDisposable
         Assert.Contains("""Version="2.5.0" """.Trim(), content);
     }
 
-    [Fact]
-    public async Task UpdatePackagesUpdatesConditionedPackageReferenceOnlyDeclaredForOneOfMultipleTfms()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdatePackagesUpdatesConditionedPackageReferenceOnlyDeclaredForOneOfMultipleTfms(
+        bool changeProjectAfterLoading
+    )
     {
-        // Arrange - a multi-targeted (net5.0;net6.0) project where a Condition on
-        // $(TargetFramework) means Some.Package is only ever referenced for net5.0 - net6.0 never
-        // gets it at all. Even though the package itself is only compatible with net5.0, the
-        // update should still go through, evaluated against just the net5.0 it actually applies
-        // to, rather than being blocked because net6.0 (which never uses it) doesn't support it.
+        // Arrange - only net8.0 references the package, whose newer version cannot be used by
+        // net6.0. Changes on disk must not discard the initial per-framework evaluation.
         File.WriteAllText(
             _csprojPath,
             """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
               </PropertyGroup>
-              <ItemGroup Condition="'$(TargetFramework)'=='net5.0'">
+              <ItemGroup Condition="'$(TargetFramework)'=='net8.0'">
                 <PackageReference Include="Some.Package" Version="1.0.0" />
               </ItemGroup>
             </Project>
@@ -588,18 +883,26 @@ public class CsprojTests : IDisposable
             [
                 new PackageMetadata(
                     NuGetVersion.Parse("1.0.0"),
-                    [NuGetFramework.Parse("net5.0")],
+                    [NuGetFramework.Parse("net8.0")],
                     null,
                     null
                 ),
                 new PackageMetadata(
                     NuGetVersion.Parse("2.0.0"),
-                    [NuGetFramework.Parse("net5.0")],
+                    [NuGetFramework.Parse("net8.0")],
                     null,
                     null
                 ),
             ]
         );
+
+        if (changeProjectAfterLoading)
+        {
+            File.WriteAllText(
+                _csprojPath,
+                """<Project><Import Project="Missing.targets" /></Project>"""
+            );
+        }
 
         // Act
         var result = await csproj.UpdatePackagesAsync(

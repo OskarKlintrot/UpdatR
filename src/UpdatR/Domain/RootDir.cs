@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.SolutionPersistence.Model;
+﻿using Microsoft.VisualStudio.SolutionPersistence.Model;
 using Microsoft.VisualStudio.SolutionPersistence.Serializer;
 using NuGet.Frameworks;
 using NuGet.Packaging;
@@ -8,15 +7,13 @@ using UpdatR.Internals;
 
 namespace UpdatR.Domain;
 
-internal sealed partial class RootDir
+internal sealed class RootDir
 {
     private readonly DirectoryInfo _path;
-    private readonly ILogger _logger;
 
-    private RootDir(DirectoryInfo path, ILogger logger)
+    private RootDir(DirectoryInfo path)
     {
         _path = path;
-        _logger = logger;
     }
 
     public string Path => _path.FullName;
@@ -60,7 +57,6 @@ internal sealed partial class RootDir
     public static Task<RootDir> CreateAsync(
         string path,
         Func<string, bool>? shouldExcludeFile = null,
-        ILogger? logger = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -80,20 +76,18 @@ internal sealed partial class RootDir
         path = System.IO.Path.GetFullPath(path);
 
         shouldExcludeFile ??= static _ => false;
-        logger ??= Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
         return File.GetAttributes(path).HasFlag(FileAttributes.Directory)
-            ? Task.FromResult(CreateFromFolder(new DirectoryInfo(path), shouldExcludeFile, logger))
-            : CreateFromFileAsync(new FileInfo(path), shouldExcludeFile, logger, cancellationToken);
+            ? Task.FromResult(CreateFromFolder(new DirectoryInfo(path), shouldExcludeFile))
+            : CreateFromFileAsync(new FileInfo(path), shouldExcludeFile, cancellationToken);
     }
 
     private static RootDir CreateFromFolder(
         DirectoryInfo path,
-        Func<string, bool> shouldExcludeFile,
-        ILogger logger
+        Func<string, bool> shouldExcludeFile
     )
     {
-        var dir = new RootDir(path, logger);
+        var dir = new RootDir(path);
 
         var csprojFiles = EnumerateProjectFiles(path.FullName);
 
@@ -189,7 +183,6 @@ internal sealed partial class RootDir
     private static async Task<RootDir> CreateFromFileAsync(
         FileInfo path,
         Func<string, bool> shouldExcludeFile,
-        ILogger logger,
         CancellationToken cancellationToken
     )
     {
@@ -198,7 +191,7 @@ internal sealed partial class RootDir
             || path.Extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase)
         )
         {
-            var dir = new RootDir(path.Directory!, logger);
+            var dir = new RootDir(path.Directory!);
 
             var (projectPaths, filePaths) = await ReadSolutionAsync(path, cancellationToken)
                 .ConfigureAwait(false);
@@ -246,7 +239,7 @@ internal sealed partial class RootDir
 
         if (Csproj.SupportedExtensions.Contains(path.Extension, StringComparer.OrdinalIgnoreCase))
         {
-            var dir = new RootDir(path.Directory!, logger);
+            var dir = new RootDir(path.Directory!);
 
             if (!shouldExcludeFile(path.FullName))
             {
@@ -262,7 +255,7 @@ internal sealed partial class RootDir
 
         if (path.Name.Equals("dotnet-tools.json", StringComparison.OrdinalIgnoreCase))
         {
-            var dir = new RootDir(path.Directory!, logger);
+            var dir = new RootDir(path.Directory!);
 
             if (!shouldExcludeFile(path.FullName))
             {
@@ -284,7 +277,7 @@ internal sealed partial class RootDir
                 );
             }
 
-            var dir = new RootDir(path.Directory!, logger);
+            var dir = new RootDir(path.Directory!);
 
             if (!shouldExcludeFile(path.FullName))
             {
@@ -476,23 +469,10 @@ internal sealed partial class RootDir
 
         foreach (var csproj in dir.Csprojs)
         {
-            IReadOnlyList<PackageItemSource> sources;
-
-            try
-            {
-                sources = MsBuildProjectInspector.GetPackageItemSources(csproj.Path);
-            }
-            catch (Exception exception)
-            {
-                // MSBuild evaluation can fail for a malformed project, a missing SDK, etc. The
-                // csproj itself is still updated normally by Updater - we just won't be able to
-                // discover any props/targets files it might import.
-                dir.LogMsBuildEvaluationFailed(csproj.Path, exception);
-                continue;
-            }
-
-            var importedSources = sources
-                .Where(x => !string.Equals(x.SourceFile, csproj.Path, PathComparer.Comparison))
+            var importedSources = csproj
+                .Evaluation.PackageItemSources.Where(x =>
+                    !string.Equals(x.SourceFile, csproj.Path, PathComparer.Comparison)
+                )
                 .Where(x => !shouldExcludeFile(x.SourceFile))
                 .ToArray();
 
@@ -510,41 +490,14 @@ internal sealed partial class RootDir
                 tfms.AddRange(csproj.TargetFrameworks);
             }
 
-            // A single-targeted (or untargeted) project's plain evaluation above already
-            // resolved $(TargetFramework) correctly - MSBuild sets it directly from the
-            // TargetFramework property, no cross-targeting "outer build" is involved - so
-            // whatever occurrence won there already reflects the right Condition branch for that
-            // one framework. A genuinely multi-targeted project needs a real per-framework
-            // evaluation instead, since a single plain evaluation of it never sets
-            // $(TargetFramework) at all.
+            // Reuse inner evaluations for multi-targeted projects: their outer evaluation leaves
+            // $(TargetFramework) empty and cannot resolve framework-specific conditions.
             if (
                 csproj.TargetFrameworks.Count > 1
                 && !csproj.TargetFrameworks.Contains(NuGetFramework.AnyFramework)
             )
             {
-                IReadOnlyDictionary<string, IReadOnlyList<PackageItemSource>> byTfm;
-
-                try
-                {
-                    byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
-                        csproj.Path,
-                        [.. csproj.TargetFrameworks.Select(x => x.GetShortFolderName())]
-                    );
-                }
-                catch (Exception exception)
-                {
-                    // Same as above - the per-TFM evaluation is best-effort. Every candidate
-                    // in this project's props/targets files then falls back to TargetFrameworks.
-                    dir.LogMsBuildPerTfmEvaluationFailed(csproj.Path, exception);
-                    continue;
-                }
-
-                // Pass this evaluation straight to the Csproj instance so it doesn't need to run
-                // the exact same (expensive) per-framework MSBuild evaluation a second time when
-                // Updater later resolves ApplicableTfms for its PackageReference candidates.
-                csproj.SetTfmSources(byTfm);
-
-                foreach (var (tfmString, tfmSources) in byTfm)
+                foreach (var (tfmString, tfmSources) in csproj.Evaluation.PackageItemSourcesByTfm)
                 {
                     var tfm = NuGetFramework.Parse(tfmString);
 
@@ -610,16 +563,4 @@ internal sealed partial class RootDir
             tfmSet.Add(tfm);
         }
     }
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Failed to evaluate '{ProjectPath}' with MSBuild; any props/targets files it imports will not be discovered or updated for it."
-    )]
-    private partial void LogMsBuildEvaluationFailed(string projectPath, Exception exception);
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Failed to evaluate '{ProjectPath}' with MSBuild per target framework; its props/targets occurrences will fall back to being treated as applying to every one of its target frameworks."
-    )]
-    private partial void LogMsBuildPerTfmEvaluationFailed(string projectPath, Exception exception);
 }

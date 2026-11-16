@@ -21,6 +21,42 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
     }
 
     [Fact]
+    public void GetTargetFrameworksHonorsImportedConditionsAndPropertyExpansion()
+    {
+        // Arrange
+        WriteFile(
+            "Directory.Build.props",
+            """
+            <Project>
+              <PropertyGroup>
+                <TargetFramework>net48</TargetFramework>
+                <CurrentFramework>net10.0</CurrentFramework>
+              </PropertyGroup>
+              <PropertyGroup Condition="'false' == 'true'">
+                <TargetFrameworks>net48;net10.0</TargetFrameworks>
+              </PropertyGroup>
+            </Project>
+            """
+        );
+        var csproj = WriteFile(
+            "MyProj.csproj",
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>$(CurrentFramework)</TargetFramework>
+              </PropertyGroup>
+            </Project>
+            """
+        );
+
+        // Act
+        var targetFrameworks = MsBuildProjectInspector.Evaluate(csproj).TargetFrameworks;
+
+        // Assert
+        Assert.Equal(expected: "net10.0", actual: Assert.Single(targetFrameworks));
+    }
+
+    [Fact]
     public void GetPackageItemSourcesByTfmResolvesConditionedPackageReferencesPerFramework()
     {
         // Arrange - a multi-targeted project referencing the same package at a different version
@@ -45,10 +81,7 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
         );
 
         // Act
-        var byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
-            csproj,
-            ["net6.0", "net8.0"]
-        );
+        var byTfm = MsBuildProjectInspector.Evaluate(csproj).PackageItemSourcesByTfm;
 
         // Assert
         var net6 = Assert.Single(byTfm["net6.0"]);
@@ -82,10 +115,7 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
         );
 
         // Act
-        var byTfm = MsBuildProjectInspector.GetPackageItemSourcesByTfm(
-            csproj,
-            ["net5.0", "net6.0"]
-        );
+        var byTfm = MsBuildProjectInspector.Evaluate(csproj).PackageItemSourcesByTfm;
 
         // Assert
         var net5 = Assert.Single(byTfm["net5.0"]);
@@ -114,7 +144,7 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
         );
 
         // Act
-        var sources = MsBuildProjectInspector.GetPackageItemSources(csproj);
+        var sources = MsBuildProjectInspector.Evaluate(csproj).PackageItemSources;
 
         // Assert
         var source = Assert.Single(sources);
@@ -152,7 +182,7 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
         );
 
         // Act
-        var sources = MsBuildProjectInspector.GetPackageItemSources(csproj);
+        var sources = MsBuildProjectInspector.Evaluate(csproj).PackageItemSources;
 
         // Assert
         var source = Assert.Single(sources);
@@ -209,7 +239,7 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
         );
 
         // Act
-        var sources = MsBuildProjectInspector.GetPackageItemSources(csproj);
+        var sources = MsBuildProjectInspector.Evaluate(csproj).PackageItemSources;
         var imports = MsBuildProjectInspector.GetImportedFiles(csproj);
 
         // Assert
@@ -262,7 +292,7 @@ public sealed class MsBuildProjectInspectorTests : IDisposable
         );
 
         // Act
-        var sources = MsBuildProjectInspector.GetPackageItemSources(csproj);
+        var sources = MsBuildProjectInspector.Evaluate(csproj).PackageItemSources;
         var imports = MsBuildProjectInspector.GetImportedFiles(csproj);
 
         // Assert
