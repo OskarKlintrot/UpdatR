@@ -344,7 +344,7 @@ public class UpdaterTests
     {
         // Arrange
         var temp = Path.Combine(Paths.Temporary.Root, nameof(Given_Target_When_Valid_Then_Update));
-        var target = Path.Combine(temp, Path.Combine(paths));
+        var target = Path.Combine([temp, .. paths]);
         var tempSln = Path.Combine(temp, "Dummy.sln");
         var tempDotnetConfig = Path.Combine(temp, "src", ".config", "dotnet-tools.json");
         var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
