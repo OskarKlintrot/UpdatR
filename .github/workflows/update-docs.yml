@@ -11,6 +11,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
@@ -20,3 +25,6 @@ jobs:
     - name: Update README
       run: dotnet run Build.cs -- update-README --parallel
       working-directory: tools/Build
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

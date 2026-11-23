@@ -461,12 +461,10 @@ Target(
         var tag = await GetLatestTagAsync();
 
         await RunAsync("git", $"add {releaseNotes}");
-        await RunAsync("git", $"commit -m \"chore: Reset release-notes.txt after release {tag}\"");
-
-        if (runsOnGitHubActions)
-        {
-            await RunAsync("git", "push");
-        }
+        await CommitAndCreateAutoMergePullRequestAsync(
+            "chore/reset-release-notes",
+            $"chore: Reset release-notes.txt after release {tag}"
+        );
     }
 );
 
@@ -491,12 +489,10 @@ Target(
 
         await RunAsync("git", "add README.md");
         await RunAsync("git", "add mdsource");
-        await RunAsync("git", "commit -m \"chore: Update README.md\"");
-
-        if (runsOnGitHubActions)
-        {
-            await RunAsync("git", "push");
-        }
+        await CommitAndCreateAutoMergePullRequestAsync(
+            "chore/update-readme",
+            "chore: Update README.md"
+        );
     }
 );
 
@@ -568,6 +564,52 @@ string GetToken()
     }
 
     return githubToken;
+}
+
+// Pushing directly to main is blocked by the ruleset requiring status checks, so on GitHub Actions
+// changes go through a PR with auto-merge enabled.
+async Task CommitAndCreateAutoMergePullRequestAsync(string branch, string title)
+{
+    if (!runsOnGitHubActions)
+    {
+        await RunAsync("git", $"commit -m \"{title}\"");
+
+        return;
+    }
+
+    await RunAsync("git", $"checkout -b {branch}");
+    await RunAsync("git", $"commit -m \"{title}\"");
+    await RunAsync("git", $"push --force --set-upstream origin {branch}");
+
+    InMemoryCredentialStore credentials = new(new Credentials(GetToken()));
+    GitHubClient client = new(new ProductHeaderValue("UpdatR.Build"), credentials);
+
+    var prs = await client.PullRequest.GetAllForRepository(
+        repositoryId,
+        new PullRequestRequest
+        {
+            Base = "main",
+            Head = $"OskarKlintrot:{branch}",
+            State = ItemStateFilter.Open,
+        }
+    );
+
+    if (prs.Count == 0)
+    {
+        await client.PullRequest.Create(
+            repositoryId,
+            new NewPullRequest(title, branch, "main")
+            {
+                Body = "PR created automatically by the build.",
+            }
+        );
+    }
+
+    // Auto-merge is GraphQL-only, so use the gh CLI (preinstalled on GitHub-hosted runners).
+    await RunAsync("gh", $"pr merge {branch} --auto --squash");
+
+    // Pushes and PRs made with GITHUB_TOKEN don't trigger workflows, but workflow_dispatch does.
+    await RunAsync("gh", $"workflow run build.yml --ref {branch}");
 }
 
 IEnumerable<(string Csproj, string PackageId)> GetPackagesInSrc()
