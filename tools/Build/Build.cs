@@ -607,9 +607,6 @@ async Task CommitAndCreateAutoMergePullRequestAsync(string branch, string title)
 
     // Auto-merge is GraphQL-only, so use the gh CLI (preinstalled on GitHub-hosted runners).
     await RunAsync("gh", $"pr merge {branch} --auto --squash");
-
-    // Pushes and PRs made with GITHUB_TOKEN don't trigger workflows, but workflow_dispatch does.
-    await RunAsync("gh", $"workflow run build.yml --ref {branch}");
 }
 
 IEnumerable<(string Csproj, string PackageId)> GetPackagesInSrc()
