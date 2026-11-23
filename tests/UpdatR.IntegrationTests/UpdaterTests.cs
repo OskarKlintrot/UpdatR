@@ -1928,6 +1928,104 @@ public class UpdaterTests
         );
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Given_ConditionedDirectoryPackagesProps_When_UpdatingEfCoreAndTool_Then_UpdatePropsAndPinTool(
+        bool dryRun
+    )
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_ConditionedDirectoryPackagesProps_When_UpdatingEfCoreAndTool_Then_UpdatePropsAndPinTool
+            ),
+            dryRun.ToString()
+        );
+        var projectPath = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var propsPath = Path.Combine(temp, "Directory.Packages.props");
+        var toolsPath = Path.Combine(temp, ".config", "dotnet-tools.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(projectPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(toolsPath)!);
+
+        await File.WriteAllTextAsync(
+            projectPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.EntityFrameworkCore" />
+              </ItemGroup>
+            </Project>
+            """,
+            TestContext.Current.CancellationToken
+        );
+        var propsOriginal = """
+            <Project>
+              <PropertyGroup>
+                <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+                <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+                <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+              </ItemGroup>
+            </Project>
+            """;
+        await File.WriteAllTextAsync(
+            propsPath,
+            propsOriginal,
+            TestContext.Current.CancellationToken
+        );
+        await CreateToolsConfigAsync(toolsPath, "dotnet-ef", "5.0.5", "dotnet");
+        CreateNuGetConfig(Path.Combine(temp, "nuget.config"));
+        var updater = new Updater();
+
+        // Act
+        var summary = await updater.UpdateAsync(
+            temp,
+            new UpdateOptions { DryRun = dryRun },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var updates = summary
+            .UpdatedPackages.SelectMany(x =>
+                x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To}")
+            )
+            .ToArray();
+        Assert.Equal(
+            expected: 2,
+            actual: updates.Count(x => x == "Microsoft.EntityFrameworkCore 5.0.12->5.0.16")
+        );
+        Assert.Contains("dotnet-ef 5.0.5->5.0.16", updates);
+        if (dryRun)
+        {
+            Assert.Equal(
+                expected: propsOriginal,
+                actual: await File.ReadAllTextAsync(
+                    propsPath,
+                    TestContext.Current.CancellationToken
+                )
+            );
+        }
+        else
+        {
+            var updatedProps = await File.ReadAllTextAsync(
+                propsPath,
+                TestContext.Current.CancellationToken
+            );
+            Assert.Equal(
+                expected: 2,
+                actual: updatedProps.Split("Version=\"5.0.16\"", StringSplitOptions.None).Length - 1
+            );
+        }
+    }
+
     [Fact]
     public async Task Given_DotnetEfAndCentrallyManagedEfCore_When_OnlyUpdatingTool_Then_PinToCentralVersion()
     {

@@ -503,13 +503,22 @@ internal sealed class RootDir
 
                     foreach (
                         var source in tfmSources.Where(x =>
-                            x.Version is not null
-                            && !string.Equals(x.SourceFile, csproj.Path, PathComparer.Comparison)
+                            !string.Equals(x.SourceFile, csproj.Path, PathComparer.Comparison)
                             && !shouldExcludeFile(x.SourceFile)
                         )
                     )
                     {
-                        AddCandidateTfm(candidateTfmsByPath, source, tfm);
+                        if (!tfmsByPath.TryGetValue(source.SourceFile, out var tfms))
+                        {
+                            tfmsByPath[source.SourceFile] = tfms = [];
+                        }
+
+                        tfms.Add(tfm);
+
+                        if (source.Version is not null)
+                        {
+                            AddCandidateTfm(candidateTfmsByPath, source, tfm);
+                        }
                     }
                 }
             }
