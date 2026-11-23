@@ -1,3 +1,0 @@
-- bug: `toolPackagePins` got ignored when the pinned package's version is centrally managed in `Directory.Packages.props`.
-- bug: `toolPackagePins` could use the wrong package version in multi-targeted projects.
-- bug: Package versions in imported props files (e.g. `Directory.Packages.props`) conditioned on `$(TargetFramework)` were not updated for projects declaring a single framework in `<TargetFrameworks>`.
