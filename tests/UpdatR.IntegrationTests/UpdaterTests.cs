@@ -1868,6 +1868,66 @@ public class UpdaterTests
         );
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Given_MultiTargetedEfCore_When_UpdatingTool_Then_PinToLowestFrameworkVersion(
+        bool higherVersionFirst
+    )
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(Given_MultiTargetedEfCore_When_UpdatingTool_Then_PinToLowestFrameworkVersion),
+            higherVersionFirst.ToString()
+        );
+        var projectPath = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var toolsPath = Path.Combine(temp, ".config", "dotnet-tools.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(projectPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(toolsPath)!);
+        var highReference = """
+            <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+              <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.16" />
+            </ItemGroup>
+            """;
+        var lowReference = """
+            <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+              <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+            </ItemGroup>
+            """;
+        await File.WriteAllTextAsync(
+            projectPath,
+            $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              {(higherVersionFirst ? highReference : lowReference)}
+              {(higherVersionFirst ? lowReference : highReference)}
+            </Project>
+            """,
+            TestContext.Current.CancellationToken
+        );
+        await CreateToolsConfigAsync(toolsPath, "dotnet-ef", "5.0.5", "dotnet");
+        CreateNuGetConfig(Path.Combine(temp, "nuget.config"));
+        var updater = new Updater();
+
+        // Act
+        var summary = await updater.UpdateAsync(
+            temp,
+            new UpdateOptions { DryRun = true, Packages = ["dotnet-ef"] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(
+            expected: ["dotnet-ef 5.0.5->5.0.12"],
+            actual: summary.UpdatedPackages.SelectMany(x =>
+                x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To}")
+            )
+        );
+    }
+
     [Fact]
     public async Task Given_DotnetEfAndCentrallyManagedEfCore_When_OnlyUpdatingTool_Then_PinToCentralVersion()
     {

@@ -27,6 +27,7 @@ internal sealed partial class Csproj : PackageContainer
     private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? _candidateTfmsByKey;
     private Dictionary<string, NuGetVersion>? _packages;
     private Dictionary<string, PropsFile> _importedPropsFilesByPath = [];
+    private readonly Dictionary<string, string> _updatedVersionsByKey = new(StringComparer.Ordinal);
 
     private Csproj(FileInfo path, XmlDocument doc, MsBuildProjectEvaluation evaluation)
     {
@@ -144,12 +145,7 @@ internal sealed partial class Csproj : PackageContainer
 
         foreach (var sources in evaluations)
         {
-            // A Version/VersionOverride written directly in this csproj, read from the in-memory
-            // document so updates from this run are included.
-            Dictionary<string, NuGetVersion> matches = new(
-                Packages.Where(x => isMatch(x.Key)),
-                StringComparer.OrdinalIgnoreCase
-            );
+            Dictionary<string, NuGetVersion> matches = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (
                 var reference in sources.Where(x =>
@@ -159,7 +155,7 @@ internal sealed partial class Csproj : PackageContainer
                 )
             )
             {
-                if (ResolveImportedVersion(reference, sources) is { } version)
+                if (ResolveReferenceVersion(reference, sources) is { } version)
                 {
                     matches[reference.PackageId] = version;
                 }
@@ -169,16 +165,12 @@ internal sealed partial class Csproj : PackageContainer
         }
     }
 
-    private NuGetVersion? ResolveImportedVersion(
+    private NuGetVersion? ResolveReferenceVersion(
         PackageItemSource reference,
         IReadOnlyList<PackageItemSource> sources
     )
     {
-        // E.g. a PackageReference with an explicit Version in Directory.Build.props.
-        if (
-            reference.Version is not null
-            && !string.Equals(reference.SourceFile, Path, PathComparer.Comparison)
-        )
+        if (reference.Version is not null)
         {
             return ResolveRepresentativeVersion(GetCurrentVersion(reference));
         }
@@ -196,13 +188,26 @@ internal sealed partial class Csproj : PackageContainer
             return ResolveRepresentativeVersion(GetCurrentVersion(packageVersion));
         }
 
-        return reference.Version is null ? null : ResolveRepresentativeVersion(reference.Version);
+        return null;
     }
 
-    private string GetCurrentVersion(PackageItemSource source) =>
-        _importedPropsFilesByPath.TryGetValue(source.SourceFile, out var propsFile)
+    private string GetCurrentVersion(PackageItemSource source)
+    {
+        if (
+            string.Equals(source.SourceFile, Path, PathComparer.Comparison)
+            && _updatedVersionsByKey.TryGetValue(
+                CandidateTfmKey.Create(source.ItemType, source.PackageId, source.Version!),
+                out var updatedVersion
+            )
+        )
+        {
+            return updatedVersion;
+        }
+
+        return _importedPropsFilesByPath.TryGetValue(source.SourceFile, out var propsFile)
             ? propsFile.GetCurrentVersion(source.ItemType, source.PackageId, source.Version!)
             : source.Version!;
+    }
 
     public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();
 
@@ -316,6 +321,11 @@ internal sealed partial class Csproj : PackageContainer
         var csprojCandidate = (CsprojCandidate)candidate;
 
         csprojCandidate.Element.SetAttribute(csprojCandidate.AttributeName, newVersionString);
+
+        // MSBuild sources retain the original version after the in-memory document changes.
+        _updatedVersionsByKey[
+            CandidateTfmKey.Create("PackageReference", candidate.PackageId, candidate.VersionString)
+        ] = newVersionString;
 
         // The XML was just mutated - the cached Packages snapshot (read by
         // UpdateEntityFrameworkVersion via OnChangesApplied, among others) must be recomputed
