@@ -26,6 +26,7 @@ internal sealed partial class PropsFile : PackageContainer
         IReadOnlyCollection<NuGetFramework>
     > _candidateTfmsByKey;
     private Dictionary<string, NuGetVersion>? _packages;
+    private readonly Dictionary<string, string> _updatedVersionsByKey = new(StringComparer.Ordinal);
 
     private PropsFile(
         FileInfo path,
@@ -171,9 +172,29 @@ internal sealed partial class PropsFile : PackageContainer
         }
     }
 
+    /// <summary>
+    /// The current, possibly already-updated (also during a dry run), version string of the
+    /// item in this file that MSBuild evaluated as (<paramref name="itemType"/>,
+    /// <paramref name="packageId"/>, <paramref name="evaluatedVersion"/>) when the run started.
+    /// Returns <paramref name="evaluatedVersion"/> when this run hasn't updated that item.
+    /// </summary>
+    public string GetCurrentVersion(string itemType, string packageId, string evaluatedVersion) =>
+        _updatedVersionsByKey.TryGetValue(
+            CandidateTfmKey.Create(itemType, packageId, evaluatedVersion),
+            out var updatedVersion
+        )
+            ? updatedVersion
+            : evaluatedVersion;
+
     protected override void ApplyVersionUpdate(Candidate candidate, string newVersionString)
     {
-        ((PropsFileCandidate)candidate).Element.SetAttribute("Version", newVersionString);
+        var element = ((PropsFileCandidate)candidate).Element;
+
+        element.SetAttribute("Version", newVersionString);
+
+        _updatedVersionsByKey[
+            CandidateTfmKey.Create(element.Name, candidate.PackageId, candidate.VersionString)
+        ] = newVersionString;
 
         _packages = null;
     }

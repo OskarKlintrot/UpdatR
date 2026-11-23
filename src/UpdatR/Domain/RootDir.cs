@@ -542,6 +542,11 @@ internal sealed class RootDir
             );
         }
 
+        foreach (var csproj in dir.Csprojs)
+        {
+            csproj.LinkImportedPropsFiles(dir.PropsFiles);
+        }
+
         static void AddCandidateTfm(
             Dictionary<string, Dictionary<string, HashSet<NuGetFramework>>> candidateTfmsByPath,
             PackageItemSource source,

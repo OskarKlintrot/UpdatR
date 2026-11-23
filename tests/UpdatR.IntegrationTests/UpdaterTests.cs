@@ -1868,6 +1868,157 @@ public class UpdaterTests
         );
     }
 
+    [Fact]
+    public async Task Given_DotnetEfAndCentrallyManagedEfCore_When_OnlyUpdatingTool_Then_PinToCentralVersion()
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_DotnetEfAndCentrallyManagedEfCore_When_OnlyUpdatingTool_Then_PinToCentralVersion
+            )
+        );
+
+        var (tempDotnetConfig, _) = await CreateCentrallyManagedDotnetEfAsync(temp, "5.0.12");
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            temp,
+            new UpdateOptions { DryRun = true, Packages = ["dotnet-ef"] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(
+            ["dotnet-ef 5.0.5->5.0.12"],
+            summary.UpdatedPackages.SelectMany(x =>
+                x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To}")
+            )
+        );
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Given_DotnetEfAndCentrallyManagedEfCore_When_UpdatingBoth_Then_PinToUpdatedCentralVersion(
+        bool dryRun
+    )
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_DotnetEfAndCentrallyManagedEfCore_When_UpdatingBoth_Then_PinToUpdatedCentralVersion
+            ),
+            dryRun.ToString()
+        );
+
+        var (tempDotnetConfig, tempProps) = await CreateCentrallyManagedDotnetEfAsync(
+            temp,
+            "5.0.12"
+        );
+        var toolsOriginal = await File.ReadAllTextAsync(
+            tempDotnetConfig,
+            TestContext.Current.CancellationToken
+        );
+        var propsOriginal = await File.ReadAllTextAsync(
+            tempProps,
+            TestContext.Current.CancellationToken
+        );
+
+        var update = new Updater();
+
+        // Act
+        var summary = await update.UpdateAsync(
+            temp,
+            new UpdateOptions { DryRun = dryRun },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert - the feed's newest dotnet-ef is 5.0.17, but EF Core is updated to 5.0.16 in
+        // the same run.
+        Assert.Equal(
+            ["Microsoft.EntityFrameworkCore 5.0.12->5.0.16", "dotnet-ef 5.0.5->5.0.16"],
+            summary
+                .UpdatedPackages.SelectMany(x =>
+                    x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To}")
+                )
+                .Order(StringComparer.Ordinal)
+        );
+
+        var toolsAfter = await File.ReadAllTextAsync(
+            tempDotnetConfig,
+            TestContext.Current.CancellationToken
+        );
+        var propsAfter = await File.ReadAllTextAsync(
+            tempProps,
+            TestContext.Current.CancellationToken
+        );
+
+        if (dryRun)
+        {
+            Assert.Equal(toolsOriginal, toolsAfter);
+            Assert.Equal(propsOriginal, propsAfter);
+        }
+        else
+        {
+            Assert.Contains("\"5.0.16\"", toolsAfter);
+            Assert.Contains("Version=\"5.0.16\"", propsAfter);
+        }
+    }
+
+    private static async Task<(
+        string DotnetToolsPath,
+        string PropsPath
+    )> CreateCentrallyManagedDotnetEfAsync(string temp, string efCoreVersion)
+    {
+        var tempDotnetConfig = Path.Combine(temp, ".config", "dotnet-tools.json");
+        var tempCsproj = Path.Combine(temp, "src", "Dummy.App.csproj");
+        var tempProps = Path.Combine(temp, "Directory.Packages.props");
+        var tempNuget = Path.Combine(temp, "nuget.config");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(tempDotnetConfig)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(tempCsproj)!);
+
+        await CreateTempCsprojAsync(tempCsproj, "net5.0");
+
+        await File.WriteAllTextAsync(
+            tempCsproj,
+            (await File.ReadAllTextAsync(tempCsproj)).Replace(
+                "<ItemGroup></ItemGroup>",
+                """<ItemGroup><PackageReference Include="Microsoft.EntityFrameworkCore" /></ItemGroup>"""
+            )
+        );
+
+        await File.WriteAllTextAsync(
+            tempProps,
+            $"""
+            <Project>
+              <PropertyGroup>
+                <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="{efCoreVersion}" />
+                <PackageVersion Include="Microsoft.EntityFrameworkCore.Unused" Version="9.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+
+        await CreateToolsConfigAsync(
+            path: tempDotnetConfig,
+            packageId: "dotnet-ef",
+            version: "5.0.5",
+            command: "dotnet"
+        );
+
+        CreateNuGetConfig(tempNuget);
+
+        return (tempDotnetConfig, tempProps);
+    }
+
     [Theory]
     [InlineData("0.0.1")]
     [InlineData("0.0.2")]

@@ -1,0 +1,1 @@
+- Fixed `toolPackagePins` (including the built-in `dotnet-ef` pin) being ignored when the pinned package's version is centrally managed in `Directory.Packages.props`; the tool now follows the version the project resolves after this run's updates, also with `--dry-run`.
