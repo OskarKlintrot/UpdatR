@@ -73,7 +73,7 @@ internal static class MsBuildProjectInspector
         try
         {
             var project = collection.LoadProject(projectPath);
-            var sources = GetPackageItemSources(project, includeVersionOverride: false);
+            var sources = GetPackageItemSources(project);
             Dictionary<string, IReadOnlyList<PackageItemSource>> sourcesByTfm = new(
                 StringComparer.OrdinalIgnoreCase
             );
@@ -116,10 +116,7 @@ internal static class MsBuildProjectInspector
                     evaluatedFrameworks.Add(evaluatedFramework);
                 }
 
-                sourcesByTfm[targetFramework] = GetPackageItemSources(
-                    innerProject,
-                    includeVersionOverride: true
-                );
+                sourcesByTfm[targetFramework] = GetPackageItemSources(innerProject);
             }
 
             return new(evaluatedFrameworks, sources, sourcesByTfm);
@@ -176,10 +173,7 @@ internal static class MsBuildProjectInspector
         return GetImportedFilesCore(projectPath);
     }
 
-    private static IReadOnlyList<PackageItemSource> GetPackageItemSources(
-        Project project,
-        bool includeVersionOverride
-    ) =>
+    private static IReadOnlyList<PackageItemSource> GetPackageItemSources(Project project) =>
         [
             .. project
                 .AllEvaluatedItems.Where(item =>
@@ -191,9 +185,7 @@ internal static class MsBuildProjectInspector
                 .Select(item => new PackageItemSource(
                     item.ItemType,
                     item.EvaluatedInclude,
-                    includeVersionOverride
-                        ? GetVersionOrOverrideMetadata(item)
-                        : GetVersionMetadata(item),
+                    GetVersionOrOverrideMetadata(item),
                     item.Xml!.ContainingProject.FullPath
                 )),
         ];
@@ -229,7 +221,7 @@ internal static class MsBuildProjectInspector
     /// Same as <see cref="GetVersionMetadata"/>, but also falls back to a
     /// <c>VersionOverride</c> metadata value (used by a <c>PackageReference</c> to override a
     /// centrally-managed version for a single project under Central Package Management) when
-    /// <c>Version</c> isn't set. Only used for per-framework package sources, to
+    /// <c>Version</c> isn't set. Used for package sources to
     /// correlate results back to a hand-parsed <c>PackageReference</c> element that used
     /// <c>VersionOverride</c> instead of <c>Version</c> - unlike a centrally-managed
     /// <c>PackageVersion</c>'s <c>Version</c>, <c>VersionOverride</c> is a literal attribute

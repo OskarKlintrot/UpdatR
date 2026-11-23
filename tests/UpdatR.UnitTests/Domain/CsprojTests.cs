@@ -1252,6 +1252,185 @@ public class CsprojTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("5.0.16", "5.0.12", "Version")]
+    [InlineData("5.0.12", "5.0.16", "Version")]
+    [InlineData("5.0.16", "5.0.12", "VersionOverride")]
+    public void GetPinnedVersionConditionedReferencesUsesLowestVersionPerFramework(
+        string firstVersion,
+        string secondVersion,
+        string attribute
+    )
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+                <PackageReference Include="Microsoft.EntityFrameworkCore" {attribute}="{firstVersion}" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+                <PackageReference Include="Microsoft.EntityFrameworkCore" {attribute}="{secondVersion}" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Microsoft.EntityFrameworkCore*");
+
+        // Assert
+        Assert.Equal(expected: NuGetVersion.Parse("5.0.12"), actual: result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionInactiveReferenceDoesNotContribute()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup Condition="'false' == 'true'">
+                <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Microsoft.EntityFrameworkCore*");
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionSingleFrameworkVersionOverrideTakesPrecedence()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+                <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Some.Package" VersionOverride="1.0.0" />
+                <PackageVersion Include="Some.Package" Version="2.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Some.Package");
+
+        // Assert
+        Assert.Equal(expected: NuGetVersion.Parse("1.0.0"), actual: result);
+    }
+
+    [Fact]
+    public void GetPinnedVersionDifferentPackagesPerFrameworkDoesNotCauseAmbiguity()
+    {
+        // Arrange
+        File.WriteAllText(
+            _csprojPath,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+                <PackageReference Include="Some.Package.A" Version="1.0.0" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+                <PackageReference Include="Some.Package.B" Version="2.0.0" />
+              </ItemGroup>
+            </Project>
+            """
+        );
+        var csproj = Csproj.Create(_csprojPath);
+
+        // Act
+        var result = csproj.GetPinnedVersion("Some.Package.*");
+
+        // Assert
+        Assert.Equal(expected: NuGetVersion.Parse("1.0.0"), actual: result);
+    }
+
+    [Theory]
+    [InlineData(true, "Version")]
+    [InlineData(false, "Version")]
+    [InlineData(true, "VersionOverride")]
+    public async Task GetPinnedVersionUpdatedConditionedReferencesUsesUpdatedVersions(
+        bool dryRun,
+        string attribute
+    )
+    {
+        // Arrange
+        var original = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+                <PackageReference Include="Some.Package" {attribute}="2.0.0" />
+              </ItemGroup>
+              <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+                <PackageReference Include="Some.Package" {attribute}="1.0.0" />
+              </ItemGroup>
+            </Project>
+            """;
+        File.WriteAllText(_csprojPath, original);
+        var csproj = Csproj.Create(_csprojPath);
+        var package = new NuGetPackage(
+            "Some.Package",
+            [
+                new PackageMetadata(
+                    NuGetVersion.Parse("1.5.0"),
+                    [NuGetFramework.Parse("net6.0")],
+                    null,
+                    null
+                ),
+                new PackageMetadata(
+                    NuGetVersion.Parse("2.5.0"),
+                    [NuGetFramework.Parse("net8.0")],
+                    null,
+                    null
+                ),
+            ]
+        );
+
+        // Act
+        await csproj.UpdatePackagesAsync(
+            new Dictionary<string, NuGetPackage?> { ["Some.Package"] = package },
+            dryRun: dryRun,
+            usePrerelease: false,
+            logger: new FakeLogger()
+        );
+        var result = csproj.GetPinnedVersion("Some.Package");
+
+        // Assert
+        Assert.Equal(expected: NuGetVersion.Parse("1.5.0"), actual: result);
+        if (dryRun)
+        {
+            Assert.Equal(expected: original, actual: File.ReadAllText(_csprojPath));
+        }
+    }
+
     [Fact]
     public void GetPinnedVersionReturnsNullWhenNoPackageMatches()
     {

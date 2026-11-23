@@ -26,6 +26,8 @@ internal sealed partial class Csproj : PackageContainer
     private readonly XmlDocument _doc;
     private IReadOnlyDictionary<string, IReadOnlyCollection<NuGetFramework>>? _candidateTfmsByKey;
     private Dictionary<string, NuGetVersion>? _packages;
+    private Dictionary<string, PropsFile> _importedPropsFilesByPath = [];
+    private readonly Dictionary<string, string> _updatedVersionsByKey = new(StringComparer.Ordinal);
 
     private Csproj(FileInfo path, XmlDocument doc, MsBuildProjectEvaluation evaluation)
     {
@@ -64,8 +66,12 @@ internal sealed partial class Csproj : PackageContainer
     /// <c>Microsoft.EntityFrameworkCore*</c> to match the whole Entity Framework Core package
     /// family. Used by <see cref="ToolPackagePin"/> to keep a dotnet tool (e.g. <c>dotnet-ef</c>)
     /// from moving ahead of the package version(s) it drives. <see langword="null"/> if no such
-    /// package is referenced. Always reflects the current, possibly already-updated,
-    /// <see cref="Packages"/>.
+    /// package is referenced. Includes package references whose version comes from an imported
+    /// file - e.g. a version-less <c>PackageReference</c> resolved through a <c>PackageVersion</c>
+    /// in <c>Directory.Packages.props</c> (Central Package Management) - as identified by MSBuild
+    /// evaluation. Always reflects the current, possibly already-updated (also during a dry run),
+    /// versions of this csproj and of the props files linked via
+    /// <see cref="LinkImportedPropsFiles"/>.
     /// </summary>
     /// <exception cref="AmbiguousToolPackagePinException">
     /// More than one referenced package matches <paramref name="packageIdPattern"/>, and they are
@@ -77,32 +83,130 @@ internal sealed partial class Csproj : PackageContainer
     {
         var isMatch = SearchPattern.ConvertToRegex(packageIdPattern);
 
-        var matches = Packages.Where(x => isMatch.IsMatch(x.Key)).ToArray();
+        NuGetVersion? pinnedVersion = null;
 
-        if (matches.Length == 0)
+        // A multi-targeted project may legitimately resolve a different version per target
+        // framework (e.g. via alignWithTfm): only matches within one framework must agree, and
+        // the tool is pinned to the lowest of them so it works for every framework.
+        foreach (var matches in ResolveEffectivePinnedVersionsPerTfm(isMatch.IsMatch))
         {
-            return null;
+            if (matches.Count == 0)
+            {
+                continue;
+            }
+
+            var distinctVersions = matches.Values.Distinct().ToArray();
+
+            if (distinctVersions.Length > 1)
+            {
+                throw new AmbiguousToolPackagePinException(
+                    $"'{Path}' references multiple packages matching '{packageIdPattern}' pinned to "
+                        + "different versions: "
+                        + string.Join(
+                            ", ",
+                            matches
+                                .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                                .Select(x => $"{x.Key} {x.Value}")
+                        )
+                        + ". Narrow the pattern so it only matches packages meant to move in "
+                        + "lockstep, or align their versions."
+                );
+            }
+
+            if (pinnedVersion is null || distinctVersions[0] < pinnedVersion)
+            {
+                pinnedVersion = distinctVersions[0];
+            }
         }
 
-        var distinctVersions = matches.Select(x => x.Value).Distinct().ToArray();
+        return pinnedVersion;
+    }
 
-        if (distinctVersions.Length > 1)
+    /// <summary>
+    /// Links the in-memory <see cref="PropsFile"/>s discovered for this run, so
+    /// <see cref="GetPinnedVersion"/> sees versions they have updated (also during a dry run)
+    /// rather than the versions MSBuild evaluated when the project was loaded.
+    /// </summary>
+    public void LinkImportedPropsFiles(IEnumerable<PropsFile> propsFiles) =>
+        _importedPropsFilesByPath = propsFiles
+            .DistinctBy(x => x.Path, PathComparer.Comparer)
+            .ToDictionary(x => x.Path, PathComparer.Comparer);
+
+    private IEnumerable<Dictionary<string, NuGetVersion>> ResolveEffectivePinnedVersionsPerTfm(
+        Func<string, bool> isMatch
+    )
+    {
+        // Multi-targeted projects: the outer evaluation leaves $(TargetFramework) empty, so
+        // framework-conditioned items are only correct in the per-framework evaluations.
+        IEnumerable<IReadOnlyList<PackageItemSource>> evaluations =
+            Evaluation.PackageItemSourcesByTfm.Count > 0
+                ? Evaluation.PackageItemSourcesByTfm.Values
+                : [Evaluation.PackageItemSources];
+
+        foreach (var sources in evaluations)
         {
-            throw new AmbiguousToolPackagePinException(
-                $"'{Path}' references multiple packages matching '{packageIdPattern}' pinned to "
-                    + "different versions: "
-                    + string.Join(
-                        ", ",
-                        matches
-                            .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
-                            .Select(x => $"{x.Key} {x.Value}")
-                    )
-                    + ". Narrow the pattern so it only matches packages meant to move in "
-                    + "lockstep, or align their versions."
-            );
+            Dictionary<string, NuGetVersion> matches = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (
+                var reference in sources.Where(x =>
+                    x.ItemType is "PackageReference" or "GlobalPackageReference"
+                    && isMatch(x.PackageId)
+                    && !matches.ContainsKey(x.PackageId)
+                )
+            )
+            {
+                if (ResolveReferenceVersion(reference, sources) is { } version)
+                {
+                    matches[reference.PackageId] = version;
+                }
+            }
+
+            yield return matches;
+        }
+    }
+
+    private NuGetVersion? ResolveReferenceVersion(
+        PackageItemSource reference,
+        IReadOnlyList<PackageItemSource> sources
+    )
+    {
+        if (reference.Version is not null)
+        {
+            return ResolveRepresentativeVersion(GetCurrentVersion(reference));
         }
 
-        return distinctVersions[0];
+        // Central Package Management: the version comes from the PackageVersion item MSBuild
+        // evaluated for this project (the last one wins, same as MSBuild).
+        var packageVersion = sources.LastOrDefault(x =>
+            x.ItemType == "PackageVersion"
+            && x.Version is not null
+            && string.Equals(x.PackageId, reference.PackageId, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (packageVersion is not null)
+        {
+            return ResolveRepresentativeVersion(GetCurrentVersion(packageVersion));
+        }
+
+        return null;
+    }
+
+    private string GetCurrentVersion(PackageItemSource source)
+    {
+        if (
+            string.Equals(source.SourceFile, Path, PathComparer.Comparison)
+            && _updatedVersionsByKey.TryGetValue(
+                CandidateTfmKey.Create(source.ItemType, source.PackageId, source.Version!),
+                out var updatedVersion
+            )
+        )
+        {
+            return updatedVersion;
+        }
+
+        return _importedPropsFilesByPath.TryGetValue(source.SourceFile, out var propsFile)
+            ? propsFile.GetCurrentVersion(source.ItemType, source.PackageId, source.Version!)
+            : source.Version!;
     }
 
     public IDictionary<string, NuGetVersion> Packages => _packages ??= GetPackages();
@@ -217,6 +321,11 @@ internal sealed partial class Csproj : PackageContainer
         var csprojCandidate = (CsprojCandidate)candidate;
 
         csprojCandidate.Element.SetAttribute(csprojCandidate.AttributeName, newVersionString);
+
+        // MSBuild sources retain the original version after the in-memory document changes.
+        _updatedVersionsByKey[
+            CandidateTfmKey.Create("PackageReference", candidate.PackageId, candidate.VersionString)
+        ] = newVersionString;
 
         // The XML was just mutated - the cached Packages snapshot (read by
         // UpdateEntityFrameworkVersion via OnChangesApplied, among others) must be recomputed
