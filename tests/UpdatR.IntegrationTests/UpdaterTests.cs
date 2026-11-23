@@ -2060,6 +2060,55 @@ public class UpdaterTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
+    public async Task Given_ExcludedCentrallyManagedEfCoreProps_When_UpdatingTool_Then_PinToCentralVersion(
+        bool dryRun
+    )
+    {
+        // Arrange
+        var temp = Path.Combine(
+            Paths.Temporary.Root,
+            nameof(
+                Given_ExcludedCentrallyManagedEfCoreProps_When_UpdatingTool_Then_PinToCentralVersion
+            ),
+            dryRun.ToString()
+        );
+        var (toolsPath, propsPath) = await CreateCentrallyManagedDotnetEfAsync(temp, "5.0.12");
+        var propsOriginal = await File.ReadAllTextAsync(
+            propsPath,
+            TestContext.Current.CancellationToken
+        );
+        var updater = new Updater();
+
+        // Act
+        var summary = await updater.UpdateAsync(
+            temp,
+            new UpdateOptions { DryRun = dryRun, ExcludeFiles = ["Directory.Packages.props"] },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(
+            expected: ["dotnet-ef 5.0.5->5.0.12"],
+            actual: summary.UpdatedPackages.SelectMany(x =>
+                x.Updates.Select(u => $"{x.PackageId} {u.From}->{u.To}")
+            )
+        );
+        Assert.Equal(
+            expected: propsOriginal,
+            actual: await File.ReadAllTextAsync(propsPath, TestContext.Current.CancellationToken)
+        );
+        if (!dryRun)
+        {
+            Assert.Contains(
+                "\"5.0.12\"",
+                await File.ReadAllTextAsync(toolsPath, TestContext.Current.CancellationToken)
+            );
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     public async Task Given_DotnetEfAndCentrallyManagedEfCore_When_UpdatingBoth_Then_PinToUpdatedCentralVersion(
         bool dryRun
     )
