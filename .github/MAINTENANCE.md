@@ -7,8 +7,8 @@ and trigger the required checks. To configure them:
    with repository permissions **Contents: read and write** and **Pull requests: read and write**.
    The app does not need a webhook.
 2. Generate a private key for the app and install it on the UpdatR repository.
-3. Add the app's client ID (not its numeric app ID) as the repository Actions variable
-   `UPDATR_APP_CLIENT_ID`. Add the complete private-key PEM as the repository Actions
-   secret `UPDATR_APP_PRIVATE_KEY`.
+3. Add the app's numeric ID as the repository Actions variable `UPDATR_APP_ID`. Add the
+   complete private-key PEM as the repository Actions secret `UPDATR_APP_PRIVATE_KEY`.
+   The token action currently supports `app-id`, but deprecates it in favor of `client-id`.
 4. Enable **Allow auto-merge** in the repository settings. The app does not need to
    bypass the ruleset.
