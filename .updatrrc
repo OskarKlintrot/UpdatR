@@ -1,5 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/OskarKlintrot/UpdatR/main/schemas/updatrrc.schema.json",
   "path": "UpdatR.slnx",
-  "packagePolicies": [{ "package": "Verify.XunitV3", "maxMajor": 32 }]
+  "alignWithTfm": [
+    "Microsoft.Extensions.*"
+  ],
+  "packagePolicies": [
+    {
+      "package": "Verify.XunitV3",
+      "maxMajor": 32
+    }
+  ]
 }
