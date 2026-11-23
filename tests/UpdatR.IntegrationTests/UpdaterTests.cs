@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Xml.Linq;
 using UpdatR.Domain;
 using static UpdatR.IntegrationTests.FileCreationUtils;
 
@@ -1929,18 +1931,23 @@ public class UpdaterTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
+    [InlineData("net6.0;net8.0", true)]
+    [InlineData("net6.0;net8.0", false)]
+    [InlineData("net8.0", true)]
+    [InlineData("net8.0", false)]
     public async Task Given_ConditionedDirectoryPackagesProps_When_UpdatingEfCoreAndTool_Then_UpdatePropsAndPinTool(
+        string targetFrameworks,
         bool dryRun
     )
     {
         // Arrange
+        var tfms = targetFrameworks.Split(';');
         var temp = Path.Combine(
             Paths.Temporary.Root,
             nameof(
                 Given_ConditionedDirectoryPackagesProps_When_UpdatingEfCoreAndTool_Then_UpdatePropsAndPinTool
             ),
+            targetFrameworks.Replace(';', '_'),
             dryRun.ToString()
         );
         var projectPath = Path.Combine(temp, "src", "Dummy.App.csproj");
@@ -1951,10 +1958,10 @@ public class UpdaterTests
 
         await File.WriteAllTextAsync(
             projectPath,
-            """
+            $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+                <TargetFrameworks>{targetFrameworks}</TargetFrameworks>
               </PropertyGroup>
               <ItemGroup>
                 <PackageReference Include="Microsoft.EntityFrameworkCore" />
@@ -1963,25 +1970,37 @@ public class UpdaterTests
             """,
             TestContext.Current.CancellationToken
         );
-        var propsOriginal = """
+        var itemGroups = string.Concat(
+            tfms.Select(tfm =>
+                $"""
+                      <ItemGroup Condition="'$(TargetFramework)' == '{tfm}'">
+                        <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
+                      </ItemGroup>
+
+                    """
+            )
+        );
+        var propsOriginal = $"""
             <Project>
               <PropertyGroup>
                 <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
               </PropertyGroup>
-              <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
-                <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
-              </ItemGroup>
-              <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-                <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="5.0.12" />
-              </ItemGroup>
-            </Project>
+            {itemGroups}</Project>
             """;
         await File.WriteAllTextAsync(
             propsPath,
             propsOriginal,
             TestContext.Current.CancellationToken
         );
+        var propsOriginalBytes = await File.ReadAllBytesAsync(
+            propsPath,
+            TestContext.Current.CancellationToken
+        );
         await CreateToolsConfigAsync(toolsPath, "dotnet-ef", "5.0.5", "dotnet");
+        var toolsOriginalBytes = await File.ReadAllBytesAsync(
+            toolsPath,
+            TestContext.Current.CancellationToken
+        );
         CreateNuGetConfig(Path.Combine(temp, "nuget.config"));
         var updater = new Updater();
 
@@ -1999,16 +2018,31 @@ public class UpdaterTests
             )
             .ToArray();
         Assert.Equal(
-            expected: 2,
+            expected: tfms.Length,
             actual: updates.Count(x => x == "Microsoft.EntityFrameworkCore 5.0.12->5.0.16")
+        );
+        var efUpdates = Assert.Single(
+            summary.UpdatedPackages,
+            x => x.PackageId == "Microsoft.EntityFrameworkCore"
+        );
+        Assert.All(
+            efUpdates.Updates,
+            update => Assert.Equal(Path.GetRelativePath(temp, propsPath), update.Project)
         );
         Assert.Contains("dotnet-ef 5.0.5->5.0.16", updates);
         if (dryRun)
         {
             Assert.Equal(
-                expected: propsOriginal,
-                actual: await File.ReadAllTextAsync(
+                expected: propsOriginalBytes,
+                actual: await File.ReadAllBytesAsync(
                     propsPath,
+                    TestContext.Current.CancellationToken
+                )
+            );
+            Assert.Equal(
+                expected: toolsOriginalBytes,
+                actual: await File.ReadAllBytesAsync(
+                    toolsPath,
                     TestContext.Current.CancellationToken
                 )
             );
@@ -2019,9 +2053,32 @@ public class UpdaterTests
                 propsPath,
                 TestContext.Current.CancellationToken
             );
+            var updatedGroups = XDocument.Parse(updatedProps).Root!.Elements("ItemGroup").ToArray();
+            Assert.Equal(tfms.Length, updatedGroups.Length);
+            foreach (var tfm in tfms)
+            {
+                var group = Assert.Single(
+                    updatedGroups,
+                    x => (string?)x.Attribute("Condition") == $"'$(TargetFramework)' == '{tfm}'"
+                );
+                var package = Assert.Single(group.Elements("PackageVersion"));
+                Assert.Equal(
+                    "Microsoft.EntityFrameworkCore",
+                    (string?)package.Attribute("Include")
+                );
+                Assert.Equal("5.0.16", (string?)package.Attribute("Version"));
+            }
+
+            using var tools = JsonDocument.Parse(
+                await File.ReadAllTextAsync(toolsPath, TestContext.Current.CancellationToken)
+            );
             Assert.Equal(
-                expected: 2,
-                actual: updatedProps.Split("Version=\"5.0.16\"", StringSplitOptions.None).Length - 1
+                expected: "5.0.16",
+                actual: tools
+                    .RootElement.GetProperty("tools")
+                    .GetProperty("dotnet-ef")
+                    .GetProperty("version")
+                    .GetString()
             );
         }
     }

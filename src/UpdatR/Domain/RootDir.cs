@@ -490,12 +490,10 @@ internal sealed class RootDir
                 tfms.AddRange(csproj.TargetFrameworks);
             }
 
-            // Reuse inner evaluations for multi-targeted projects: their outer evaluation leaves
-            // $(TargetFramework) empty and cannot resolve framework-specific conditions.
-            if (
-                csproj.TargetFrameworks.Count > 1
-                && !csproj.TargetFrameworks.Contains(NuGetFramework.AnyFramework)
-            )
+            // Reuse inner evaluations whenever they exist (any plural <TargetFrameworks>, even with a
+            // single TFM): the outer evaluation leaves $(TargetFramework) empty and cannot resolve
+            // framework-specific conditions.
+            if (csproj.Evaluation.PackageItemSourcesByTfm.Count > 0)
             {
                 foreach (var (tfmString, tfmSources) in csproj.Evaluation.PackageItemSourcesByTfm)
                 {
